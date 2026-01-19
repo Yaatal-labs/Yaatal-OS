@@ -1,0 +1,21 @@
+{
+  "name": "@njooba/ai",
+  "version": "0.1.0",
+  "description": "NJOOBA AI services - Bo assistant, NLP, and intelligent features",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "expo-speech": "~12.0.2",
+    "expo-av": "~15.0.2",
+    "expo-image-picker": "~16.0.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "@njooba/core": "workspace:*"
+  }
+}

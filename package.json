@@ -1,0 +1,31 @@
+{
+  "name": "bobo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "BOBO - Social Commerce OS for African SMBs",
+  "scripts": {
+    "dev": "pnpm --filter bobo-app start",
+    "build": "pnpm --filter bobo-app expo export",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r clean",
+    "test": "pnpm --filter bobo-app test",
+    "type-check": "pnpm --filter bobo-app type-check"
+  },
+  "keywords": [
+    "bobo",
+    "social-commerce",
+    "livestream",
+    "qr-commerce",
+    "africa",
+    "smb"
+  ],
+  "author": "NJOOBA LLC",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "name": "BOBO - Shopping Intelligent Sénégal",
+  "short_name": "BOBO",
+  "description": "Commerce intelligent avec AI au Sénégal. Recherche vocale, visuelle et QR codes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDFBF7",
+  "theme_color": "#2E1065",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "business", "productivity"],
+  "lang": "fr-SN",
+  "dir": "ltr",
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "Découvrir",
+      "short_name": "Découvrir",
+      "description": "Parcourir les produits tendance",
+      "url": "/",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Scanner QR",
+      "short_name": "QR",
+      "description": "Scanner un QR code produit",
+      "url": "/scanner",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Mes Produits",
+      "short_name": "Produits",
+      "description": "Gérer mes produits (vendeurs)",
+      "url": "/products",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot1.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "label": "Découverte de produits avec AI"
+    },
+    {
+      "src": "/screenshot2.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "label": "Scanner QR depuis livestream"
+    }
+  ]
+}

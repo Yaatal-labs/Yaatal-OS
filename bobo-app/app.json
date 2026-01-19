@@ -1,0 +1,82 @@
+{
+  "expo": {
+    "name": "BOBO",
+    "slug": "bobo-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2E1065"
+    },
+    "scheme": "bobo",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bobo.app",
+      "associatedDomains": [
+        "applinks:bobo.app"
+      ],
+      "infoPlist": {
+        "NSCameraUsageDescription": "BOBO a besoin d'accéder à la caméra pour scanner les QR codes des produits",
+        "NSMicrophoneUsageDescription": "BOBO a besoin du microphone pour les messages vocaux",
+        "NSPhotoLibraryUsageDescription": "BOBO a besoin d'accéder aux photos pour ajouter des images de produits"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2E1065"
+      },
+      "package": "com.bobo.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "bobo",
+              "host": "product"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#2E1065"
+      }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "BOBO a besoin d'accéder à la caméra pour scanner les QR codes"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BOBO a besoin d'accéder aux photos pour ajouter des images"
+        }
+      ]
+    ]
+  }
+}

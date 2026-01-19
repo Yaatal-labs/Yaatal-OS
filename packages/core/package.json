@@ -1,0 +1,31 @@
+{
+  "name": "@njooba/core",
+  "version": "0.1.0",
+  "description": "NJOOBA core package - database schema, types, utilities, and shared services",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@powersync/common": "^1.44.0",
+    "dayjs": "^1.11.10",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.4.0",
+    "pocketbase": "^0.21.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "@powersync/react-native": "*",
+    "@powersync/common": "*",
+    "@supabase/supabase-js": "*",
+    "expo-speech": "*",
+    "expo-av": "*",
+    "expo-image-picker": "*"
+  }
+}
