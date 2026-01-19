@@ -32,20 +32,12 @@ CLAUDE_CODE_*.md
 # Internal documentation - not for GitHub
 SECURITY_AUDIT_*.md
 SECURITY_FIXES_*.md
-N8N_CRYPTO_FIX.md
-N8N_WORKFLOW_CREATED.md
-N8N_WORKFLOW_SETUP_GUIDE.md
 BACKEND_INTEGRATION_*.md
 
-# n8n workflows with credentials
-n8n-workflows/*-api-*.json
-n8n-workflows/create-workflow.json
-
-# Next.js
-.next/
-out/
-build/
-.vercel
+# Expo
+.expo/
+dist/
+web-build/
 
 # Testing
 coverage/

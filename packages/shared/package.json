@@ -1,7 +1,7 @@
 {
   "name": "@njooba/shared",
   "version": "0.1.0",
-  "description": "Shared utilities for BOBO and YOKK",
+  "description": "Shared utilities for BOBO",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
