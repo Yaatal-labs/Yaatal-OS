@@ -28,6 +28,8 @@ import { ProductDetailScreen } from '../screens/customer/ProductDetailScreen'
 import { CheckoutScreen } from '../screens/customer/CheckoutScreen'
 import { OrdersScreen } from '../screens/customer/OrdersScreen'
 import { OrderDetailScreen } from '../screens/customer/OrderDetailScreen'
+import { PaymentPendingScreen } from '../screens/customer/PaymentPendingScreen'
+import { OrderSuccessScreen } from '../screens/customer/OrderSuccessScreen'
 
 // Placeholder screens (to be implemented)
 const PlaceholderScreen = ({ title }: { title: string }) => (
@@ -68,18 +70,58 @@ const DiscoveryStack = () => (
       component={CheckoutScreen}
       options={{ title: 'Paiement' }}
     />
+    <Stack.Screen
+      name="PaymentPending"
+      component={PaymentPendingScreen}
+      options={{ title: 'Paiement en attente' }}
+    />
+    <Stack.Screen
+      name="OrderSuccess"
+      component={OrderSuccessScreen}
+      options={{ title: 'Commande confirmée' }}
+    />
+    <Stack.Screen
+      name="OrderDetail"
+      component={OrderDetailScreen}
+      options={{ title: 'Commande' }}
+    />
   </Stack.Navigator>
 )
 
 // Scanner Stack (AI/Camera)
 const ScannerStack = () => (
-  <Stack.Navigator>
+  <Stack.Navigator
+    screenOptions={{
+      headerStyle: { backgroundColor: colors.background.main },
+      headerTintColor: colors.text.primary,
+      headerTitleStyle: theme.typography.h3,
+    }}
+  >
     <Stack.Screen
       name="QRScan"
       component={QRScannerScreen}
       options={{ headerShown: false }}
     />
-    {/* ProductDetail/Checkout accessible here too */}
+    <Stack.Screen
+      name="ProductDetail"
+      component={ProductDetailScreen}
+      options={{ title: 'Détails' }}
+    />
+    <Stack.Screen
+      name="Checkout"
+      component={CheckoutScreen}
+      options={{ title: 'Paiement' }}
+    />
+    <Stack.Screen
+      name="PaymentPending"
+      component={PaymentPendingScreen}
+      options={{ title: 'Paiement en attente' }}
+    />
+    <Stack.Screen
+      name="OrderSuccess"
+      component={OrderSuccessScreen}
+      options={{ title: 'Commande confirmée' }}
+    />
   </Stack.Navigator>
 )
 

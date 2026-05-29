@@ -7,6 +7,19 @@ import { pb } from '../lib/pocketbase'
 import type { RecordModel } from 'pocketbase'
 import type { Message, Conversation } from '../types/models'
 
+export interface ChatMessage {
+  _id: string
+  text: string
+  createdAt: Date
+  user: {
+    _id: string | number
+    name?: string
+    avatar?: string
+  }
+  sent?: boolean
+  received?: boolean
+}
+
 export class ChatService {
   /**
    * Get or create a conversation between two users
@@ -80,7 +93,7 @@ export class ChatService {
   /**
    * Get messages for a conversation
    */
-  async getMessages(conversationId: string, page = 1): Promise<Message[]> {
+  async getMessages(conversationId: string, page = 1): Promise<ChatMessage[]> {
     try {
       const result = await pb.collection('messages').getList(page, 50, {
         filter: `conversation = "${conversationId}"`,
@@ -101,7 +114,7 @@ export class ChatService {
         },
         sent: true,
         received: true,
-      })) as any[]
+      })) as ChatMessage[]
     } catch (error) {
       console.error('Error loading messages:', error)
       return []
@@ -111,12 +124,12 @@ export class ChatService {
   /**
    * Subscribe to new messages
    */
-  subscribeToMessages(conversationId: string, callback: (message: Message) => void) {
+  subscribeToMessages(conversationId: string, callback: (message: ChatMessage) => void) {
     pb.collection('messages').subscribe('*', (e) => {
       if (e.action === 'create' && e.record.conversation === conversationId) {
         // Fetch full record to get sender details if needed, or construct simpler object
         const record = e.record
-        const message: Message = {
+        const message: ChatMessage = {
           _id: record.id,
           text: record.text,
           createdAt: new Date(record.created),
@@ -126,7 +139,7 @@ export class ChatService {
           },
           sent: true,
           received: true,
-        } as any
+        }
         callback(message)
       }
     })

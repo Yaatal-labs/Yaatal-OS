@@ -5,6 +5,7 @@
 
 import Html5QrcodeScanner from 'html5-qrcode/esm/html5-qrcode-scanner'
 import { Html5QrcodeScanType, Html5QrcodeCameraScanConfig } from 'html5-qrcode'
+import { parseBoboProductLink } from '@njooba/core'
 
 export interface QRScannerProps {
   onScan: (data: string) => void
@@ -24,25 +25,7 @@ export interface QRScannerInstance {
 export const parseDeepLink = (
   data: string
 ): { type: string; productId: string } | null => {
-  try {
-    // Parse as URL
-    const url = new URL(data)
-
-    if (url.protocol === 'bobo:' && url.pathname.startsWith('//product/')) {
-      const productId = url.pathname.replace('//product/', '')
-
-      if (productId) {
-        return {
-          type: 'product',
-          productId,
-        }
-      }
-    }
-
-    return null
-  } catch {
-    return null
-  }
+  return parseBoboProductLink(data)
 }
 
 /**

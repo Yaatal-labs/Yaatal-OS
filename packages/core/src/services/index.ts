@@ -1,32 +1,39 @@
-// Re-export all services (PowerSync versions as primary)
-export * from './auth.service.powersync'
-// PowerSync AI Services exported
+// Re-export active Engine services for the BOBO runtime path.
+export { AuthService, authService, authServiceEngine } from './auth.service.engine'
 export {
-  AISearchServicePowerSync as AISearchService,
-  AISearchServicePowerSync,
+  ProductsServiceEngine as ProductsService,
+  productsServiceEngine as productsService,
+  productsServiceEngine,
+  mapEngineProductToProduct,
+} from './products.service.engine'
+export {
+  OrdersServiceEngine as OrdersService,
+  ordersServiceEngine as ordersService,
+  ordersServiceEngine,
+  mapEngineOrderToOrder,
+  type EngineCheckoutPayment,
+  type ShippingInfo,
+} from './orders.service.engine'
+export * from './engine.client'
+
+// Non-commerce services stay on the legacy HTTP/PocketBase implementations so
+// the active BOBO barrel does not import PowerSync/Supabase at startup.
+export {
+  AISearchService,
   NLPEngine,
   VoiceSearch,
   VisualSearch,
   RecommendationEngine,
   VercelAIService,
-} from './ai.service.powersync'
-// PocketBase versions deprecated - use PowerSync versions above
-// export * from './ai.service'
-// PowerSync Chat Service exported as default
-export { ChatServicePowerSync as ChatService, chatServicePowerSync as chatService, type ChatMessage } from './chat.service.powersync'
-// PocketBase version deprecated - use PowerSync version above
-// export * from './chat.service'
-// PowerSync Delivery Service exported as default
-export { DeliveryServicePowerSync as DeliveryService, deliveryServicePowerSync as deliveryService } from './delivery.service.powersync'
-// PocketBase version deprecated - use PowerSync version above
-// export * from './delivery.service'
-export * from './launches.service.powersync'
-export * from './livestream.analytics.service.powersync'
-// PowerSync Orders Service exported as default
-export { OrdersServicePowerSync as OrdersService, ordersServicePowerSync as ordersService, type ShippingInfo } from './orders.service.powersync'
-// PocketBase version deprecated - use PowerSync version above
-// export * from './orders.service'
-// PowerSync Products Service exported as default
-export { ProductsServicePowerSync as ProductsService, productsServicePowerSync as productsService } from './products.service.powersync'
-// PocketBase version deprecated - use PowerSync version above
-// export * from './products.service'
+} from './ai.service'
+export { ChatService, chatService } from './chat.service'
+export type { ChatMessage } from './chat.service'
+export { DeliveryService, deliveryService } from './delivery.service'
+export type {
+  DeliveryRequest,
+  DeliveryPerson,
+  DeliveryZone,
+  DeliveryAssignment,
+  DeliveryQuote,
+  MerchantDeliveryPreferences,
+} from '../types/delivery'

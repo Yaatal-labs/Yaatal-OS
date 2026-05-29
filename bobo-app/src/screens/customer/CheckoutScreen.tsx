@@ -1,7 +1,7 @@
 /**
  * Checkout Screen (Customer)
  * Complete checkout flow with shipping, payment method selection, and order creation
- * Supports Wave, Orange Money, and Cash on Delivery payments
+ * Supports Wave stub and Cash on Delivery payments through Engine
  */
 
 import React, { useState, useEffect } from 'react'
@@ -24,16 +24,16 @@ import { ordersService, type ShippingInfo, getProductImageUrl } from '@njooba/co
 import { colors, typography, spacing } from '../../theme'
 import { formatCFA, validatePhoneNumber, type Product, type Order } from '@njooba/core'
 import { shippingService } from '../../services/shipping.service'
-import { paymentService } from '../../services/payment.service'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
 export const CheckoutScreen = ({ route, navigation }: any) => {
   const { product, quantity } = route.params as {
     product: Product
-    quantity: number
+    quantity?: number
   }
   const { profile } = useAuthStore()
+  const selectedQuantity = quantity ?? 1
 
   // Form states
   const [shippingAddress, setShippingAddress] = useState('')
@@ -41,9 +41,7 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
   const [region, setRegion] = useState('')
   const [zipCode, setZipCode] = useState('')
   const [phoneNumber, setPhoneNumber] = useState(profile?.phone_number || '')
-  const [paymentMethod, setPaymentMethod] = useState<'wave' | 'orange_money' | 'cash'>(
-    'cash'
-  )
+  const [paymentMethod, setPaymentMethod] = useState<'wave' | 'cash'>('cash')
 
   // UI states
   const [isLoading, setIsLoading] = useState(false)
@@ -52,8 +50,8 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
 
   // Calculate prices
   const unitPrice = product.discount_price ?? product.price
-  const subtotal = unitPrice * quantity
-  const sellerCity = (product as any).merchant_city || 'Dakar'
+  const subtotal = unitPrice * selectedQuantity
+  const sellerCity = (product as any).seller_city || 'Dakar'
   const shippingCost = shippingService.calculateShippingCost(sellerCity, city || 'Dakar')
   const total = subtotal + shippingCost
 
@@ -100,7 +98,9 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
 
   // Handle checkout
   const handleCheckout = async () => {
-    if (!profile || !product.expand?.seller_id) {
+    const sellerId = product.expand?.seller_id?.id || product.seller_id
+
+    if (!profile || !sellerId) {
       Alert.alert('Erreur', 'Informations manquantes')
       return
     }
@@ -122,9 +122,9 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
 
       const result = await ordersService.createOrder(
         profile.id,
-        product.expand.seller_id.id,
+        sellerId,
         product.id,
-        quantity,
+        selectedQuantity,
         shippingInfo,
         paymentMethod
       )
@@ -139,23 +139,12 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
             navigation.navigate('OrderSuccess', { orderId: result.order!.id })
           }, 1000)
         } else {
-          // Process mobile money payment via DEXCHANGE
-          const paymentResult = await paymentService.initializePayment({
+          navigation.navigate('PaymentPending', {
             orderId: result.order!.id,
-            amount: total,
-            method: paymentMethod,
-            phone: phoneNumber,
+            transactionId: (result as any).payment?.provider_ref,
+            boboOrderId: (result.order as any).bobo_order_id,
+            redirectUrl: (result as any).payment?.redirect_url,
           })
-
-          if (paymentResult.success) {
-            navigation.navigate('PaymentPending', {
-              orderId: result.order!.id,
-              transactionId: paymentResult.transactionId,
-              redirectUrl: paymentResult.redirectUrl,
-            })
-          } else {
-            Alert.alert('Erreur de paiement', paymentResult.message)
-          }
         }
       } else {
         Alert.alert('Erreur', result.error || 'Impossible de créer la commande')
@@ -196,7 +185,7 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
                 {product.title}
               </Text>
               <Text style={styles.sku}>SKU: {product.sku}</Text>
-              <Text style={styles.quantity}>Quantité: {quantity}</Text>
+              <Text style={styles.quantity}>Quantité: {selectedQuantity}</Text>
             </View>
           </View>
 
@@ -219,7 +208,7 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
             )}
 
             <View style={styles.subtotalRow}>
-              <Text style={styles.subtotalLabel}>Sous-total ({quantity}x):</Text>
+              <Text style={styles.subtotalLabel}>Sous-total ({selectedQuantity}x):</Text>
               <Text style={styles.subtotalValue}>{formatCFA(subtotal)}</Text>
             </View>
 
@@ -360,29 +349,6 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
             />
           </TouchableOpacity>
 
-          {/* Orange Money */}
-          <TouchableOpacity
-            style={[
-              styles.paymentButton,
-              paymentMethod === 'orange_money' && styles.paymentButtonActive,
-            ]}
-            onPress={() => setPaymentMethod('orange_money')}
-          >
-            <View style={styles.paymentButtonContent}>
-              <Text style={styles.paymentIcon}>🟠</Text>
-              <View style={styles.paymentInfo}>
-                <Text style={styles.paymentName}>Orange Money</Text>
-                <Text style={styles.paymentDesc}>Paiement mobile sécurisé</Text>
-              </View>
-            </View>
-            <View
-              style={[
-                styles.radioButton,
-                paymentMethod === 'orange_money' && styles.radioButtonActive,
-              ]}
-            />
-          </TouchableOpacity>
-
           {/* Cash on Delivery */}
           <TouchableOpacity
             style={[
@@ -407,11 +373,11 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
           </TouchableOpacity>
 
           {/* Payment Info */}
-          {(paymentMethod === 'wave' || paymentMethod === 'orange_money') && (
+          {paymentMethod === 'wave' && (
             <View style={styles.paymentInfoBox}>
               <Text style={styles.paymentInfoText}>
-                💡 Intégration DEXCHANGE en cours - vous recevrez un lien de paiement après
-                confirmation de votre commande
+                💡 Wave est branché sur le stub Engine MVP. Le statut restera en attente
+                jusqu'à la confirmation provider.
               </Text>
             </View>
           )}

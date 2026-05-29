@@ -2,10 +2,11 @@
   "name": "bobo",
   "private": true,
   "version": "0.1.0",
+  "packageManager": "pnpm@10.18.2",
   "description": "BOBO - Social Commerce OS for African SMBs",
   "scripts": {
     "dev": "pnpm --filter bobo-app start",
-    "build": "pnpm --filter bobo-app expo export",
+    "build": "pnpm --filter bobo-app exec expo export -p web",
     "lint": "pnpm -r lint",
     "clean": "pnpm -r clean",
     "test": "pnpm --filter bobo-app test",
@@ -26,6 +27,8 @@
     "pnpm": ">=8.0.0"
   },
   "devDependencies": {
-    "@types/qrcode": "^1.5.6"
+    "@eslint/js": "^10.0.1",
+    "@types/qrcode": "^1.5.6",
+    "globals": "^17.6.0"
   }
 }

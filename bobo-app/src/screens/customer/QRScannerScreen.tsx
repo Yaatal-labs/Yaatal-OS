@@ -13,6 +13,7 @@ import {
   Linking,
 } from 'react-native'
 import { CameraView, Camera, BarcodeScanningResult } from 'expo-camera'
+import { parseBoboProductLink } from '@njooba/core'
 import { colors, typography, spacing } from '../../theme'
 
 export const QRScannerScreen = ({ navigation }: any) => {
@@ -46,38 +47,27 @@ export const QRScannerScreen = ({ navigation }: any) => {
     setScanned(true)
     setIsScanning(false)
 
-    // Parse deep link: bobo://product/{productId}
-    try {
-      const url = new URL(data)
+    const deepLink = parseBoboProductLink(data)
 
-      if (url.protocol === 'bobo:' && url.pathname.startsWith('//product/')) {
-        const productId = url.pathname.replace('//product/', '')
-
-        if (productId) {
-          // Navigate to ProductDetail
-          navigation.navigate('ProductDetail', { productId })
-        } else {
-          throw new Error('Invalid product ID')
-        }
-      } else {
-        throw new Error('Invalid QR code format')
-      }
-    } catch (error) {
-      Alert.alert(
-        'QR Code invalide',
-        'Ce QR code ne correspond pas à un produit BOBO',
-        [
-          {
-            text: 'Réessayer',
-            onPress: () => {
-              setScanned(false)
-              setIsScanning(true)
-            },
-          },
-          { text: 'Annuler', onPress: () => navigation.goBack() },
-        ]
-      )
+    if (deepLink) {
+      navigation.navigate('ProductDetail', { productId: deepLink.productId })
+      return
     }
+
+    Alert.alert(
+      'QR Code invalide',
+      'Ce QR code ne correspond pas à un produit BOBO',
+      [
+        {
+          text: 'Réessayer',
+          onPress: () => {
+            setScanned(false)
+            setIsScanning(true)
+          },
+        },
+        { text: 'Annuler', onPress: () => navigation.goBack() },
+      ]
+    )
   }
 
   const handleRescan = () => {

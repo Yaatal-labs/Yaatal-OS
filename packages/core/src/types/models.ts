@@ -188,8 +188,13 @@ export type RootStackParamList = {
   Discovery: undefined
   QRScanner: undefined
   ProductDetail: { productId: string; productPromise?: Promise<Product> }
-  Checkout: { product: Product }
-  PaymentPending: { orderId: string; transactionId: string }
+  Checkout: { product: Product; quantity?: number }
+  PaymentPending: {
+    orderId: string
+    transactionId?: string
+    boboOrderId?: number
+    redirectUrl?: string
+  }
   OrderSuccess: { orderId: string }
   PaymentFailed: undefined
 

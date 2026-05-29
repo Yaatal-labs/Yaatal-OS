@@ -60,3 +60,6 @@ test-results/
 Thumbs.db
 .AppleDouble
 .LSOverride
+
+# Local Netlify folder
+.netlify

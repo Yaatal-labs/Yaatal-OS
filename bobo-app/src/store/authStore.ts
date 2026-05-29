@@ -167,14 +167,26 @@ export const useAuthStore = create<AuthState>()(
 
       // Initialize (check if user is already logged in)
       initialize: async () => {
-        if (authService.isAuthenticated()) {
-          const user = authService.getCurrentUser()
-          const profile = await authService.getUserProfile()
+        const { user, profile } = get()
 
-          if (user && profile) {
+        if (user?.accessToken && profile) {
+          ;(authService as any).restoreSession?.(user, profile)
+          set({
+            user,
+            profile,
+            isAuthenticated: true,
+          })
+          return
+        }
+
+        if (authService.isAuthenticated()) {
+          const currentUser = authService.getCurrentUser()
+          const currentProfile = await authService.getUserProfile()
+
+          if (currentUser && currentProfile) {
             set({
-              user,
-              profile,
+              user: currentUser,
+              profile: currentProfile,
               isAuthenticated: true,
             })
           }

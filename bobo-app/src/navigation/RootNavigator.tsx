@@ -18,6 +18,24 @@ import { CustomerNavigator } from './CustomerNavigator'
 
 const Stack = createNativeStackNavigator()
 
+const linking = {
+  prefixes: ['bobo://', 'https://'],
+  config: {
+    screens: {
+      Discovery: {
+        screens: {
+          ProductDetail: 'product/:productId',
+        },
+      },
+      Scanner: {
+        screens: {
+          ProductDetail: 'scan/product/:productId',
+        },
+      },
+    },
+  },
+}
+
 export const RootNavigator = () => {
   const { isAuthenticated, profile, initialize } = useAuthStore()
 
@@ -27,7 +45,7 @@ export const RootNavigator = () => {
   }, [])
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking as any}>
       {!isAuthenticated ? (
         // Auth Stack
         <Stack.Navigator screenOptions={{ headerShown: false }}>

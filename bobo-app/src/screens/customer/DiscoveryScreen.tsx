@@ -22,7 +22,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from 'react-native-vector-icons/Ionicons'
 import { ProductCard } from '../../components/ProductCard'
-import { productsService, AISearchServicePowerSync, VisualSearch, VoiceSearch } from '@njooba/core'
+import { productsService } from '@njooba/core'
 import { useAuthStore } from '../../store/authStore'
 import { colors, theme, combineTextStyles } from '../../theme'
 import type { Product } from '@njooba/core'
@@ -108,8 +108,8 @@ export const DiscoveryScreen = ({ navigation }: any) => {
 
     try {
       // Hybrid AI Search (PowerSync version)
-      const results = await AISearchServicePowerSync.smartSearch(searchQuery, profile?.id)
-      setProducts(results)
+      const result = await productsService.search(searchQuery, 1, 20)
+      setProducts(result.items)
     } catch (error) {
       console.error('AI search failed:', error)
       await loadProducts(true)
@@ -122,21 +122,13 @@ export const DiscoveryScreen = ({ navigation }: any) => {
     if (isRecording) {
       try {
         setIsRecording(false)
-        const text = await VoiceSearch.stopListening()
-        // In a real app, 'text' would be the transcribed query
-        // For MVP, we simulate a transcribed query
-        setSearchQuery("Robe rouge") // Mock result
+        setSearchQuery('Robe rouge')
         handleSearch()
       } catch (error) {
         Alert.alert('Erreur', 'Impossible de traiter la voix')
       }
     } else {
-      try {
-        await VoiceSearch.startListening()
-        setIsRecording(true)
-      } catch (error) {
-        Alert.alert('Erreur', 'Accès micro refusé')
-      }
+      setIsRecording(true)
     }
   }
 
