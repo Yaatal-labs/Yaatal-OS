@@ -1,6 +1,7 @@
 const DEFAULT_ENGINE_API_URL = 'http://localhost:5150'
 
 let authToken: string | null = null
+let engineApiUrl = DEFAULT_ENGINE_API_URL
 
 type EngineRequestOptions = RequestInit & {
   auth?: boolean
@@ -19,10 +20,11 @@ export class EngineHttpError extends Error {
 }
 
 export const getEngineApiUrl = (): string => {
-  return (
-    process.env.EXPO_PUBLIC_ENGINE_API_URL?.replace(/\/$/, '') ||
-    DEFAULT_ENGINE_API_URL
-  )
+  return engineApiUrl
+}
+
+export const setEngineApiUrl = (url?: string | null) => {
+  engineApiUrl = url?.replace(/\/$/, '') || DEFAULT_ENGINE_API_URL
 }
 
 export const setEngineAuthToken = (token: string | null) => {

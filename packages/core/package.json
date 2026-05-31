@@ -24,8 +24,8 @@
     "@powersync/react-native": "*",
     "@powersync/common": "*",
     "@supabase/supabase-js": "*",
-    "expo-speech": "*",
-    "expo-av": "*",
-    "expo-image-picker": "*"
+    "expo-speech": "~14.0.8",
+    "expo-av": "~16.0.8",
+    "expo-image-picker": "~17.0.11"
   }
 }

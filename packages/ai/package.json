@@ -8,9 +8,9 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "expo-speech": "~12.0.2",
-    "expo-av": "~15.0.2",
-    "expo-image-picker": "~16.0.5"
+    "expo-speech": "~14.0.8",
+    "expo-av": "~16.0.8",
+    "expo-image-picker": "~17.0.11"
   },
   "devDependencies": {
     "typescript": "^5.3.3"
