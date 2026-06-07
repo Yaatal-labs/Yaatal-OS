@@ -19,7 +19,7 @@ AI/capability layer (the "Harness") — **you never call that directly; you only
 
 ```
   YOU → BOBO (this repo)        screens, UX, journeys
-        │  @njooba/core  (the typed Engine client lives here)
+        │  @yaatal/core  (the typed Engine client lives here)
         ▼
        YAATAL ENGINE            auth · commerce · profile · the only backend contract you see
         │  (separate service — internal AI/capabilities behind it)
@@ -27,11 +27,11 @@ AI/capability layer (the "Harness") — **you never call that directly; you only
        (Engine internals)       not yours to call
 ```
 
-**Your contract is the Engine's HTTP API**, reached through `@njooba/core`. Everything you need
+**Your contract is the Engine's HTTP API**, reached through `@yaatal/core`. Everything you need
 arrives through that typed client.
 
 ## 2. The 5 golden rules
-1. **Talk to the Engine through `@njooba/core`.** Don't hand-roll raw `fetch` to backends; import the
+1. **Talk to the Engine through `@yaatal/core`.** Don't hand-roll raw `fetch` to backends; import the
    typed services.
 2. **Don't reinvent shared logic.** If a second app (YOKK, etc.) would need it, it belongs in the
    Engine — ask backend for an endpoint, don't reimplement AI/search/trust logic in the app.
@@ -47,7 +47,7 @@ BOBO currently spans three backends. Know which is which so you don't wire to th
 
 | Flow | Backend today | How you call it | Note |
 |---|---|---|---|
-| **Auth, products, orders, checkout** | **Yaatal Engine** ✅ | `@njooba/core` → `authService`, `productsService`, `ordersService` | the canonical path — use this |
+| **Auth, products, orders, checkout** | **Yaatal Engine** ✅ | `@yaatal/core` → `authService`, `productsService`, `ordersService` | the canonical path — use this |
 | **Chat, delivery, AI-search** | **PocketBase** (legacy) | the `*.service.ts` PocketBase impls | works today; may consolidate to the Engine later |
 | **Payments** | **DExchange** (mostly stubbed) | `payment.service.ts` | legacy; the Engine has its own Wave rail (to reconcile later) |
 | ~~Offline sync~~ | ~~PowerSync~~ 🗑️ | — | **dead — don't use; being removed** |
@@ -57,7 +57,7 @@ BOBO currently spans three backends. Know which is which so you don't wire to th
 ## 4. How to wire a feature to the Engine
 ```ts
 // 1. Import the typed service (no URL/auth plumbing needed)
-import { productsService, setEngineAuthToken } from '@njooba/core'
+import { productsService, setEngineAuthToken } from '@yaatal/core'
 
 // 2. After login, set the token once
 setEngineAuthToken(jwtFromLogin)
@@ -66,7 +66,7 @@ setEngineAuthToken(jwtFromLogin)
 const { items, totalItems } = await productsService.getAll(1, 20)
 ```
 **Adding a NEW endpoint?** It must exist on the **Engine** first (coordinate with backend), then add a
-typed method to the Engine client in `@njooba/core`. Never hard-code a raw `fetch` to a new backend.
+typed method to the Engine client in `@yaatal/core`. Never hard-code a raw `fetch` to a new backend.
 
 ## 5. Local dev setup
 - **Point at the live Engine (simplest):** set
@@ -86,7 +86,7 @@ typed method to the Engine client in `@njooba/core`. Never hard-code a raw `fetc
 
 ## 7. Source of truth
 - This doc (golden rules + backend map).
-- The Engine's HTTP API is the contract; `@njooba/core` is its typed client.
+- The Engine's HTTP API is the contract; `@yaatal/core` is its typed client.
 - Deeper Engine architecture/rationale lives in the **Yaatal-Engine** repo (internal).
 
 ---
@@ -101,7 +101,7 @@ Engine.**
 
 ```
   VOUS → BOBO (ce dépôt)        écrans, UX, parcours
-         │  @njooba/core  (le client Engine typé est ici)
+         │  @yaatal/core  (le client Engine typé est ici)
          ▼
         YAATAL ENGINE           auth · commerce · profil · le seul contrat backend que vous voyez
          │  (service séparé — IA/capacités internes derrière)
@@ -109,11 +109,11 @@ Engine.**
         (internes du Engine)     pas à vous d'appeler
 ```
 
-**Votre contrat, c'est l'API HTTP du Engine**, atteinte via `@njooba/core`. Tout ce dont vous avez
+**Votre contrat, c'est l'API HTTP du Engine**, atteinte via `@yaatal/core`. Tout ce dont vous avez
 besoin arrive par ce client typé.
 
 ## 2. Les 5 règles d'or
-1. **Parlez au Engine via `@njooba/core`.** Ne bricolez pas de `fetch` brut vers des backends ;
+1. **Parlez au Engine via `@yaatal/core`.** Ne bricolez pas de `fetch` brut vers des backends ;
    importez les services typés.
 2. **Ne réinventez pas la logique partagée.** Si une deuxième app (YOKK, etc.) en aurait besoin, ça
    appartient au Engine — demandez un endpoint au backend, ne réimplémentez pas la logique
@@ -130,7 +130,7 @@ BOBO s'étend aujourd'hui sur trois backends. Sachez lequel est lequel pour ne p
 
 | Flux | Backend aujourd'hui | Comment l'appeler | Note |
 |---|---|---|---|
-| **Auth, produits, commandes, checkout** | **Yaatal Engine** ✅ | `@njooba/core` → `authService`, `productsService`, `ordersService` | le chemin canonique — utilisez ça |
+| **Auth, produits, commandes, checkout** | **Yaatal Engine** ✅ | `@yaatal/core` → `authService`, `productsService`, `ordersService` | le chemin canonique — utilisez ça |
 | **Chat, livraison, recherche IA** | **PocketBase** (legacy) | les impls PocketBase `*.service.ts` | fonctionne ; consolidation vers le Engine possible plus tard |
 | **Paiements** | **DExchange** (surtout stub) | `payment.service.ts` | legacy ; le Engine a son propre rail Wave (à réconcilier) |
 | ~~Synchro offline~~ | ~~PowerSync~~ 🗑️ | — | **mort — ne pas utiliser ; en suppression** |
@@ -140,7 +140,7 @@ BOBO s'étend aujourd'hui sur trois backends. Sachez lequel est lequel pour ne p
 ## 4. Comment câbler une fonctionnalité au Engine
 ```ts
 // 1. Importez le service typé (pas de plomberie URL/auth)
-import { productsService, setEngineAuthToken } from '@njooba/core'
+import { productsService, setEngineAuthToken } from '@yaatal/core'
 
 // 2. Après login, posez le token une fois
 setEngineAuthToken(jwtDuLogin)
@@ -149,7 +149,7 @@ setEngineAuthToken(jwtDuLogin)
 const { items, totalItems } = await productsService.getAll(1, 20)
 ```
 **Ajouter un NOUVEL endpoint ?** Il doit d'abord exister sur le **Engine** (coordonnez avec le
-backend), puis ajoutez une méthode typée au client Engine dans `@njooba/core`. Ne codez jamais un
+backend), puis ajoutez une méthode typée au client Engine dans `@yaatal/core`. Ne codez jamais un
 `fetch` brut en dur vers un nouveau backend.
 
 ## 5. Mise en place du dev local
@@ -171,5 +171,5 @@ backend), puis ajoutez une méthode typée au client Engine dans `@njooba/core`.
 
 ## 7. Source de vérité
 - Ce document (règles d'or + carte des backends).
-- L'API HTTP du Engine est le contrat ; `@njooba/core` en est le client typé.
+- L'API HTTP du Engine est le contrat ; `@yaatal/core` en est le client typé.
 - L'architecture/justification approfondie du Engine vit dans le dépôt **Yaatal-Engine** (interne).
