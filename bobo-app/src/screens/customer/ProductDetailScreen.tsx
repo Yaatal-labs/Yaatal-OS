@@ -17,7 +17,7 @@ import {
 } from 'react-native'
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av'
 import { useAuthStore } from '../../store/authStore'
-import { productsService, getProductImageUrl, getAvatarUrl, getFileUrl } from '@njooba/core'
+import { productsService, getProductImageUrl, getAvatarUrl, getFileUrl } from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
 import { formatCFA } from '../../utils/formatters'
 import { calculateLevel } from '../../constants/gamification'

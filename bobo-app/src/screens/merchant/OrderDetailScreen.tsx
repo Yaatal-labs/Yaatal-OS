@@ -15,7 +15,7 @@ import {
   Linking,
 } from 'react-native'
 import { useAuthStore } from '../../store/authStore'
-import { ordersService } from '@njooba/core'
+import { ordersService } from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
 import { formatCFA, formatDateTime, formatOrderStatus, formatPhoneNumber } from '../../utils/formatters'
 import type { Order } from '../../types/models'

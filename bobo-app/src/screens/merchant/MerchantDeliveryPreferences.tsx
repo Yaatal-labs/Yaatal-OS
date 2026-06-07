@@ -16,8 +16,8 @@ import {
   ActivityIndicator
 } from 'react-native'
 import { useAuthStore } from '../../store/authStore'
-import { deliveryService } from '@njooba/core'
-import type { MerchantDeliveryPreferences } from '@njooba/core'
+import { deliveryService } from '@yaatal/core'
+import type { MerchantDeliveryPreferences } from '@yaatal/core'
 
 export const MerchantDeliveryPreferencesScreen = () => {
   const { profile } = useAuthStore()

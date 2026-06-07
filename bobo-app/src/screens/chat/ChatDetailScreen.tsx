@@ -7,7 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { View, StyleSheet, ActivityIndicator } from 'react-native'
 import { GiftedChat, IMessage, Bubble, Send } from 'react-native-gifted-chat'
 import { useAuthStore } from '../../store/authStore'
-import { chatService, type ChatMessage } from '@njooba/core'
+import { chatService, type ChatMessage } from '@yaatal/core'
 import { colors, typography } from '../../theme'
 
 export const ChatDetailScreen = ({ route }: any) => {

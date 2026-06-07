@@ -13,7 +13,7 @@ import {
   Linking,
 } from 'react-native'
 import { CameraView, Camera, BarcodeScanningResult } from 'expo-camera'
-import { parseBoboProductLink } from '@njooba/core'
+import { parseBoboProductLink } from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
 
 export const QRScannerScreen = ({ navigation }: any) => {

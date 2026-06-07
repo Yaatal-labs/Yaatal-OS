@@ -16,9 +16,9 @@ import {
   Linking,
 } from 'react-native'
 import { useAuthStore } from '../../store/authStore'
-import { ordersService, getProductImageUrl, getAvatarUrl } from '@njooba/core'
+import { ordersService, getProductImageUrl, getAvatarUrl } from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
-import { formatCFA, formatDateTime, formatOrderStatus, formatPhoneNumber, type Order, type Product } from '@njooba/core'
+import { formatCFA, formatDateTime, formatOrderStatus, formatPhoneNumber, type Order, type Product } from '@yaatal/core'
 
 export const OrderDetailScreen = ({ route, navigation }: any) => {
   const { orderId } = route.params

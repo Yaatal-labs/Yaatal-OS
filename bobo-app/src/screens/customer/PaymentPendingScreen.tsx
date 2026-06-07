@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { ordersService } from '@njooba/core'
+import { ordersService } from '@yaatal/core'
 import { colors, spacing, typography } from '../../theme'
 
 export const PaymentPendingScreen = ({ route, navigation }: any) => {

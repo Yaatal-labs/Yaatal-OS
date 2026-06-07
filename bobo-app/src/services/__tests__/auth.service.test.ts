@@ -3,16 +3,16 @@
  * Testing signup, signin, validation, and profile management
  */
 
-import { AuthService } from '@njooba/core'
+import { AuthService } from '@yaatal/core'
 import {
   validateEmail,
   validatePassword,
   validateUsername,
   validatePhoneNumber,
-} from '@njooba/core'
+} from '@yaatal/core'
 
 // Mock validation utilities
-jest.mock('@njooba/core', () => {
+jest.mock('@yaatal/core', () => {
   const mockAuthService = {
     signUp: jest.fn(),
     signIn: jest.fn(),
@@ -27,7 +27,7 @@ jest.mock('@njooba/core', () => {
 
   return {
     __esModule: true,
-    ...jest.requireActual('@njooba/core'),
+    ...jest.requireActual('@yaatal/core'),
     AuthService: jest.fn().mockImplementation(() => mockAuthService),
     authService: mockAuthService,
     validateEmail: jest.fn(() => ({ valid: true })),
@@ -43,7 +43,7 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    const { AuthService } = require('@njooba/core')
+    const { AuthService } = require('@yaatal/core')
     service = new AuthService()
 
     // Reset validation mocks to success by default

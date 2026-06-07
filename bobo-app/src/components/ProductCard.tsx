@@ -14,7 +14,7 @@ import {
 } from 'react-native'
 import Ionicons from 'react-native-vector-icons/Ionicons'
 import { theme, colors } from '../theme'
-import { formatCFA, truncateText, getProductImageUrl, getAvatarUrl, type Product } from '@njooba/core'
+import { formatCFA, truncateText, getProductImageUrl, getAvatarUrl, type Product } from '@yaatal/core'
 
 interface ProductCardProps {
   product: Product

@@ -16,7 +16,7 @@ import {
 } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 import { useAuthStore } from '../../store/authStore'
-import { productsService, getProductImageUrl } from '@njooba/core'
+import { productsService, getProductImageUrl } from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
 import { formatCFA } from '../../utils/formatters'
 import type { Product } from '../../types/models'
