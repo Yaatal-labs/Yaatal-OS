@@ -6,7 +6,7 @@ Livestream commerce platform built for African market realities: offline-first, 
 
 ## 🎯 New to the squad?
 
-Start here → **[Team Onboarding (EN)](./docs/TEAM-ONBOARDING.en.html)** · **[Onboarding Équipe (FR)](./docs/TEAM-ONBOARDING.fr.html)**
+Start here → **[Team Onboarding (EN)](./docs/TEAM-ONBOARDING.en.md)** · **[Onboarding Équipe (FR)](./docs/TEAM-ONBOARDING.fr.md)**
 
 These pages tell you where things stand, why we cut from PowerSync to the Engine, and how to work without breaking the wire.
 
