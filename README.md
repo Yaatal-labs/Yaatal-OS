@@ -3,7 +3,8 @@
 **Social Commerce OS for African SMBs**  
 *OS de Commerce Social pour les PME Africaines*
 
-Livestream commerce platform built for African market realities: offline-capable, mobile-first, bandwidth-aware.  
+Livestream commerce platform built for African market realities: offline-capable, mobile-first, bandwidth-aware. 
+
 Plateforme de commerce en livestream conçue pour les réalités de l'infrastructure africaine : hors ligne maîtrisé, mobile-first, conscient de la bande passante.
 
 ---
