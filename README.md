@@ -8,19 +8,17 @@ Plateforme de commerce en livestream conçue pour les réalités de l'infrastruc
 
 ---
 
-## 🎯 New to the squad? / Nouveau dans l'équipe ?
+## 🎯 New here? / Nouveau ici ?
 
-**EN** → **[Team Onboarding](./docs/TEAM-ONBOARDING.en.md)** (readable on GitHub) · [`TEAM-ONBOARDING.en.html`](./docs/TEAM-ONBOARDING.en.html) (sharable/downloadable)  
-**FR** → **[Onboarding Équipe](./docs/TEAM-ONBOARDING.fr.md)** (lisible sur GitHub) · [`TEAM-ONBOARDING.fr.html`](./docs/TEAM-ONBOARDING.fr.html) (partageable/téléchargeable)
-
-These pages tell you where things stand, why we cut from PowerSync to the Engine, and how to work without breaking the wire.  
-Ces pages te disent où on en est, pourquoi on a coupé PowerSync pour le Engine, et comment bosser sans casser le fil.
+📄 **Team Onboarding** → [`EN`](./docs/TEAM-ONBOARDING.en.md) · [`FR`](./docs/TEAM-ONBOARDING.fr.md)  
+🌐 **Sharable pages** → [`EN.html`](./docs/TEAM-ONBOARDING.en.html) · [`FR.html`](./docs/TEAM-ONBOARDING.fr.html)
 
 ---
 
-## 🇬🇧 English
+<details open>
+<summary><b>🇬🇧 English</b> — Click to expand / Cliquez pour ouvrir</summary>
 
-### Quick Start
+## Quick Start
 
 ```bash
 # Install dependencies
@@ -28,18 +26,15 @@ pnpm install
 
 # Start Expo dev server
 pnpm dev
-
-# Or from root
-pnpm --filter bobo-app start
 ```
 
-### Architecture
+## Architecture
 
 ```
 BOBO/
 ├── bobo-app/              # React Native 0.76 + Expo 54
 │   ├── src/
-│   │   ├── screens/       # App screens (customer, merchant, admin, delivery, chat, auth)
+│   │   ├── screens/       # App screens
 │   │   ├── services/      # Business logic (Engine client)
 │   │   ├── lib/           # Utilities, IntentQueue (coming)
 │   │   ├── store/         # Zustand state management
@@ -52,7 +47,7 @@ BOBO/
 └── ...
 ```
 
-### Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
@@ -62,22 +57,18 @@ BOBO/
 | Backend | Yaatal Engine (Rust, Railway Postgres) |
 | Navigation | React Navigation 6 |
 
-### What works now
+## Current Status
 
-- **Auth:** Login, register, JWT tokens
-- **Products:** Catalog, detail views
-- **Checkout:** Cash (immediate), Wave (stub, pending flow)
-- **Web deploy:** Cloudflare Pages via `pnpm build`
-- **Engine:** Live at `yaatal-engine-production.up.railway.app`
+| Feature | State |
+|---------|-------|
+| Auth (login, register) | ✅ Working |
+| Product catalog | ✅ Working (endpoint live, needs seed data) |
+| Checkout (cash) | ✅ Working |
+| Checkout (Wave) | ⚠️ Stub only — pending flow, no real XOF |
+| AI, chat, delivery | ❌ Still on legacy path |
+| EAS build config | ❌ Missing — TestFlight / Play Console blocked |
 
-### What does not work yet
-
-- Product catalog is empty (needs seed data)
-- Wave payments are stub-only (no real XOF movement)
-- AI, chat, delivery services still on legacy path
-- No EAS config (TestFlight / Play Console blocked)
-
-### Environment Variables
+## Environment Variables
 
 Copy `.env.example` to `.env`:
 
@@ -87,47 +78,47 @@ EXPO_PUBLIC_ENGINE_API_URL=https://yaatal-engine-production.up.railway.app
 
 # Dead vars — do not set. Kept in .env.example for rollback reference only.
 # EXPO_PUBLIC_SUPABASE_URL=
-# EXPO_PUBLIC_SUPABASE_ANON_KEY=
 # EXPO_PUBLIC_POWERSYNC_URL=
 ```
 
-### Scripts
+## Scripts
 
 ```bash
-# Root workspace
+# Root
 pnpm dev          # Start bobo-app dev server
-pnpm build        # Build bobo-app for web deploy
+pnpm build        # Build for web deploy
 pnpm lint         # Lint all packages
 
-# bobo-app specific
+# bobo-app
 pnpm --filter bobo-app start        # Expo start
-pnpm --filter bobo-app android      # Run on Android
-pnpm --filter bobo-app ios          # Run on iOS
-pnpm --filter bobo-app web          # Run web version
+pnpm --filter bobo-app android      # Android
+pnpm --filter bobo-app ios          # iOS
+pnpm --filter bobo-app web          # Web version
 pnpm --filter bobo-app type-check   # TypeScript check
-pnpm --filter bobo-app test         # Run tests (11/28 currently failing)
+pnpm --filter bobo-app test         # Tests (11/28 failing, known issue)
 ```
 
-### Target Markets
+## Target Markets
 
 - **Primary:** Senegal (Dakar)
 - **Secondary:** Nigeria (Lagos)
 - **Payments:** Wave, Orange Money, Cash via DEXCHANGE
 
-### Philosophy: BOBO
+## Philosophy
 
 - **Build:** Own your stack, no vendor lock-in
 - **Own:** Data sovereignty for Africa
 - **Bootstrap:** Revenue-first, sustainable growth
 - **Operate:** Self-sufficient infrastructure
 
----
+</details>
 
 ---
 
-## 🇫🇷 Français
+<details>
+<summary><b>🇫🇷 Français</b> — Cliquez pour ouvrir / Click to expand</summary>
 
-### Démarrage rapide
+## Démarrage rapide
 
 ```bash
 # Installe les dépendances
@@ -135,12 +126,9 @@ pnpm install
 
 # Démarre le serveur de dev Expo
 pnpm dev
-
-# Ou depuis la racine
-pnpm --filter bobo-app start
 ```
 
-### Architecture
+## Architecture
 
 ```
 BOBO/
@@ -159,7 +147,7 @@ BOBO/
 └── ...
 ```
 
-### Stack Technique
+## Stack Technique
 
 | Couche | Technologie |
 |--------|-------------|
@@ -169,22 +157,18 @@ BOBO/
 | Backend | Yaatal Engine (Rust, Railway Postgres) |
 | Navigation | React Navigation 6 |
 
-### Ce qui fonctionne maintenant
+## État Actuel
 
-- **Auth :** Connexion, inscription, tokens JWT
-- **Produits :** Catalogue, vues détaillées
-- **Checkout :** Espèces (immédiat), Wave (bouchon, flux en attente)
-- **Déploiement web :** Cloudflare Pages via `pnpm build`
-- **Engine :** En ligne sur `yaatal-engine-production.up.railway.app`
+| Fonctionnalité | Statut |
+|----------------|--------|
+| Auth (connexion, inscription) | ✅ Fonctionnel |
+| Catalogue produits | ✅ Fonctionnel (endpoint en ligne, besoin de données seeds) |
+| Paiement (espèces) | ✅ Fonctionnel |
+| Paiement (Wave) | ⚠️ Bouchon seulement — flux en attente, pas de vrai XOF |
+| IA, chat, livraison | ❌ Toujours sur l'ancien chemin |
+| Config EAS build | ❌ Manquant — soumission TestFlight / Play Console bloquée |
 
-### Ce qui ne marche pas encore
-
-- Catalogue produits vide (besoin de données seeds)
-- Paiements Wave bouchon seulement (pas de vrai mouvement XOF)
-- Services IA, chat, livraison toujours sur l'ancien chemin
-- Pas de config EAS (soumission TestFlight / Play Console bloquée)
-
-### Variables d'Environnement
+## Variables d'Environnement
 
 Copie `.env.example` vers `.env` :
 
@@ -192,41 +176,42 @@ Copie `.env.example` vers `.env` :
 # Seule chose vraiment nécessaire
 EXPO_PUBLIC_ENGINE_API_URL=https://yaatal-engine-production.up.railway.app
 
-# Variables mortes — ne pas configurer. Conservées dans .env.example pour référence de rollback uniquement.
+# Variables mortes — ne pas configurer. Conservées dans .env.example pour référence de rollback.
 # EXPO_PUBLIC_SUPABASE_URL=
-# EXPO_PUBLIC_SUPABASE_ANON_KEY=
 # EXPO_PUBLIC_POWERSYNC_URL=
 ```
 
-### Scripts
+## Scripts
 
 ```bash
-# Espace de travail racine
+# Racine
 pnpm dev          # Démarre le serveur de dev bobo-app
-pnpm build        # Compile bobo-app pour déploiement web
+pnpm build        # Compile pour déploiement web
 pnpm lint         # Lint tous les packages
 
-# Spécifique bobo-app
+# bobo-app
 pnpm --filter bobo-app start        # Expo start
-pnpm --filter bobo-app android      # Lance sur Android
-pnpm --filter bobo-app ios          # Lance sur iOS
-pnpm --filter bobo-app web          # Lance version web
+pnpm --filter bobo-app android      # Android
+pnpm --filter bobo-app ios          # iOS
+pnpm --filter bobo-app web          # Version web
 pnpm --filter bobo-app type-check   # Vérification TypeScript
-pnpm --filter bobo-app test         # Lance les tests (11/28 échouent actuellement)
+pnpm --filter bobo-app test         # Tests (11/28 échouent, problème connu)
 ```
 
-### Marchés Cibles
+## Marchés Cibles
 
 - **Principal :** Sénégal (Dakar)
 - **Secondaire :** Nigeria (Lagos)
 - **Paiements :** Wave, Orange Money, Espèces via DEXCHANGE
 
-### Philosophie : BOBO
+## Philosophie
 
 - **Build :** Posséder sa stack, pas de dépendance vendor
 - **Own :** Souveraineté des données pour l'Afrique
 - **Bootstrap :** Revenue-first, croissance durable
 - **Operate :** Infrastructure autosuffisante
+
+</details>
 
 ---
 
