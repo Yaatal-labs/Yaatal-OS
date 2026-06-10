@@ -4,6 +4,14 @@
 
 Livestream commerce platform built for African market realities: offline-first, mobile-first, bandwidth-aware.
 
+## 🎯 New to the squad?
+
+Start here → **[Team Onboarding (EN)](./docs/TEAM-ONBOARDING.en.html)** · **[Onboarding Équipe (FR)](./docs/TEAM-ONBOARDING.fr.html)**
+
+These pages tell you where things stand, why we cut from PowerSync to the Engine, and how to work without breaking the wire.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -43,7 +51,7 @@ BOBO/
 | Mobile | React Native 0.76 + Expo 54 |
 | State | Zustand |
 | Offline | PowerSync + SQLite |
-| Backend | Supabase (PostgreSQL, Auth, Realtime, Storage) |
+| Backend | Yaatal Engine (Rust, Railway Postgres) · Supabase (legacy, parked) |
 | Navigation | React Navigation 6 |
 
 ## Design Constraints
