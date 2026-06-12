@@ -16,6 +16,21 @@ const __mockClient = {
     remove: ok,
     upvote: ok,
   },
+  search: {
+    products: async () => ({ products: [], total: 0, page: 1, per_page: 20 }),
+    merchants: async () => ({ merchants: [], total: 0, page: 1, per_page: 20 }),
+    orders: async () => ({ orders: [], total: 0, page: 1, per_page: 20 }),
+  },
+  notifications: {
+    list: async () => [],
+    unreadCount: async () => 0,
+    markRead: ok,
+    markAllRead: ok,
+  },
+  analytics: {
+    track: ok,
+    identify: ok,
+  },
   orders: {
     list: async () => ({ orders: [], total: 0, page: 1, per_page: 20 }),
     me: async () => ({ orders: [], total: 0, page: 1, per_page: 20 }),

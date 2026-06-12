@@ -14,6 +14,19 @@ export {
   type EngineCheckoutPayment,
   type ShippingInfo,
 } from './orders.service.engine'
+export {
+  AnalyticsServiceEngine,
+  analyticsService,
+  analyticsServiceEngine,
+  type AnalyticsIdentifyInput,
+  type AnalyticsTrackInput,
+} from './analytics.service.engine'
+export {
+  NotificationsServiceEngine,
+  notificationsService,
+  notificationsServiceEngine,
+  type NotificationListParams,
+} from './notifications.service.engine'
 export * from './engine.client'
 
 // Non-commerce services stay on the legacy HTTP/PocketBase implementations so

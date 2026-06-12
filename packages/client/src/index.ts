@@ -1,3 +1,9 @@
+export { AnalyticsClient } from "./analytics.js";
+export type {
+  AnalyticsIdentifyRequest,
+  AnalyticsResponse,
+  AnalyticsTrackRequest,
+} from "./analytics.js";
 export { AuthClient } from "./auth.js";
 export type {
   CurrentUser,
@@ -44,6 +50,12 @@ export type {
 } from "./delivery.js";
 export { getEngineApiUrl, type EngineRuntimeEnv } from "./env.js";
 export { YaatalApiError, type FetchLike } from "./http.js";
+export { NotificationsClient } from "./notifications.js";
+export type {
+  ListNotificationsParams,
+  Notification,
+  NotificationUnreadCount,
+} from "./notifications.js";
 export { OrdersClient } from "./orders.js";
 export type {
   CreateOrderItemRequest,
@@ -65,3 +77,18 @@ export type {
   ProductList,
   UpdateProductRequest,
 } from "./products.js";
+export { SearchClient } from "./search.js";
+export type {
+  SearchHighlights,
+  SearchMerchant,
+  SearchMerchantsParams,
+  SearchMerchantsResponse,
+  SearchMetadata,
+  SearchMetadataValue,
+  SearchOrder,
+  SearchOrdersParams,
+  SearchOrdersResponse,
+  SearchProduct,
+  SearchProductsParams,
+  SearchProductsResponse,
+} from "./search.js";

@@ -13,6 +13,7 @@ import {
   generateSKU,
 } from '../utils/validation'
 import type { Product, ProductFormData, Profile } from '../types/models'
+import { analyticsService } from './analytics.service.engine'
 import { engineRequest, getEngineAuthToken, getYaatalClient } from './engine.client'
 
 const CATEGORIES: Product['category'][] = [
@@ -92,11 +93,18 @@ export const mapEngineProductToProduct = (product: EngineProduct): Product => {
 const productListToPage = (
   response: EngineProductList
 ): { items: Product[]; totalItems: number; totalPages: number } => {
+  const products = response.products || []
+  const perPage = response.per_page || products.length || 1
+
   return {
-    items: response.products.map(mapEngineProductToProduct),
-    totalItems: response.total,
-    totalPages: Math.ceil(response.total / response.per_page),
+    items: products.map(mapEngineProductToProduct),
+    totalItems: response.total ?? products.length,
+    totalPages: Math.ceil((response.total ?? products.length) / perPage),
   }
+}
+
+type ProductSearchOptions = {
+  category?: Product['category'] | 'all'
 }
 
 export class ProductsServiceEngine {
@@ -106,11 +114,17 @@ export class ProductsServiceEngine {
     totalPages: number
   }> {
     try {
-      const response = await getYaatalClient().products.list({
-        page,
-        per_page: limit,
-        active_only: true,
-      })
+      const searchClient = (getYaatalClient() as any).search
+      const response = searchClient?.products
+        ? await searchClient.products({
+            page,
+            per_page: limit,
+          })
+        : await getYaatalClient().products.list({
+            page,
+            per_page: limit,
+            active_only: true,
+          })
 
       return productListToPage(response)
     } catch (error) {
@@ -149,23 +163,60 @@ export class ProductsServiceEngine {
   async getById(productId: string): Promise<Product | undefined> {
     try {
       const product = await getYaatalClient().products.get(productId)
-      return mapEngineProductToProduct(product)
+      const mappedProduct = mapEngineProductToProduct(product)
+      analyticsService.track({
+        event: 'product_view',
+        properties: {
+          productId: mappedProduct.id,
+          sellerId: mappedProduct.seller_id,
+          category: mappedProduct.category,
+        },
+      })
+      return mappedProduct
     } catch (error) {
       console.error('Get product error:', error)
       return undefined
     }
   }
 
-  async search(query: string, page: number = 1, limit: number = 20) {
+  async search(
+    query: string,
+    page: number = 1,
+    limit: number = 20,
+    options: ProductSearchOptions = {}
+  ) {
     try {
-      const response = await getYaatalClient().products.list({
-        page,
-        per_page: limit,
-        active_only: true,
-        search: query,
-      })
+      const searchClient = (getYaatalClient() as any).search
+      const category =
+        options.category && options.category !== 'all' ? options.category : undefined
+      const response = searchClient?.products
+        ? await searchClient.products({
+            query,
+            q: query,
+            page,
+            per_page: limit,
+            category,
+          })
+        : await getYaatalClient().products.list({
+            page,
+            per_page: limit,
+            active_only: true,
+            search: query,
+            category,
+          } as any)
 
-      return productListToPage(response)
+      const pageResult = productListToPage(response)
+      analyticsService.track({
+        event: 'product_search',
+        properties: {
+          query,
+          category,
+          page,
+          limit,
+          resultCount: pageResult.items.length,
+        },
+      })
+      return pageResult
     } catch (error) {
       console.error('Search products error:', error)
       return { items: [], totalItems: 0, totalPages: 0 }

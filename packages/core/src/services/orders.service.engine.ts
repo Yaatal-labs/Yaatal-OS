@@ -14,6 +14,7 @@ import type {
 } from '@yaatal/client'
 import { validatePhoneNumber } from '../utils/validation'
 import type { Order, Product } from '../types/models'
+import { analyticsService } from './analytics.service.engine'
 import { engineRequest, getYaatalClient } from './engine.client'
 import { mapEngineProductToProduct } from './products.service.engine'
 
@@ -285,6 +286,19 @@ export class OrdersServiceEngine {
         phone_number: shippingInfo.phoneNumber,
         payer_msisdn: shippingInfo.phoneNumber,
       })
+      analyticsService.track({
+        event: 'checkout_completed',
+        properties: {
+          buyerId,
+          sellerId,
+          productId,
+          quantity,
+          paymentMethod,
+          success: response.success,
+          orderId: response.order?.id,
+          totalPrice: response.order?.total_price,
+        },
+      })
 
       return {
         success: response.success,
@@ -293,6 +307,17 @@ export class OrdersServiceEngine {
       }
     } catch (error: any) {
       console.error('Create order error:', error)
+      analyticsService.track({
+        event: 'checkout_failed',
+        properties: {
+          buyerId,
+          sellerId,
+          productId,
+          quantity,
+          paymentMethod,
+          error: error?.message,
+        },
+      })
       return {
         success: false,
         error: error?.message || 'Erreur lors de la création de la commande',
@@ -347,7 +372,16 @@ export class OrdersServiceEngine {
   async getOrderById(orderId: string): Promise<Order | undefined> {
     try {
       const response = await getYaatalClient().orders.get(orderId)
-      return await enrichEngineOrderForBobo(response)
+      const order = await enrichEngineOrderForBobo(response)
+      analyticsService.track({
+        event: 'order_view',
+        properties: {
+          orderId: order.id,
+          status: order.status,
+          paymentMethod: order.payment_method,
+        },
+      })
+      return order
     } catch (error) {
       console.error('Get order error:', error)
       return undefined

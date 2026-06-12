@@ -4,6 +4,7 @@ import {
   mapEngineOrderToOrder,
 } from '../../../../packages/core/src/services/orders.service.engine'
 import { mapEngineProductToProduct } from '../../../../packages/core/src/services/products.service.engine'
+import { ProductsServiceEngine } from '../../../../packages/core/src/services/products.service.engine'
 
 describe('Engine DTO mapping', () => {
   const getMockClient = () => {
@@ -64,6 +65,47 @@ describe('Engine DTO mapping', () => {
       category: 'fashion',
     })
     expect(product.expand?.seller_id?.id).toBe('seller-1')
+  })
+
+  it('searches products through the Engine SDK search surface', async () => {
+    const client = getMockClient()
+    client.products.list = jest.fn()
+    client.search.products = jest.fn(async () => ({
+      products: [
+        {
+          id: 'product-123456',
+          merchant_id: 'seller-1',
+          name: 'Robe Wax',
+          description: 'Tissu wax',
+          price_cents: 12000,
+          discount_price_cents: null,
+          stock: 4,
+          category: 'fashion',
+          images: JSON.stringify(['https://cdn.example/product.jpg']),
+          is_active: true,
+          upvotes: 7,
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-02T00:00:00Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      per_page: 20,
+    }))
+
+    const service = new ProductsServiceEngine()
+    const page = await service.search('robe', 1, 20, { category: 'fashion' })
+
+    expect(client.search.products).toHaveBeenCalledWith({
+      query: 'robe',
+      q: 'robe',
+      page: 1,
+      per_page: 20,
+      category: 'fashion',
+    })
+    expect(client.products.list).not.toHaveBeenCalled()
+    expect(page.items).toHaveLength(1)
+    expect(page.items[0].title).toBe('Robe Wax')
   })
 
   it('maps Engine paid pending orders to BOBO paid orders', () => {

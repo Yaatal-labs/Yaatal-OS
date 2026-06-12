@@ -15,12 +15,18 @@ import {
   getYaatalClient,
   setEngineAuthToken,
 } from './engine.client'
+import { analyticsService } from './analytics.service.engine'
 
 type EngineLoginResponse = {
   token: string
   pid: string
   name: string
   is_verified: boolean
+}
+
+type SignInOptions = {
+  isMerchant?: boolean
+  authEvent?: string
 }
 
 const nowIso = () => new Date().toISOString()
@@ -87,10 +93,12 @@ export class AuthService {
       const result = await this.signIn({
         email: data.email,
         password: data.password,
+      }, {
+        isMerchant: data.isMerchant,
+        authEvent: 'signup_success',
       })
 
       if (result.success && result.profile) {
-        result.profile.is_merchant = data.isMerchant
         this.currentProfile = result.profile
       }
 
@@ -104,7 +112,7 @@ export class AuthService {
     }
   }
 
-  async signIn(data: LoginFormData): Promise<{
+  async signIn(data: LoginFormData, options: SignInOptions = {}): Promise<{
     success: boolean
     user?: any
     profile?: Profile
@@ -135,10 +143,20 @@ export class AuthService {
         isVerified: login.is_verified,
         accessToken: login.token,
       }
-      const profile = profileFromEngineUser(login, email)
+      const profile = profileFromEngineUser(login, email, options.isMerchant ?? false)
 
       this.currentUser = user
       this.currentProfile = profile
+      analyticsService.identify({
+        traits: {
+          userId: user.id,
+          email,
+          name: user.name,
+          isVerified: user.isVerified,
+          isMerchant: profile.is_merchant,
+          authEvent: options.authEvent ?? 'login_success',
+        },
+      })
 
       return {
         success: true,
@@ -165,6 +183,15 @@ export class AuthService {
     this.currentUser = user
     this.currentProfile = profile
     setEngineAuthToken(user?.accessToken || null)
+    analyticsService.identify({
+      traits: {
+        userId: profile.id,
+        email: user?.email,
+        name: profile.full_name || profile.username,
+        isMerchant: profile.is_merchant,
+        authEvent: 'session_restore',
+      },
+    })
   }
 
   getCurrentUser() {
