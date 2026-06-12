@@ -43,6 +43,11 @@ const ProductsStack = () => (
       component={AddProductScreen}
       options={{ title: 'Ajouter un Produit' }}
     />
+    <Stack.Screen
+      name="EditProduct"
+      component={AddProductScreen}
+      options={{ title: 'Modifier le Produit' }}
+    />
   </Stack.Navigator>
 )
 

@@ -17,7 +17,7 @@ export {
 export * from './engine.client'
 
 // Non-commerce services stay on the legacy HTTP/PocketBase implementations so
-// the active BOBO barrel does not import PowerSync/Supabase at startup.
+// the active BOBO barrel does not import legacy sync/Supabase at startup.
 export {
   AISearchService,
   NLPEngine,
@@ -37,3 +37,4 @@ export type {
   DeliveryQuote,
   MerchantDeliveryPreferences,
 } from '../types/delivery'
+

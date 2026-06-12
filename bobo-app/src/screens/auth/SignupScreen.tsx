@@ -34,8 +34,9 @@ export const SignupScreen = ({ navigation }: any) => {
     clearError()
     const success = await signUp(formData)
 
-    if (!success && error) {
-      Alert.alert('Erreur', error)
+    if (!success) {
+      const latestError = useAuthStore.getState().error
+      Alert.alert('Erreur', latestError || 'Erreur lors de l\'inscription')
     }
     // Success handled by navigation
   }

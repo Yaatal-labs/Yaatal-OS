@@ -31,8 +31,9 @@ export const LoginScreen = ({ navigation }: any) => {
     clearError()
     const success = await signIn(formData)
 
-    if (!success && error) {
-      Alert.alert('Erreur', error)
+    if (!success) {
+      const latestError = useAuthStore.getState().error
+      Alert.alert('Erreur', latestError || 'Erreur lors de la connexion')
     }
     // Success handled by navigation (RootNavigator checks auth state)
   }

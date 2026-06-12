@@ -1,10 +1,21 @@
 /**
- * Orders Service - Engine HTTP Version
+ * Orders Service - Engine SDK Version
  */
 
+import type {
+  BoboCheckoutOrder,
+  BoboCheckoutPayment,
+  BoboCheckoutResponse,
+  Delivery as EngineDelivery,
+  Order as EngineOrder,
+  OrderItem as EngineOrderItem,
+  OrderList as EngineOrderList,
+  OrderStatus as EngineOrderStatus,
+} from '@yaatal/client'
 import { validatePhoneNumber } from '../utils/validation'
 import type { Order, Product } from '../types/models'
-import { engineRequest } from './engine.client'
+import { engineRequest, getYaatalClient } from './engine.client'
+import { mapEngineProductToProduct } from './products.service.engine'
 
 export interface ShippingInfo {
   address: string
@@ -14,68 +25,9 @@ export interface ShippingInfo {
   phoneNumber: string
 }
 
-type EngineOrderItem = {
-  id: string
-  product_id: string
-  quantity: number
-  unit_price_cents: number
-}
-
-type EngineOrder = {
-  id: string
-  buyer_id: string
-  seller_id: string
-  status: string
-  payment_method: string
-  payment_status: string
-  delivery_method: string
-  total_cents: number
-  items: EngineOrderItem[]
-  created_at: string
-  updated_at?: string | null
-}
-
-type EngineOrderList = {
-  orders: EngineOrder[]
-  total: number
-  page: number
-  per_page: number
-}
-
-type BoboOrderDto = {
-  id: string
-  engine_order_id: string
-  bobo_order_id: number
-  buyer_id: string
-  seller_id: string
-  product_id: string
-  quantity: number
-  unit_price: number
-  total_price: number
-  status: Order['status']
-  payment_method: 'wave' | 'cash'
-  payment_reference?: string
-  shipping_address?: string
-  phone_number?: string
-  created: string
-  updated: string
-}
-
-export type EngineCheckoutPayment = {
-  method: string
-  status: string
-  rail: string
-  provider_ref: string
-  idempotency_key: string
-  amount_xof: number
-  redirect_url?: string | null
-}
-
-type CheckoutResponse = {
-  success: boolean
-  order: BoboOrderDto
-  payment: EngineCheckoutPayment
-}
+export type EngineCheckoutPayment = BoboCheckoutPayment
+type BoboOrderDto = BoboCheckoutOrder
+type CheckoutResponse = BoboCheckoutResponse
 
 const formatShippingAddress = (shippingInfo: ShippingInfo): string => {
   return `${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.region}${
@@ -93,6 +45,32 @@ const mapEngineStatusToBobo = (
   if (status === 'confirmed') return 'processing'
   if (paymentStatus === 'paid') return 'paid'
   return 'pending_payment'
+}
+
+const mapEngineDeliveryStatusToBobo = (
+  status: EngineDelivery['status']
+): NonNullable<Order['delivery_status']> => {
+  if (status === 'accepted') return 'assigned'
+  if (status === 'picked_up') return 'picked_up'
+  if (status === 'in_transit') return 'in_transit'
+  if (status === 'delivered') return 'delivered'
+  if (status === 'failed' || status === 'cancelled') return 'failed'
+  return 'pending_dispatch'
+}
+
+const mapEngineDeliveryMethodToBobo = (
+  method?: string | null
+): NonNullable<Order['delivery_method']> => {
+  if (
+    method === 'bobo_managed' ||
+    method === 'merchant_self' ||
+    method === 'third_party' ||
+    method === 'customer_pickup'
+  ) {
+    return method
+  }
+
+  return 'bobo_managed'
 }
 
 const minimalProduct = (item?: EngineOrderItem): Product | undefined => {
@@ -115,6 +93,23 @@ const minimalProduct = (item?: EngineOrderItem): Product | undefined => {
     is_active: true,
     created: now,
     updated: now,
+  }
+}
+
+const mergeDeliveryIntoOrder = (
+  order: Order,
+  delivery?: EngineDelivery
+): Order => {
+  if (!delivery) return order
+
+  return {
+    ...order,
+    shipping_address: delivery.dropoff_address || order.shipping_address,
+    phone_number: delivery.phone_number || order.phone_number,
+    delivery_method: mapEngineDeliveryMethodToBobo(delivery.method),
+    delivery_status: mapEngineDeliveryStatusToBobo(delivery.status),
+    delivery_completed_at: delivery.confirmed_at || order.delivery_completed_at,
+    delivery_notes: delivery.notes || order.delivery_notes,
   }
 }
 
@@ -172,6 +167,36 @@ export const mapEngineOrderToOrder = (engineOrder: EngineOrder): Order => {
   }
 }
 
+export const enrichEngineOrderForBobo = async (
+  engineOrder: EngineOrder
+): Promise<Order> => {
+  const order = mapEngineOrderToOrder(engineOrder)
+  const client = getYaatalClient()
+  const productId = engineOrder.items[0]?.product_id
+
+  const productPromise = productId
+    ? client.products.get(productId).then(mapEngineProductToProduct).catch(() => undefined)
+    : Promise.resolve(undefined)
+  const deliveryPromise = client.delivery
+    .list({ order_id: engineOrder.id, limit: 1 })
+    .then((deliveries) => deliveries[0])
+    .catch(() => undefined)
+
+  const [product, delivery] = await Promise.all([productPromise, deliveryPromise])
+  const withProduct = product
+    ? {
+        ...order,
+        product_id: product.id,
+        expand: {
+          ...order.expand,
+          product_id: product,
+        },
+      }
+    : order
+
+  return mergeDeliveryIntoOrder(withProduct, delivery)
+}
+
 const mapBoboCheckoutOrder = (order: BoboOrderDto): Order => {
   return {
     id: order.id,
@@ -183,10 +208,10 @@ const mapBoboCheckoutOrder = (order: BoboOrderDto): Order => {
     quantity: order.quantity,
     unit_price: order.unit_price,
     total_price: order.total_price,
-    status: order.status,
-    payment_method: order.payment_method,
-    payment_reference: order.payment_reference,
-    shipping_address: order.shipping_address,
+    status: order.status as Order['status'],
+    payment_method: order.payment_method as Order['payment_method'],
+    payment_reference: order.payment_reference || undefined,
+    shipping_address: order.shipping_address || undefined,
     phone_number: order.phone_number || '',
     delivery_method: 'bobo_managed',
     delivery_status: 'pending_dispatch',
@@ -195,15 +220,19 @@ const mapBoboCheckoutOrder = (order: BoboOrderDto): Order => {
   } as Order
 }
 
-const pageFromOrders = (response: EngineOrderList) => ({
-  items: response.orders.map(mapEngineOrderToOrder),
+const pageFromOrders = async (response: EngineOrderList) => ({
+  items: await Promise.all(response.orders.map(enrichEngineOrderForBobo)),
   totalItems: response.total,
   totalPages: Math.ceil(response.total / response.per_page),
 })
 
-const mapBoboStatusToEngine = (status: Order['status']): string => {
+const mapBoboStatusToEngine = (status: Order['status']): EngineOrderStatus => {
+  if (status === 'pending_payment') return 'pending'
   if (status === 'processing' || status === 'paid') return 'confirmed'
-  return status
+  if (status === 'shipped') return 'shipped'
+  if (status === 'delivered') return 'delivered'
+  if (status === 'cancelled' || status === 'disputed') return 'cancelled'
+  return 'pending'
 }
 
 export class OrdersServiceEngine {
@@ -246,18 +275,15 @@ export class OrdersServiceEngine {
         return { success: false, error: 'Ville requise' }
       }
 
-      const response = await engineRequest<CheckoutResponse>('/api/bobo/checkout', {
-        method: 'POST',
-        body: JSON.stringify({
-          buyer_id: buyerId,
-          seller_id: sellerId,
-          product_id: productId,
-          quantity,
-          payment_method: paymentMethod,
-          shipping_address: formatShippingAddress(shippingInfo),
-          phone_number: shippingInfo.phoneNumber,
-          payer_msisdn: shippingInfo.phoneNumber,
-        }),
+      const response: CheckoutResponse = await getYaatalClient().bobo.checkout({
+        buyer_id: buyerId,
+        seller_id: sellerId,
+        product_id: productId,
+        quantity,
+        payment_method: paymentMethod,
+        shipping_address: formatShippingAddress(shippingInfo),
+        phone_number: shippingInfo.phoneNumber,
+        payer_msisdn: shippingInfo.phoneNumber,
       })
 
       return {
@@ -291,14 +317,11 @@ export class OrdersServiceEngine {
 
   async getOrdersByBuyer(_buyerId: string, page: number = 1, limit: number = 20) {
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        per_page: String(limit),
+      const response = await getYaatalClient().orders.me({
+        page,
+        per_page: limit,
       })
-      const response = await engineRequest<EngineOrderList>(
-        `/api/orders?${params.toString()}`
-      )
-      return pageFromOrders(response)
+      return await pageFromOrders(response)
     } catch (error) {
       console.error('Get buyer orders error:', error)
       return { items: [], totalItems: 0, totalPages: 0 }
@@ -314,7 +337,7 @@ export class OrdersServiceEngine {
       const response = await engineRequest<EngineOrderList>(
         `/api/merchant/orders?${params.toString()}`
       )
-      return pageFromOrders(response)
+      return await pageFromOrders(response)
     } catch (error) {
       console.error('Get seller orders error:', error)
       return { items: [], totalItems: 0, totalPages: 0 }
@@ -323,10 +346,8 @@ export class OrdersServiceEngine {
 
   async getOrderById(orderId: string): Promise<Order | undefined> {
     try {
-      const response = await engineRequest<EngineOrder>(
-        `/api/orders/${encodeURIComponent(orderId)}`
-      )
-      return mapEngineOrderToOrder(response)
+      const response = await getYaatalClient().orders.get(orderId)
+      return await enrichEngineOrderForBobo(response)
     } catch (error) {
       console.error('Get order error:', error)
       return undefined
@@ -342,17 +363,13 @@ export class OrdersServiceEngine {
     error?: string
   }> {
     try {
-      const response = await engineRequest<EngineOrder>(
-        `/api/orders/${encodeURIComponent(orderId)}/status`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ status: mapBoboStatusToEngine(status) }),
-        }
-      )
+      const response = await getYaatalClient().orders.updateStatus(orderId, {
+        status: mapBoboStatusToEngine(status),
+      })
 
       return {
         success: true,
-        order: mapEngineOrderToOrder(response),
+        order: await enrichEngineOrderForBobo(response),
       }
     } catch (error: any) {
       console.error('Update order status error:', error)
@@ -372,14 +389,10 @@ export class OrdersServiceEngine {
     error?: string
   }> {
     try {
-      const response = await engineRequest<EngineOrder>(
-        `/api/orders/${encodeURIComponent(orderId)}/payment`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ payment_status: 'paid' }),
-        }
-      )
-      const order = mapEngineOrderToOrder(response)
+      const response = await getYaatalClient().orders.updatePayment(orderId, {
+        payment_status: 'paid',
+      })
+      const order = await enrichEngineOrderForBobo(response)
       order.payment_reference = paymentReference
 
       return {
@@ -417,13 +430,10 @@ export class OrdersServiceEngine {
     error?: string
   }> {
     try {
-      const response = await engineRequest<EngineOrder>(
-        `/api/orders/${encodeURIComponent(orderId)}/cancel`,
-        { method: 'POST' }
-      )
+      const response = await getYaatalClient().orders.cancel(orderId)
       return {
         success: true,
-        order: mapEngineOrderToOrder(response),
+        order: await enrichEngineOrderForBobo(response),
       }
     } catch (error: any) {
       console.error('Cancel order error:', error)
@@ -452,9 +462,14 @@ export class OrdersServiceEngine {
   }
 
   async getCheckoutPaymentStatus(boboOrderId: number | string) {
-    return engineRequest<EngineCheckoutPayment>(
-      `/api/bobo/checkout/${encodeURIComponent(String(boboOrderId))}/payment`
-    )
+    const numericOrderId = Number(boboOrderId)
+    if (Number.isNaN(numericOrderId)) {
+      return engineRequest<EngineCheckoutPayment>(
+        `/api/bobo/checkout/${encodeURIComponent(String(boboOrderId))}/payment`
+      )
+    }
+
+    return getYaatalClient().bobo.paymentStatus(numericOrderId)
   }
 
   watchOrdersByBuyer(_buyerId: string) {

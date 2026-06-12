@@ -3,7 +3,7 @@
  * Create new product with photo
  */
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { useAuthStore } from '../../store/authStore'
 import { productsService } from '@njooba/core'
 import { colors, typography, spacing } from '../../theme'
-import type { ProductFormData } from '../../types/models'
+import type { Product, ProductFormData } from '../../types/models'
 
 const CATEGORIES = [
   { value: 'fashion', label: 'Mode 👔' },
@@ -32,8 +32,10 @@ const CATEGORIES = [
   { value: 'other', label: 'Autre 📦' },
 ]
 
-export const AddProductScreen = ({ navigation }: any) => {
+export const AddProductScreen = ({ route, navigation }: any) => {
   const { profile } = useAuthStore()
+  const productId = route?.params?.productId as string | undefined
+  const isEditMode = !!productId
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState<ProductFormData>({
     title: '',
@@ -45,6 +47,46 @@ export const AddProductScreen = ({ navigation }: any) => {
   const [imageUri, setImageUri] = useState<string | null>(null)
   const [videoUri, setVideoUri] = useState<string | null>(null)
   const [videoDuration, setVideoDuration] = useState<number>(0)
+
+  useEffect(() => {
+    if (!productId) return
+
+    let cancelled = false
+
+    const loadProduct = async () => {
+      setIsLoading(true)
+      const product = (await productsService.getById(productId)) as Product | undefined
+
+      if (cancelled) return
+
+      if (!product) {
+        setIsLoading(false)
+        Alert.alert('Erreur', 'Produit introuvable', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ])
+        return
+      }
+
+      setFormData({
+        title: product.title,
+        description: product.description || '',
+        price: product.price,
+        discount_price: product.discount_price,
+        category: product.category,
+        stock_quantity: product.stock_quantity,
+      })
+      setImageUri(product.image_url || null)
+      setVideoUri(product.video_url || null)
+      setVideoDuration(0)
+      setIsLoading(false)
+    }
+
+    loadProduct()
+
+    return () => {
+      cancelled = true
+    }
+  }, [productId, navigation])
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -121,16 +163,19 @@ export const AddProductScreen = ({ navigation }: any) => {
 
     setIsLoading(true)
 
-    const result = await productsService.create(profile.id, {
+    const payload = {
       ...formData,
       image_uri: imageUri,
       video_uri: videoUri || undefined,
-    })
+    }
+    const result = isEditMode
+      ? await productsService.update(productId!, payload)
+      : await productsService.create(profile.id, payload)
 
     setIsLoading(false)
 
     if (result.success) {
-      Alert.alert('Succès', 'Produit créé avec succès!', [
+      Alert.alert('Succès', isEditMode ? 'Produit mis à jour avec succès!' : 'Produit créé avec succès!', [
         {
           text: 'OK',
           onPress: () => navigation.goBack(),
@@ -298,7 +343,9 @@ export const AddProductScreen = ({ navigation }: any) => {
           {isLoading ? (
             <ActivityIndicator color={colors.text.inverse} />
           ) : (
-            <Text style={styles.submitButtonText}>Créer le produit</Text>
+            <Text style={styles.submitButtonText}>
+              {isEditMode ? 'Mettre à jour le produit' : 'Créer le produit'}
+            </Text>
           )}
         </TouchableOpacity>
 

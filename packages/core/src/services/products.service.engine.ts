@@ -1,7 +1,11 @@
 /**
- * Products Service - Engine HTTP Version
+ * Products Service - Engine SDK Version
  */
 
+import type {
+  Product as EngineProduct,
+  ProductList as EngineProductList,
+} from '@yaatal/client'
 import {
   validatePrice,
   validateProductTitle,
@@ -9,30 +13,7 @@ import {
   generateSKU,
 } from '../utils/validation'
 import type { Product, ProductFormData, Profile } from '../types/models'
-import { engineRequest, getEngineAuthToken } from './engine.client'
-
-type EngineProduct = {
-  id: string
-  merchant_id: string
-  name: string
-  description?: string | null
-  price_cents: number
-  discount_price_cents?: number | null
-  stock: number
-  category: string
-  images?: string | null
-  is_active: boolean
-  upvotes: number
-  created_at: string
-  updated_at?: string | null
-}
-
-type EngineProductList = {
-  products: EngineProduct[]
-  total: number
-  page: number
-  per_page: number
-}
+import { engineRequest, getEngineAuthToken, getYaatalClient } from './engine.client'
 
 const CATEGORIES: Product['category'][] = [
   'fashion',
@@ -93,6 +74,7 @@ export const mapEngineProductToProduct = (product: EngineProduct): Product => {
     category,
     tags: [],
     image_url: images[0] || '',
+    video_url: images[1] || undefined,
     stock_quantity: product.stock,
     upvotes: product.upvotes,
     view_count: 0,
@@ -124,15 +106,11 @@ export class ProductsServiceEngine {
     totalPages: number
   }> {
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        per_page: String(limit),
-        active_only: 'true',
+      const response = await getYaatalClient().products.list({
+        page,
+        per_page: limit,
+        active_only: true,
       })
-      const response = await engineRequest<EngineProductList>(
-        `/api/products?${params.toString()}`,
-        { auth: false }
-      )
 
       return productListToPage(response)
     } catch (error) {
@@ -154,16 +132,12 @@ export class ProductsServiceEngine {
         return productListToPage(response)
       }
 
-      const params = new URLSearchParams({
-        page: String(page),
-        per_page: String(limit),
+      const response = await getYaatalClient().products.list({
+        page,
+        per_page: limit,
         merchant_id: sellerId,
-        active_only: 'false',
+        active_only: false,
       })
-      const response = await engineRequest<EngineProductList>(
-        `/api/products?${params.toString()}`,
-        { auth: false }
-      )
 
       return productListToPage(response)
     } catch (error) {
@@ -174,10 +148,7 @@ export class ProductsServiceEngine {
 
   async getById(productId: string): Promise<Product | undefined> {
     try {
-      const product = await engineRequest<EngineProduct>(
-        `/api/products/${encodeURIComponent(productId)}`,
-        { auth: false }
-      )
+      const product = await getYaatalClient().products.get(productId)
       return mapEngineProductToProduct(product)
     } catch (error) {
       console.error('Get product error:', error)
@@ -187,16 +158,12 @@ export class ProductsServiceEngine {
 
   async search(query: string, page: number = 1, limit: number = 20) {
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        per_page: String(limit),
-        active_only: 'true',
+      const response = await getYaatalClient().products.list({
+        page,
+        per_page: limit,
+        active_only: true,
         search: query,
       })
-      const response = await engineRequest<EngineProductList>(
-        `/api/products?${params.toString()}`,
-        { auth: false }
-      )
 
       return productListToPage(response)
     } catch (error) {
@@ -229,19 +196,16 @@ export class ProductsServiceEngine {
         return { success: false, error: stockValidation.error }
       }
 
-      const created = await engineRequest<EngineProduct>('/api/products', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: data.title.trim(),
-          description: data.description?.trim() || null,
-          price_cents: data.price,
-          discount_price_cents: data.discount_price ?? null,
-          stock: data.stock_quantity,
-          category: data.category,
-          images: data.image_uri
-            ? JSON.stringify([data.image_uri, ...(data.video_uri ? [data.video_uri] : [])])
-            : null,
-        }),
+      const created = await getYaatalClient().products.create({
+        name: data.title.trim(),
+        description: data.description?.trim() || null,
+        price_cents: data.price,
+        discount_price_cents: data.discount_price ?? null,
+        stock: data.stock_quantity,
+        category: data.category,
+        images: data.image_uri
+          ? JSON.stringify([data.image_uri, ...(data.video_uri ? [data.video_uri] : [])])
+          : null,
       })
 
       return {
@@ -266,30 +230,24 @@ export class ProductsServiceEngine {
     error?: string
   }> {
     try {
-      const updated = await engineRequest<EngineProduct>(
-        `/api/products/${encodeURIComponent(productId)}`,
-        {
-          method: 'PUT',
-          body: JSON.stringify({
-            name: updates.title?.trim(),
-            description: updates.description?.trim(),
-            price_cents: updates.price,
-            discount_price_cents:
-              updates.discount_price === undefined ? undefined : updates.discount_price,
-            stock: updates.stock_quantity,
-            category: updates.category,
-            images:
-              updates.image_uri === undefined
-                ? undefined
-                : updates.image_uri
-                ? JSON.stringify([
-                    updates.image_uri,
-                    ...(updates.video_uri ? [updates.video_uri] : []),
-                  ])
-                : null,
-          }),
-        }
-      )
+      const updated = await getYaatalClient().products.update(productId, {
+        name: updates.title?.trim(),
+        description: updates.description?.trim(),
+        price_cents: updates.price,
+        discount_price_cents:
+          updates.discount_price === undefined ? undefined : updates.discount_price,
+        stock: updates.stock_quantity,
+        category: updates.category,
+        images:
+          updates.image_uri === undefined
+            ? undefined
+            : updates.image_uri
+            ? JSON.stringify([
+                updates.image_uri,
+                ...(updates.video_uri ? [updates.video_uri] : []),
+              ])
+            : null,
+      })
 
       return {
         success: true,
@@ -309,9 +267,7 @@ export class ProductsServiceEngine {
     error?: string
   }> {
     try {
-      await engineRequest(`/api/products/${encodeURIComponent(productId)}`, {
-        method: 'DELETE',
-      })
+      await getYaatalClient().products.remove(productId)
       return { success: true }
     } catch (error: any) {
       console.error('Delete product error:', error)
@@ -328,10 +284,7 @@ export class ProductsServiceEngine {
 
   async toggleUpvote(productId: string, _userId: string): Promise<boolean> {
     try {
-      await engineRequest(`/api/products/${encodeURIComponent(productId)}/upvote`, {
-        method: 'POST',
-        auth: false,
-      })
+      await getYaatalClient().products.upvote(productId)
       return true
     } catch (error) {
       console.error('Toggle upvote error:', error)

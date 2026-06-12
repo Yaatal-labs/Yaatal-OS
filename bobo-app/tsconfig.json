@@ -10,6 +10,9 @@
       "@njooba/core": [
         "../packages/core/src"
       ],
+      "@yaatal/client": [
+        "../packages/client/dist"
+      ],
       "@njooba/ai": [
         "../packages/ai/src"
       ],
@@ -31,3 +34,4 @@
     "node_modules"
   ]
 }
+

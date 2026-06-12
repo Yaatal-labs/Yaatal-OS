@@ -1,5 +1,5 @@
 /**
- * Authentication Service - Engine HTTP Version
+ * Authentication Service - Engine SDK Version
  * Keeps the BOBO auth surface while using Engine auth endpoints.
  */
 
@@ -11,8 +11,8 @@ import {
 } from '../utils/validation'
 import type { LoginFormData, Profile, SignupFormData } from '../types/models'
 import {
-  engineRequest,
   getEngineAuthToken,
+  getYaatalClient,
   setEngineAuthToken,
 } from './engine.client'
 
@@ -78,14 +78,10 @@ export class AuthService {
         return { success: false, error: 'Les mots de passe ne correspondent pas' }
       }
 
-      await engineRequest('/api/auth/register', {
-        method: 'POST',
-        auth: false,
-        body: JSON.stringify({
-          email: data.email.trim().toLowerCase(),
-          password: data.password,
-          name: data.username.trim(),
-        }),
+      await getYaatalClient().auth.register({
+        email: data.email.trim().toLowerCase(),
+        password: data.password,
+        name: data.username.trim(),
       })
 
       const result = await this.signIn({
@@ -125,13 +121,9 @@ export class AuthService {
       }
 
       const email = data.email.trim().toLowerCase()
-      const login = await engineRequest<EngineLoginResponse>('/api/auth/login', {
-        method: 'POST',
-        auth: false,
-        body: JSON.stringify({
-          email,
-          password: data.password,
-        }),
+      const login = await getYaatalClient().auth.login({
+        email,
+        password: data.password,
       })
 
       setEngineAuthToken(login.token)
@@ -249,10 +241,8 @@ export class AuthService {
       return { success: false, error: emailValidation.error }
     }
 
-    await engineRequest('/api/auth/forgot', {
-      method: 'POST',
-      auth: false,
-      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    await getYaatalClient().auth.forgotPassword({
+      email: email.trim().toLowerCase(),
     })
 
     return { success: true }

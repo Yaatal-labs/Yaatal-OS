@@ -1,6 +1,6 @@
 -- BOBO Schema Alignment Migration
--- Aligns Supabase tables with PowerSync schema expectations
--- Run this migration to sync deployed Supabase with PowerSync schema.ts
+-- Aligns Supabase tables with legacy mobile schema expectations
+-- Run this migration to sync deployed Supabase with legacy mobile schema
 --
 -- This migration is ADDITIVE and maintains backwards compatibility
 
@@ -9,7 +9,7 @@ BEGIN;
 -- ============================================================================
 -- PROFILES TABLE UPDATES
 -- ============================================================================
--- PowerSync expects: 'buyer' | 'seller' | 'delivery'
+-- Legacy mobile schema expects: 'buyer' | 'seller' | 'delivery'
 -- Current SQL has: 'customer' | 'merchant' | 'delivery' | 'admin'
 -- Solution: Accept both naming conventions for backwards compatibility
 -- Note: Only update if role column exists (some deployments may not have it)
@@ -27,7 +27,7 @@ END $$;
 -- ============================================================================
 -- PRODUCTS TABLE UPDATES
 -- ============================================================================
--- PowerSync expects 'title' column - already exists in local schema.sql
+-- Legacy mobile schema expects 'title' column - already exists in local schema.sql
 -- If your deployed Supabase uses 'name' instead, uncomment below:
 
 -- Option A: Add 'title' as computed column if 'name' exists
@@ -61,7 +61,7 @@ END $$;
 -- ============================================================================
 -- ORDER_ITEMS TABLE
 -- ============================================================================
--- PowerSync expects: order_id, product_id, quantity, unit_price, total_price
+-- Legacy mobile schema expects: order_id, product_id, quantity, unit_price, total_price
 
 CREATE TABLE IF NOT EXISTS order_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Add indexes for PowerSync sync performance
+-- Add indexes for query performance
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_product ON order_items(product_id);
 
@@ -104,11 +104,11 @@ CREATE POLICY "Buyers can create order items" ON order_items
 -- ============================================================================
 -- ORDERS TABLE UPDATES
 -- ============================================================================
--- PowerSync expects: buyer_id, seller_id, status, payment_method, payment_status,
+-- Legacy mobile schema expects: buyer_id, seller_id, status, payment_method, payment_status,
 --                    subtotal, shipping_cost, total, delivery_method,
 --                    delivery_address, delivery_phone
 
--- Update status check to include all PowerSync expected values
+-- Update status check to include all legacy mobile expected values
 ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
 ALTER TABLE orders ADD CONSTRAINT orders_status_check
   CHECK (status IN (
@@ -116,14 +116,14 @@ ALTER TABLE orders ADD CONSTRAINT orders_status_check
     'picked_up', 'delivering', 'delivered', 'cancelled'
   ));
 
--- Update payment_method to include PowerSync expected values
+-- Update payment_method to include legacy mobile expected values
 ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;
 ALTER TABLE orders ADD CONSTRAINT orders_payment_method_check
   CHECK (payment_method IN (
     'cash', 'mobile_money', 'card', 'orange_money', 'wave'
   ));
 
--- Update delivery_method to include PowerSync expected values
+-- Update delivery_method to include legacy mobile expected values
 ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_delivery_method_check;
 ALTER TABLE orders ADD CONSTRAINT orders_delivery_method_check
   CHECK (delivery_method IN (
@@ -153,7 +153,7 @@ END $$;
 -- ============================================================================
 -- CONVERSATIONS TABLE
 -- ============================================================================
--- PowerSync expects: buyer_id, seller_id, order_id, last_message_at
+-- Legacy mobile schema expects: buyer_id, seller_id, order_id, last_message_at
 
 CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   UNIQUE(buyer_id, seller_id, order_id)
 );
 
--- Indexes for PowerSync sync performance
+-- Indexes for query performance
 CREATE INDEX IF NOT EXISTS idx_conversations_buyer ON conversations(buyer_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_seller ON conversations(seller_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_order ON conversations(order_id);
@@ -185,7 +185,7 @@ CREATE POLICY "Users can create conversations" ON conversations
 -- ============================================================================
 -- MESSAGES TABLE
 -- ============================================================================
--- PowerSync expects: conversation_id, sender_id, content, type, metadata,
+-- Legacy mobile schema expects: conversation_id, sender_id, content, type, metadata,
 --                    read_at, created_at
 -- Type values: 'text' | 'image' | 'audio' | 'location'
 
@@ -200,7 +200,7 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Indexes for PowerSync sync performance
+-- Indexes for query performance
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
@@ -233,7 +233,7 @@ CREATE POLICY "Conversation participants can send messages" ON messages
 -- ============================================================================
 -- REVIEWS TABLE
 -- ============================================================================
--- PowerSync expects: product_id, buyer_id, order_id, rating (1-5), comment
+-- Legacy mobile schema expects: product_id, buyer_id, order_id, rating (1-5), comment
 
 CREATE TABLE IF NOT EXISTS reviews (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -247,7 +247,7 @@ CREATE TABLE IF NOT EXISTS reviews (
   UNIQUE(buyer_id, product_id, order_id)
 );
 
--- Indexes for PowerSync sync performance
+-- Indexes for query performance
 CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_buyer ON reviews(buyer_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_order ON reviews(order_id);
@@ -274,26 +274,26 @@ CREATE POLICY "Buyer reviews" ON reviews
 -- ============================================================================
 -- LIVESTREAM_OVERLAY_STATE TABLE UPDATES
 -- ============================================================================
--- PowerSync expects: merchant_id, show_qr, qr_code_data_url, current_product_id,
+-- Legacy mobile schema expects: merchant_id, show_qr, qr_code_data_url, current_product_id,
 --                    product_title, product_price, updated_at
 
 DO $$
 BEGIN
-  -- Add qr_code_data_url if not exists (PowerSync name)
+  -- Add qr_code_data_url if not exists (legacy mobile name)
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                  WHERE table_name = 'livestream_overlay_state'
                  AND column_name = 'qr_code_data_url') THEN
     ALTER TABLE livestream_overlay_state ADD COLUMN qr_code_data_url TEXT;
   END IF;
 
-  -- Add product_title if not exists (PowerSync name)
+  -- Add product_title if not exists (legacy mobile name)
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                  WHERE table_name = 'livestream_overlay_state'
                  AND column_name = 'product_title') THEN
     ALTER TABLE livestream_overlay_state ADD COLUMN product_title TEXT;
   END IF;
 
-  -- Add product_price as TEXT if not exists (PowerSync expects text)
+  -- Add product_price as TEXT if not exists (Legacy mobile schema expects text)
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                  WHERE table_name = 'livestream_overlay_state'
                  AND column_name = 'product_price_text') THEN
@@ -331,9 +331,9 @@ CREATE TRIGGER sync_overlay_columns_trigger
 -- ============================================================================
 -- DELIVERY_REQUESTS TABLE UPDATES
 -- ============================================================================
--- PowerSync expects delivery_person_id to reference profiles directly
+-- Legacy mobile schema expects delivery_person_id to reference profiles directly
 -- Current schema references delivery_persons table
--- Solution: Add a column that references profiles for PowerSync compatibility
+-- Solution: Add a column that references profiles for legacy mobile compatibility
 
 DO $$
 BEGIN
@@ -343,7 +343,7 @@ BEGIN
     ALTER TABLE delivery_requests ADD COLUMN delivery_profile_id UUID REFERENCES profiles(id);
   END IF;
 
-  -- Ensure estimated_time is TEXT for PowerSync compatibility
+  -- Ensure estimated_time is TEXT for legacy mobile compatibility
   IF EXISTS (SELECT 1 FROM information_schema.columns
              WHERE table_name = 'delivery_requests'
              AND column_name = 'estimated_time'
@@ -385,31 +385,6 @@ BEGIN
   END IF;
 END $$;
 
--- ============================================================================
--- POWERSYNC SYNC RULES HELPER FUNCTION
--- ============================================================================
--- This function helps PowerSync determine what data to sync for each user
-
-CREATE OR REPLACE FUNCTION get_user_sync_data(user_id UUID)
-RETURNS TABLE (
-  table_name TEXT,
-  filter_column TEXT,
-  filter_value UUID
-) AS $$
-BEGIN
-  RETURN QUERY VALUES
-    ('profiles'::TEXT, 'id'::TEXT, user_id),
-    ('products'::TEXT, 'merchant_id'::TEXT, user_id),
-    ('orders'::TEXT, 'buyer_id'::TEXT, user_id),
-    ('orders'::TEXT, 'seller_id'::TEXT, user_id),
-    ('order_items'::TEXT, 'order_id'::TEXT, user_id),
-    ('conversations'::TEXT, 'buyer_id'::TEXT, user_id),
-    ('conversations'::TEXT, 'seller_id'::TEXT, user_id),
-    ('messages'::TEXT, 'sender_id'::TEXT, user_id),
-    ('reviews'::TEXT, 'buyer_id'::TEXT, user_id),
-    ('delivery_requests'::TEXT, 'delivery_profile_id'::TEXT, user_id);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================================
 -- MIGRATION NOTES
@@ -420,7 +395,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- - CHECK constraints expanded to include both old and new values
 -- - Trigger syncs old/new column names for livestream_overlay_state
 --
--- POWERSYNC EXPECTATIONS MET:
+-- legacy mobile schema EXPECTATIONS MET:
 -- - products.title: Exists (if deployed with 'name', uncomment Option A or B above)
 -- - order_items: Created with all expected columns
 -- - conversations: Created with all expected columns
@@ -429,10 +404,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- - orders: Payment fields ensured, constraints expanded
 --
 -- POST-MIGRATION:
--- 1. Update PowerSync sync rules to include new tables
--- 2. Test offline sync functionality
--- 3. Update RN app to use new table structures
+-- 1. Verify Engine-backed RN app paths use the expected table structures
 --
 -- ============================================================================
 
 COMMIT;
+

@@ -77,6 +77,12 @@
           "photosPermission": "BOBO a besoin d'accéder aux photos pour ajouter des images"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2e409826-a317-40ba-915a-d0c1804617ad"
+      }
+    },
+    "owner": "mouhamedn96"
   }
 }

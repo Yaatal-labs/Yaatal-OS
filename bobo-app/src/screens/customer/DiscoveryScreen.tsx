@@ -107,7 +107,7 @@ export const DiscoveryScreen = ({ navigation }: any) => {
     setPage(1)
 
     try {
-      // Hybrid AI Search (PowerSync version)
+      // Hybrid AI Search
       const result = await productsService.search(searchQuery, 1, 20)
       setProducts(result.items)
     } catch (error) {

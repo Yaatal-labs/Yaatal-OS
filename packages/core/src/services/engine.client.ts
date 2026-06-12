@@ -1,7 +1,10 @@
+import { createYaatalClient, type YaatalClient } from '@yaatal/client'
+
 const DEFAULT_ENGINE_API_URL = 'http://localhost:5150'
 
 let authToken: string | null = null
 let engineApiUrl = DEFAULT_ENGINE_API_URL
+let yaatalClient: YaatalClient = createYaatalClient({ baseUrl: engineApiUrl })
 
 type EngineRequestOptions = RequestInit & {
   auth?: boolean
@@ -19,16 +22,32 @@ export class EngineHttpError extends Error {
   }
 }
 
+const refreshYaatalClient = () => {
+  yaatalClient = createYaatalClient({
+    baseUrl: engineApiUrl,
+    ...(authToken ? { token: authToken } : {}),
+  })
+}
+
+export const getYaatalClient = (): YaatalClient => yaatalClient
+
 export const getEngineApiUrl = (): string => {
   return engineApiUrl
 }
 
 export const setEngineApiUrl = (url?: string | null) => {
-  engineApiUrl = url?.replace(/\/$/, '') || DEFAULT_ENGINE_API_URL
+  engineApiUrl = url?.replace(/\/+$/, '') || DEFAULT_ENGINE_API_URL
+  refreshYaatalClient()
 }
 
 export const setEngineAuthToken = (token: string | null) => {
   authToken = token
+
+  if (token) {
+    yaatalClient.setToken(token)
+  } else {
+    yaatalClient.clearToken()
+  }
 }
 
 export const getEngineAuthToken = (): string | null => authToken
