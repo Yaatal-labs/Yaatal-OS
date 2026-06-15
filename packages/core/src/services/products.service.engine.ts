@@ -123,7 +123,6 @@ export class ProductsServiceEngine {
         : await getYaatalClient().products.list({
             page,
             per_page: limit,
-            active_only: true,
           })
 
       return productListToPage(response)
@@ -150,7 +149,6 @@ export class ProductsServiceEngine {
         page,
         per_page: limit,
         merchant_id: sellerId,
-        active_only: false,
       })
 
       return productListToPage(response)
@@ -200,10 +198,9 @@ export class ProductsServiceEngine {
         : await getYaatalClient().products.list({
             page,
             per_page: limit,
-            active_only: true,
             search: query,
             category,
-          } as any)
+          })
 
       const pageResult = productListToPage(response)
       analyticsService.track({

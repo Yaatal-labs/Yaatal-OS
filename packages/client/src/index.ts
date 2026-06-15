@@ -67,7 +67,6 @@ export type {
   OrderStatus,
   PaymentStatus,
   UpdateOrderStatusRequest,
-  UpdatePaymentStatusRequest,
 } from "./orders.js";
 export { ProductsClient } from "./products.js";
 export type {
@@ -79,12 +78,9 @@ export type {
 } from "./products.js";
 export { SearchClient } from "./search.js";
 export type {
-  SearchHighlights,
   SearchMerchant,
   SearchMerchantsParams,
   SearchMerchantsResponse,
-  SearchMetadata,
-  SearchMetadataValue,
   SearchOrder,
   SearchOrdersParams,
   SearchOrdersResponse,
@@ -92,3 +88,4 @@ export type {
   SearchProductsParams,
   SearchProductsResponse,
 } from "./search.js";
+export type { JsonObject, JsonValue } from "./types.js";

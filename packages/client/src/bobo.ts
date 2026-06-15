@@ -24,7 +24,7 @@ export interface BoboCheckoutItem {
 }
 
 export interface BoboCheckoutRequest {
-  buyer_id: string;
+  buyer_id?: string;
   seller_id?: string;
   product_id?: string;
   quantity?: number;
@@ -161,13 +161,6 @@ export class BoboClient {
   escrow(orderId: number): Promise<BoboEscrow> {
     return this.http.request<BoboEscrow>(
       `/api/bobo/orders/${encodeURIComponent(String(orderId))}/escrow`,
-    );
-  }
-
-  simulatePayment(orderId: number): Promise<BoboOrderWithEscrow> {
-    return this.http.request<BoboOrderWithEscrow>(
-      `/api/bobo/orders/${encodeURIComponent(String(orderId))}/simulate-payment`,
-      { method: "POST" },
     );
   }
 

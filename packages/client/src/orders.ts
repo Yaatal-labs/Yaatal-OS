@@ -58,22 +58,18 @@ export interface UpdateOrderStatusRequest {
   status: OrderStatus;
 }
 
-export interface UpdatePaymentStatusRequest {
-  payment_status: PaymentStatus;
-}
-
 export class OrdersClient {
   constructor(private readonly http: EngineHttpClient) {}
 
   create(request: CreateOrderRequest): Promise<Order> {
-    return this.http.request<Order>("/api/orders/", {
+    return this.http.request<Order>("/api/orders", {
       method: "POST",
       body: request,
     });
   }
 
   list(params: ListOrdersParams = {}): Promise<OrderList> {
-    return this.http.request<OrderList>("/api/orders/", { query: { ...params } });
+    return this.http.request<OrderList>("/api/orders", { query: { ...params } });
   }
 
   me(params: ListOrdersParams = {}): Promise<OrderList> {
@@ -92,19 +88,6 @@ export class OrdersClient {
   ): Promise<Order> {
     return this.http.request<Order>(
       `/api/orders/${encodeURIComponent(id)}/status`,
-      {
-        method: "PATCH",
-        body: request,
-      },
-    );
-  }
-
-  updatePayment(
-    id: string,
-    request: UpdatePaymentStatusRequest,
-  ): Promise<Order> {
-    return this.http.request<Order>(
-      `/api/orders/${encodeURIComponent(id)}/payment`,
       {
         method: "PATCH",
         body: request,

@@ -1,13 +1,13 @@
 import type { EngineHttpClient } from "./http.js";
-import type { SearchMetadata } from "./search.js";
+import type { JsonObject } from "./types.js";
 
 export interface AnalyticsTrackRequest {
   event: string;
-  properties?: SearchMetadata;
+  properties?: JsonObject;
 }
 
 export interface AnalyticsIdentifyRequest {
-  traits?: SearchMetadata;
+  traits?: JsonObject;
 }
 
 export interface AnalyticsResponse {

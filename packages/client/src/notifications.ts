@@ -1,5 +1,5 @@
 import type { EngineHttpClient } from "./http.js";
-import type { SearchMetadata } from "./search.js";
+import type { JsonObject } from "./types.js";
 
 export interface Notification {
   id: string;
@@ -10,7 +10,7 @@ export interface Notification {
   body: string;
   resource_type?: string | null;
   resource_id?: string | null;
-  metadata?: SearchMetadata | null;
+  metadata?: JsonObject | null;
   metadata_json?: string | null;
   read_at?: string | null;
   created_at: string;

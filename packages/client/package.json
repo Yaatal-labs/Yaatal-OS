@@ -23,7 +23,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test:contracts": "node ./scripts/contract-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

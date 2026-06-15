@@ -28,7 +28,6 @@ export interface ListProductsParams {
   per_page?: number;
   category?: string;
   merchant_id?: string;
-  active_only?: boolean;
   search?: string;
 }
 
@@ -44,7 +43,7 @@ export interface CreateProductRequest {
 
 export interface UpdateProductRequest {
   name?: string;
-  description?: string | null;
+  description?: string;
   price_cents?: number;
   discount_price_cents?: number | null;
   stock?: number;
@@ -57,7 +56,7 @@ export class ProductsClient {
   constructor(private readonly http: EngineHttpClient) {}
 
   list(params: ListProductsParams = {}): Promise<ProductList> {
-    return this.http.request<ProductList>("/api/products/", {
+    return this.http.request<ProductList>("/api/products", {
       query: { ...params },
     });
   }
@@ -69,7 +68,7 @@ export class ProductsClient {
   }
 
   create(request: CreateProductRequest): Promise<Product> {
-    return this.http.request<Product>("/api/products/", {
+    return this.http.request<Product>("/api/products", {
       method: "POST",
       body: request,
     });

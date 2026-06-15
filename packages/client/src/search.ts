@@ -2,23 +2,6 @@ import type { EngineHttpClient } from "./http.js";
 import type { Order } from "./orders.js";
 import type { Product } from "./products.js";
 
-export type SearchMetadataValue =
-  | boolean
-  | number
-  | string
-  | null
-  | SearchMetadataValue[]
-  | { [key: string]: SearchMetadataValue };
-
-export type SearchMetadata = Record<string, SearchMetadataValue>;
-
-export interface SearchHighlights {
-  title?: string[];
-  description?: string[];
-  text?: string[];
-  [field: string]: string[] | undefined;
-}
-
 export interface SearchProductsParams {
   q?: string;
   query?: string;
@@ -29,18 +12,13 @@ export interface SearchProductsParams {
   merchant_id?: string;
 }
 
-export type SearchProduct = Product & {
-  score?: number;
-  highlights?: SearchHighlights;
-  metadata?: SearchMetadata;
-};
+export type SearchProduct = Product;
 
 export interface SearchProductsResponse {
   products: SearchProduct[];
   total: number;
   page: number;
   per_page: number;
-  query?: string;
 }
 
 export interface SearchMerchantsParams {
@@ -53,18 +31,11 @@ export interface SearchMerchantsParams {
 
 export interface SearchMerchant {
   id: string;
-  username?: string | null;
-  display_name?: string | null;
-  bio?: string | null;
-  name?: string | null;
-  description?: string | null;
-  category?: string | null;
-  market?: string | null;
-  avatar_url?: string | null;
-  created_at?: string;
-  score?: number;
-  highlights?: SearchHighlights;
-  metadata?: SearchMetadata;
+  username: string | null;
+  display_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  created_at: string;
 }
 
 export interface SearchMerchantsResponse {
@@ -72,7 +43,6 @@ export interface SearchMerchantsResponse {
   total: number;
   page: number;
   per_page: number;
-  query?: string;
 }
 
 export interface SearchOrdersParams {
@@ -85,18 +55,13 @@ export interface SearchOrdersParams {
   role?: "buyer" | "seller";
 }
 
-export type SearchOrder = Order & {
-  score?: number;
-  highlights?: SearchHighlights;
-  metadata?: SearchMetadata;
-};
+export type SearchOrder = Order;
 
 export interface SearchOrdersResponse {
   orders: SearchOrder[];
   total: number;
   page: number;
   per_page: number;
-  query?: string;
 }
 
 export class SearchClient {

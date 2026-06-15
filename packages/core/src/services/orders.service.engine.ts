@@ -423,9 +423,7 @@ export class OrdersServiceEngine {
     error?: string
   }> {
     try {
-      const response = await getYaatalClient().orders.updatePayment(orderId, {
-        payment_status: 'paid',
-      })
+      const response = await getYaatalClient().orders.get(orderId)
       const order = await enrichEngineOrderForBobo(response)
       order.payment_reference = paymentReference
 
