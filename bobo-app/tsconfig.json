@@ -11,7 +11,7 @@
         "../packages/core/src"
       ],
       "@yaatal/client": [
-        "../packages/client/dist"
+        "./node_modules/@yaatal/client/dist"
       ],
       "@njooba/ai": [
         "../packages/ai/src"
