@@ -1,0 +1,24 @@
+{
+  "001": {
+    "id": "001",
+    "name": "Sac en cuir",
+    "price": "15,000 FCFA",
+    "description": "Sac à main en cuir véritable, fait main à Dakar. Parfait pour toutes occasions.",
+    "image_url": "https://yaatal.shop/images/sac-cuir.jpg",
+    "stream_session_id": "session_2026_07_02_001",
+    "seller_name": "Diop Boutique",
+    "whatsapp_number": "+221 77 123 45 67",
+    "in_stock": true
+  },
+  "002": {
+    "id": "002",
+    "name": "Montre Classique",
+    "price": "8,000 FCFA",
+    "description": "Montre élégante avec bracelet en cuir. Garantie 6 mois.",
+    "image_url": "https://yaatal.shop/images/montre.jpg",
+    "stream_session_id": "session_2026_07_02_001",
+    "seller_name": "Diop Boutique",
+    "whatsapp_number": "+221 77 123 45 67",
+    "in_stock": true
+  }
+}

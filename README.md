@@ -18,6 +18,9 @@ Yaatal-Studio is a content production stack for African social commerce. It comb
 | `video/composition/motionforge/` | MIT | Forked from [codedbytahir/motionforge](https://github.com/codedbytahir/motionforge) |
 | `live/obs-controller/` | MIT | Original — wraps [obsws-python](https://github.com/aatikturk/obsws-python) (MIT) |
 | `live/mcp-server/` | MIT | Original — FastMCP server for OBS control |
+| `live/agent-loop/` | Proprietary | Original — STT intent detection, comment monitoring, engagement watching |
+| `live/nfc-controller/` | Proprietary | Original — NFC card reader → OBS actions |
+| `live/nfc-viewer/` | Proprietary | Original — NFC tap-to-buy web server (FastAPI) |
 | `live/overlays/` | MIT | Original — HTML Browser Source templates |
 | `live/scenes/` | MIT | Original — OBS scene collection JSON |
 | `live/multistream/` | MIT | Original — RTMP routing config templates |
@@ -48,6 +51,9 @@ Yaatal-Studio/
 ├── live/                             # OBS livestream selling layer
 │   ├── obs-controller/               # Python wrapper around obsws-python (MIT)
 │   ├── mcp-server/                   # FastMCP server — OBS control as MCP tools
+│   ├── agent-loop/                   # STT intent detection + comment monitor + engagement
+│   ├── nfc-controller/               # Physical NFC cards → seller controls the stream
+│   ├── nfc-viewer/                   # NFC tap-to-buy web server for viewers
 │   ├── overlays/                     # HTML Browser Source templates (price, CTA, etc.)
 │   ├── scenes/                       # OBS scene collection JSON (importable)
 │   └── multistream/                  # RTMP routing configs (Facebook, YouTube, TikTok)
@@ -117,9 +123,12 @@ pip install -r requirements.txt
 5. **Composition** — replace Remotion (source-available, paid >3 employees) with MotionForge (MIT)
 6. **Live selling** — wire OBS MCP server to gateway, test with real sellers in Dakar
 7. **Live captions** — Voicebox STT → `send_caption` → OBS stream (French first, Wolof as STT improves)
-8. **Detection layer** — build African market signal detection (TikTok Senegal, Instagram diaspora, Google Trends)
-9. **Commerce backend** — wire Yaatal Rust/Loco backend as the commerce platform
-10. **Engine integration** — connect live/ layer to Yaatal Engine (product catalog → scenes, sold-out → inventory, clips → MoneyPrinterTurbo)
+8. **Agent loop** — STT intent detection auto-updates prices, detects sold-outs, surfaces comments, auto-clips spikes
+9. **NFC controller** — physical NFC cards for sellers to control the stream without keyboard
+10. **NFC viewer** — tap-to-buy NFC cards shipped with products, web server for product pages
+11. **Detection layer** — build African market signal detection (TikTok Senegal, Instagram diaspora, Google Trends)
+12. **Commerce backend** — wire Yaatal Rust/Loco backend as the commerce platform
+13. **Engine integration** — connect live/ layer to Yaatal Engine (product catalog → scenes, sold-out → inventory, clips → MoneyPrinterTurbo, NFC registry → Engine catalog)
 
 ## License
 
