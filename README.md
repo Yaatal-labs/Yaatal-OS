@@ -19,8 +19,9 @@ Yaatal-Studio is a content production stack for African social commerce. It comb
 | `live/obs-controller/` | MIT | Original — wraps [obsws-python](https://github.com/aatikturk/obsws-python) (MIT) |
 | `live/mcp-server/` | MIT | Original — FastMCP server for OBS control |
 | `live/agent-loop/` | Proprietary | Original — STT intent detection, comment monitoring, engagement watching |
-| `live/nfc-controller/` | Proprietary | Original — NFC card reader → OBS actions |
-| `live/nfc-viewer/` | Proprietary | Original — NFC tap-to-buy web server (FastAPI) |
+| `live/nfc-controller/` | Proprietary | Original — NFC card reader → OBS actions (seller's physical controller) |
+| `live/nfc-delivery/` | Proprietary | Original — NFC delivery confirmation bridge to Yaatal Engine |
+| `live/qr-overlay/` | Proprietary | Original — QR codes on OBS stream → deep links to Engine marketplace |
 | `live/overlays/` | MIT | Original — HTML Browser Source templates |
 | `live/scenes/` | MIT | Original — OBS scene collection JSON |
 | `live/multistream/` | MIT | Original — RTMP routing config templates |
@@ -53,7 +54,8 @@ Yaatal-Studio/
 │   ├── mcp-server/                   # FastMCP server — OBS control as MCP tools
 │   ├── agent-loop/                   # STT intent detection + comment monitor + engagement
 │   ├── nfc-controller/               # Physical NFC cards → seller controls the stream
-│   ├── nfc-viewer/                   # NFC tap-to-buy web server for viewers
+│   ├── nfc-delivery/                 # NFC delivery confirmation → Engine closes order
+│   ├── qr-overlay/                   # QR codes on stream → deep links → Engine marketplace
 │   ├── overlays/                     # HTML Browser Source templates (price, CTA, etc.)
 │   ├── scenes/                       # OBS scene collection JSON (importable)
 │   └── multistream/                  # RTMP routing configs (Facebook, YouTube, TikTok)
@@ -125,10 +127,59 @@ pip install -r requirements.txt
 7. **Live captions** — Voicebox STT → `send_caption` → OBS stream (French first, Wolof as STT improves)
 8. **Agent loop** — STT intent detection auto-updates prices, detects sold-outs, surfaces comments, auto-clips spikes
 9. **NFC controller** — physical NFC cards for sellers to control the stream without keyboard
-10. **NFC viewer** — tap-to-buy NFC cards shipped with products, web server for product pages
-11. **Detection layer** — build African market signal detection (TikTok Senegal, Instagram diaspora, Google Trends)
-12. **Commerce backend** — wire Yaatal Rust/Loco backend as the commerce platform
-13. **Engine integration** — connect live/ layer to Yaatal Engine (product catalog → scenes, sold-out → inventory, clips → MoneyPrinterTurbo, NFC registry → Engine catalog)
+9. **NFC viewer** — tap-to-buy NFC cards shipped with products, web server for product pages
+10. **Detection layer** — build African market signal detection (TikTok Senegal, Instagram diaspora, Google Trends)
+11. **Commerce backend** — wire Yaatal Rust/Loco backend as the commerce platform
+12. **Engine integration** — connect live/ layer to Yaatal Engine (product catalog → scenes, sold-out → inventory, clips → MoneyPrinterTurbo, NFC registry → Engine catalog)
+
+## Hybrid flow: merchant proposes / model executes / engine disposes
+
+Yaatal-Studio follows a three-actor pattern:
+
+```
+MERCHANT PROPOSES
+  → Signals intent: "I want to sell these products on a live stream"
+  → Provides product data, images, prices
+  → Packs orders with NFC delivery tags for fulfillment
+
+MODEL EXECUTES (Yaatal-Studio)
+  → Agent loop orchestrates the livestream (STT, comments, OBS)
+  → QR codes on screen → deep links to Engine marketplace
+  → NFC controller lets seller control stream via physical cards
+  → Replay clips → MoneyPrinterTurbo → Reels/TikTok content
+
+ENGINE DISPOSES (Yaatal Engine)
+  → Serves marketplace pages (store, item details, checkout)
+  → Processes orders, payments, inventory
+  → NFC delivery confirmation → closes order, releases payment
+  → Attributes sales to livestream sessions
+```
+
+### Sales channel: QR codes → deep links → Engine marketplace
+
+During the livestream, QR codes are displayed on the OBS stream.
+Viewers scan with their phone camera → deep link opens → lands on
+the Yaatal Engine marketplace.
+
+| Deep link | Destination | When |
+|---|---|---|
+| `yaatal.shop/m/{merchant}` | Merchant store | Start/end of stream |
+| `yaatal.shop/i/{product}` | Item details | During product showcase |
+| `yaatal.shop/c/{product}` | Direct checkout | Impulse buy moment |
+| `yaatal.shop/l/{session}/{product}` | Live session item (attributed) | During stream — tracks sale to the live |
+
+The `/l/{session_id}/` prefix lets the Engine attribute purchases to
+specific livestream sessions — measuring which streams drive the most sales.
+
+### Delivery: NFC confirmation → Engine closes order
+
+Each shipped package includes an NFC sticker with a unique delivery code.
+When the customer receives it, they tap the sticker with their phone →
+opens `yaatal.shop/d/{delivery_code}` → confirms delivery → the Engine
+marks the order delivered, releases payment to the merchant, and triggers
+post-delivery flows (review request, re-order prompt).
+
+The delivery code is one-time-use — the same tag can't confirm twice.
 
 ## License
 
