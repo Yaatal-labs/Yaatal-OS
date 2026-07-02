@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="wo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yaatal Sold Out</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: transparent;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .sold-out {
+            background: #e53935;
+            color: white;
+            padding: 20px 60px;
+            border-radius: 8px;
+            text-align: center;
+            transform: rotate(-8deg);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            border: 3px solid white;
+            animation: stampIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes stampIn {
+            0% { transform: rotate(-8deg) scale(3); opacity: 0; }
+            60% { transform: rotate(-8deg) scale(0.9); opacity: 1; }
+            100% { transform: rotate(-8deg) scale(1); opacity: 1; }
+        }
+
+        .sold-out .text {
+            font-size: 48px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            line-height: 1;
+        }
+
+        .sold-out .text-fr {
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 4px;
+            opacity: 0.9;
+        }
+
+        .sold-out .text-wo {
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 4px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="sold-out" id="soldOut">
+        <div class="text">Sold Out</div>
+        <div class="text-fr">Vendu</div>
+        <div class="text-wo">Am na ñu</div>
+    </div>
+
+    <script>
+        // The animation plays on load. OBS shows/hides this source
+        // via SetSceneItemEnabled. When shown, the stamp animation plays.
+        // No JS needed — pure CSS animation.
+
+        // Optional: allow custom text via URL params
+        const params = new URLSearchParams(window.location.search);
+        const customText = params.get('text');
+        if (customText) {
+            document.querySelector('.text').textContent = customText;
+        }
+    </script>
+</body>
+</html>

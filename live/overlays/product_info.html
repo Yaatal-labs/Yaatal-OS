@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="wo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yaatal Product Info</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: transparent;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .product-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 10px;
+            border-left: 4px solid #d4af37;
+            max-width: 400px;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .product-info .name {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .product-info .description {
+            font-size: 14px;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+
+        .stock-counter {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #4CAF50;
+            font-weight: 600;
+        }
+
+        .stock-counter.low {
+            color: #FF9800;
+        }
+
+        .stock-counter.critical {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="product-info" id="productInfo">
+        <div class="name" id="productName">Product Name</div>
+        <div class="description" id="productDescription"></div>
+        <div class="stock-counter" id="stockCounter" style="display:none;">
+            <span id="stockText"></span>
+        </div>
+    </div>
+
+    <script>
+        function updateProduct(data) {
+            document.getElementById('productName').textContent = data.name || '';
+            document.getElementById('productDescription').textContent = data.description || '';
+
+            const stockEl = document.getElementById('stockCounter');
+            const stockText = document.getElementById('stockText');
+
+            if (data.stock !== undefined && data.stock !== null) {
+                stockEl.style.display = 'block';
+                stockText.textContent = `Stock: ${data.stock}`;
+                stockEl.className = 'stock-counter';
+                if (data.stock <= 3) stockEl.classList.add('critical');
+                else if (data.stock <= 10) stockEl.classList.add('low');
+            } else {
+                stockEl.style.display = 'none';
+            }
+        }
+
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'updateProduct') {
+                updateProduct(event.data);
+            }
+        });
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('name')) {
+            updateProduct({
+                name: params.get('name'),
+                description: params.get('description') || '',
+                stock: params.get('stock') ? parseInt(params.get('stock')) : null,
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "Facebook Live",
+  "platform": "facebook",
+  "protocol": "RTMP",
+  "note": "Facebook Live accepts RTMP ingest. Set in OBS → Settings → Stream.",
+  "obs_settings": {
+    "service": "Facebook Live",
+    "server": "rtmp://live-api-s.facebook.com:80/rtmp/",
+    "key": "YOUR_STREAM_KEY",
+    "instructions": [
+      "1. Go to Facebook → Create Live Stream (or Live Producer)",
+      "2. Copy the Stream Key",
+      "3. Paste in OBS → Settings → Stream → Stream Key",
+      "4. Set Service to 'Facebook Live'",
+      "5. Use obs-multi-rtmp plugin to stream to Facebook + YouTube simultaneously"
+    ]
+  },
+  "regions": {
+    "senegal": "Same global endpoint. No Africa-specific server.",
+    "west_africa": "Same global endpoint. Latency ~2-4s from Dakar."
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "TikTok Live (Virtual Camera Bridge)",
+  "platform": "tiktok",
+  "protocol": "Virtual Camera",
+  "note": "TikTok does NOT accept external RTMP ingest for most accounts. Use OBS Virtual Camera → TikTok Live Studio as a bridge.",
+  "setup": {
+    "method": "virtual_camera",
+    "instructions": [
+      "1. Install TikTok Live Studio (desktop app) on your streaming machine",
+      "2. In OBS: start Virtual Camera (or call yaatal_live.start_virtual_camera via MCP)",
+      "3. In TikTok Live Studio: Settings → Camera → select 'OBS Virtual Camera'",
+      "4. The OBS composite (camera + overlays + product images) now appears in TikTok",
+      "5. Start streaming from TikTok Live Studio (NOT from OBS)",
+      "6. Keep OBS stream running to Facebook/YouTube simultaneously via obs-multi-rtmp"
+    ],
+    "limitations": [
+      "TikTok Live Studio is required (desktop app)",
+      "TikTok must be accessible in your region (note: Senegal banned TikTok Aug 2023 — check current status)",
+      "Live captions via SendStreamCaption may not display on TikTok (CEA-608 is RTMP-specific)",
+      "TikTok Live Studio must be running alongside OBS"
+    ]
+  },
+  "alternative": {
+    "method": "screen_capture",
+    "note": "If TikTok Live Studio is unavailable, capture OBS output window via screen capture in another streaming tool. Less reliable."
+  }
+}

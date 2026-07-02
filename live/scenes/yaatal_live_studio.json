@@ -1,0 +1,142 @@
+{
+  "name": "Yaatal Live Selling Studio",
+  "scenes": [
+    {
+      "name": "Welcome",
+      "sources": [
+        {
+          "name": "Camera",
+          "kind": "dshow_input",
+          "settings": {},
+          "note": "Configure your webcam/device in OBS after import"
+        },
+        {
+          "name": "Store_Logo",
+          "kind": "image_source",
+          "settings": {
+            "file": ""
+          },
+          "note": "Set path to your store logo image"
+        },
+        {
+          "name": "Live_Badge",
+          "kind": "browser_source",
+          "settings": {
+            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/cta_bar.html?text=LIVE",
+            "width": 400,
+            "height": 60
+          }
+        },
+        {
+          "name": "Welcome_Text",
+          "kind": "text_gdiplus_v2",
+          "settings": {
+            "text": "Bienvenue / Dalal jamm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Product_Showcase",
+      "sources": [
+        {
+          "name": "Camera",
+          "kind": "dshow_input",
+          "settings": {}
+        },
+        {
+          "name": "Product_Info_Overlay",
+          "kind": "browser_source",
+          "settings": {
+            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/product_info.html",
+            "width": 450,
+            "height": 200
+          }
+        },
+        {
+          "name": "Price_Card_Overlay",
+          "kind": "browser_source",
+          "settings": {
+            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/price_card.html",
+            "width": 400,
+            "height": 120
+          }
+        },
+        {
+          "name": "CTA_Bar_Overlay",
+          "kind": "browser_source",
+          "settings": {
+            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/cta_bar.html",
+            "width": 500,
+            "height": 60
+          }
+        },
+        {
+          "name": "Viewer_Comments_Overlay",
+          "kind": "browser_source",
+          "settings": {
+            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/viewer_comments.html",
+            "width": 400,
+            "height": 300
+          }
+        },
+        {
+          "name": "Sold_Out_Stamp",
+          "kind": "browser_source",
+          "settings": {
+            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/sold_out.html",
+            "width": 400,
+            "height": 200
+          },
+          "enabled": false,
+          "note": "Hidden by default — shown via mark_sold_out MCP tool"
+        }
+      ]
+    },
+    {
+      "name": "Outro",
+      "sources": [
+        {
+          "name": "Camera",
+          "kind": "dshow_input",
+          "settings": {}
+        },
+        {
+          "name": "Outro_Text",
+          "kind": "text_gdiplus_v2",
+          "settings": {
+            "text": "Merci! Follow for more / Baarleek ak jëf-jëf!"
+          }
+        },
+        {
+          "name": "WhatsApp_Contact",
+          "kind": "text_gdiplus_v2",
+          "settings": {
+            "text": "WhatsApp: +221 XX XXX XX XX"
+          }
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "name": "Product_Cut",
+      "kind": "cut_transition",
+      "duration": 300
+    },
+    {
+      "name": "Fade",
+      "kind": "fade_transition",
+      "duration": 500
+    }
+  ],
+  "notes": [
+    "Import this scene collection in OBS: Scene Collection → Import → select this JSON",
+    "After import, configure your Camera source (right-click → Properties → select webcam)",
+    "Set your Store_Logo image path",
+    "Update WhatsApp_Contact text with your number",
+    "Stream settings: OBS → Settings → Stream → set RTMP key for Facebook/YouTube",
+    "Install obs-multi-rtmp plugin for simultaneous Facebook + YouTube streaming",
+    "For TikTok: use Virtual Camera → TikTok Live Studio (select OBS Virtual Camera as camera)"
+  ]
+}

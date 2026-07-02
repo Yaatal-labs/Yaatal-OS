@@ -16,9 +16,16 @@ Yaatal-Studio is a content production stack for African social commerce. It comb
 | `voice/voicebox/` | MIT | Forked from [jamiepine/voicebox](https://github.com/jamiepine/voicebox) |
 | `video/MoneyPrinterTurbo/` | MIT | Forked from [harry0703/MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo) |
 | `video/composition/motionforge/` | MIT | Forked from [codedbytahir/motionforge](https://github.com/codedbytahir/motionforge) |
+| `live/obs-controller/` | MIT | Original — wraps [obsws-python](https://github.com/aatikturk/obsws-python) (MIT) |
+| `live/mcp-server/` | MIT | Original — FastMCP server for OBS control |
+| `live/overlays/` | MIT | Original — HTML Browser Source templates |
+| `live/scenes/` | MIT | Original — OBS scene collection JSON |
+| `live/multistream/` | MIT | Original — RTMP routing config templates |
 | `yaatal/` | Proprietary (Yaatal Labs) | Original work — Wolof models, prompts, detection, commerce backend |
 
-All vendored upstreams are MIT-licensed. The `yaatal/` directory is proprietary IP. No AGPL/GPL dependencies.
+All vendored upstreams are MIT-licensed. The `yaatal/` directory is proprietary IP.
+OBS Studio (GPLv2) is used as-is via WebSocket API — a clean license boundary that
+does not trigger GPL obligations on Yaatal's code. No AGPL dependencies.
 
 ## Directory structure
 
@@ -37,6 +44,13 @@ Yaatal-Studio/
 │   │   └── webui/                    # Gradio UI
 │   └── composition/
 │       └── motionforge/              # MIT — Remotion alternative (React + WebCodecs)
+│
+├── live/                             # OBS livestream selling layer
+│   ├── obs-controller/               # Python wrapper around obsws-python (MIT)
+│   ├── mcp-server/                   # FastMCP server — OBS control as MCP tools
+│   ├── overlays/                     # HTML Browser Source templates (price, CTA, etc.)
+│   ├── scenes/                       # OBS scene collection JSON (importable)
+│   └── multistream/                  # RTMP routing configs (Facebook, YouTube, TikTok)
 │
 ├── yaatal/                           # Proprietary — Yaatal's IP
 │   ├── wolof-models/                 # Wolof TTS/STT models + training scripts
@@ -101,8 +115,11 @@ pip install -r requirements.txt
 3. **French TTS** — configure Kokoro (Apache 2.0, already in Voicebox) for French narration
 4. **Video pipeline** — adapt MoneyPrinterTurbo for Wolof/French scripts
 5. **Composition** — replace Remotion (source-available, paid >3 employees) with MotionForge (MIT)
-6. **Detection layer** — build African market signal detection (TikTok Senegal, Instagram diaspora, Google Trends)
-7. **Commerce backend** — wire Yaatal Rust/Loco backend as the commerce platform
+6. **Live selling** — wire OBS MCP server to gateway, test with real sellers in Dakar
+7. **Live captions** — Voicebox STT → `send_caption` → OBS stream (French first, Wolof as STT improves)
+8. **Detection layer** — build African market signal detection (TikTok Senegal, Instagram diaspora, Google Trends)
+9. **Commerce backend** — wire Yaatal Rust/Loco backend as the commerce platform
+10. **Engine integration** — connect live/ layer to Yaatal Engine (product catalog → scenes, sold-out → inventory, clips → MoneyPrinterTurbo)
 
 ## License
 
