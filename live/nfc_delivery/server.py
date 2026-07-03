@@ -128,11 +128,19 @@ class DeliveryBridge:
         Returns:
             Engine response dict (order_id, status, message)
         """
-        # TODO: Wire to real Engine API
+        # TODO: Wire to real Engine API.
+        #
+        # ENGINE GAP (as of 2026-07): the Engine's only confirmation route is
+        # `POST /api/deliveries/{id}/confirm`, which requires the *buyer's JWT*
+        # and the delivery *id* — it cannot serve an anonymous NFC tap.
+        # This flow needs a new Engine endpoint keyed by a one-time
+        # `delivery_code` (e.g. `POST /api/deliveries/confirm-by-code`) plus a
+        # `delivery_code` column on deliveries. Until that exists, this client
+        # stays a stub.
+        #
         # import requests
         # response = requests.post(
-        #     f"{self.engine_base_url}/api/delivery/confirm",
-        #     headers={"Authorization": f"Bearer {self.engine_api_key}"},
+        #     f"{self.engine_base_url}/api/deliveries/confirm-by-code",
         #     json={
         #         "delivery_code": delivery_code,
         #         "location": {"lat": location_lat, "lon": location_lon},
@@ -204,7 +212,8 @@ def create_delivery_server(bridge: DeliveryBridge):
       POST /api/delivery/confirm — API endpoint for confirmations
       GET  /api/delivery/{code}  — API status check
 
-    Run: uvicorn live.nfc_delivery.server:create_delivery_server(bridge) --factory
+    Run from the repo root:
+      uvicorn --factory live.nfc_delivery.server:app_factory
     """
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import HTMLResponse, JSONResponse
@@ -344,3 +353,8 @@ def create_delivery_server(bridge: DeliveryBridge):
         return bridge.get_delivery_status(delivery_code)
 
     return app
+
+
+def app_factory():
+    """Uvicorn factory: `uvicorn --factory live.nfc_delivery.server:app_factory`."""
+    return create_delivery_server(DeliveryBridge())

@@ -22,7 +22,7 @@
           "name": "Live_Badge",
           "kind": "browser_source",
           "settings": {
-            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/cta_bar.html?text=LIVE",
+            "url": "http://localhost:8000/cta_bar.html?text=LIVE",
             "width": 400,
             "height": 60
           }
@@ -48,7 +48,7 @@
           "name": "Product_Info_Overlay",
           "kind": "browser_source",
           "settings": {
-            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/product_info.html",
+            "url": "http://localhost:8000/product_info.html",
             "width": 450,
             "height": 200
           }
@@ -57,7 +57,7 @@
           "name": "Price_Card_Overlay",
           "kind": "browser_source",
           "settings": {
-            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/price_card.html",
+            "url": "http://localhost:8000/price_card.html",
             "width": 400,
             "height": 120
           }
@@ -66,7 +66,7 @@
           "name": "CTA_Bar_Overlay",
           "kind": "browser_source",
           "settings": {
-            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/cta_bar.html",
+            "url": "http://localhost:8000/cta_bar.html",
             "width": 500,
             "height": 60
           }
@@ -75,7 +75,7 @@
           "name": "Viewer_Comments_Overlay",
           "kind": "browser_source",
           "settings": {
-            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/viewer_comments.html",
+            "url": "http://localhost:8000/viewer_comments.html",
             "width": 400,
             "height": 300
           }
@@ -84,7 +84,7 @@
           "name": "Sold_Out_Stamp",
           "kind": "browser_source",
           "settings": {
-            "url": "https://raw.githubusercontent.com/Yaatal-labs/Yaatal-Studio/main/live/overlays/sold_out.html",
+            "url": "http://localhost:8000/sold_out.html",
             "width": 400,
             "height": 200
           },

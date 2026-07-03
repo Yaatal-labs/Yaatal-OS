@@ -199,7 +199,7 @@ class NFCTapHandler:
     def __init__(self, controller, registry: CardRegistry):
         """
         Args:
-            controller: LiveController instance (from obs-controller)
+            controller: LiveController instance (from obs_controller)
             registry: CardRegistry for card lookups
         """
         self.controller = controller

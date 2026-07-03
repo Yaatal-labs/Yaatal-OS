@@ -1,15 +1,19 @@
 # Yaatal Live Scenes
 
-Pre-built OBS scene collection for livestream selling.
+Scene **blueprint** for livestream selling.
 
-## Import
+> ⚠️ `yaatal_live_studio.json` is a simplified blueprint, NOT an OBS
+> scene-collection export — OBS's "Scene Collection → Import" will not
+> accept it. Recreate the scenes/sources below by hand in OBS (or via
+> `obs_controller`, which creates product scenes programmatically).
+> Producing a real importable scene collection is a roadmap item.
+>
+> Note: the overlay browser sources must point at *served* HTML
+> (e.g. `python -m http.server 8000` from `live/overlays/`), not at
+> raw.githubusercontent.com URLs — GitHub serves those as plain text,
+> which OBS's browser source will not render as a page.
 
-1. Open OBS Studio
-2. Menu → Scene Collection → Import
-3. Select `yaatal_live_studio.json`
-4. Switch to the "Yaatal Live Selling Studio" scene collection
-
-## After import
+## After setup
 
 | Source | What to configure |
 |---|---|
@@ -26,6 +30,6 @@ Pre-built OBS scene collection for livestream selling.
 | Product_Showcase | During selling — camera + price + product info + CTA + comments + sold-out stamp |
 | Outro | End of stream — "Merci" + WhatsApp contact |
 
-The `obs-controller` creates additional per-product scenes dynamically
+The `obs_controller` creates additional per-product scenes dynamically
 during a session (e.g. `Product_001`, `Product_002`). These are created
 and removed by the MCP server — you don't need to pre-build them.

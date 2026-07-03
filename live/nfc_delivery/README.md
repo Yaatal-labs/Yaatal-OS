@@ -59,7 +59,7 @@ the confirmation page yet.
 
 ```bash
 pip install -r requirements.txt
-uvicorn live.nfc_delivery.server:create_delivery_server --factory --port 8000
+uvicorn --factory live.nfc_delivery.server:app_factory --port 8000
 ```
 
 ## Routes
@@ -72,10 +72,18 @@ uvicorn live.nfc_delivery.server:create_delivery_server --factory --port 8000
 
 ## Engine integration (planned)
 
+> ⚠️ **Engine gap (as of 2026-07):** the Engine's only confirmation route
+> is `POST /api/deliveries/{id}/confirm`, which requires the buyer's JWT
+> and the delivery *id* — it cannot serve an anonymous NFC tap. This flow
+> needs Engine-side work first: a `delivery_code` column on deliveries
+> (one-time-use, generated at ship time) and a public
+> `POST /api/deliveries/confirm-by-code` endpoint, plus the `/d/{code}`
+> page. Until then every client method below is a stub.
+
 | Current (stub) | With Engine |
 |---|---|
-| `confirm_delivery()` logs only | POST to Engine `/api/delivery/confirm` |
-| `get_delivery_status()` returns stub | GET from Engine `/api/delivery/{code}` |
+| `confirm_delivery()` logs only | POST to Engine `/api/deliveries/confirm-by-code` |
+| `get_delivery_status()` returns stub | GET delivery state by code |
 | `invalidate_code()` logs only | Engine invalidates one-time code |
 | Confirmation page shows minimal info | Shows order details, merchant, items |
 
