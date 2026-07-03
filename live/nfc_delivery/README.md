@@ -70,22 +70,22 @@ uvicorn --factory live.nfc_delivery.server:app_factory --port 8000
 | `POST /api/delivery/confirm` | API: confirm delivery → Engine |
 | `GET /api/delivery/{code}` | API: check delivery status |
 
-## Engine integration (planned)
+## Engine integration
 
-> ⚠️ **Engine gap (as of 2026-07):** the Engine's only confirmation route
-> is `POST /api/deliveries/{id}/confirm`, which requires the buyer's JWT
-> and the delivery *id* — it cannot serve an anonymous NFC tap. This flow
-> needs Engine-side work first: a `delivery_code` column on deliveries
-> (one-time-use, generated at ship time) and a public
-> `POST /api/deliveries/confirm-by-code` endpoint, plus the `/d/{code}`
-> page. Until then every client method below is a stub.
+> ✅ **Gap closed (2026-07):** the Engine now mints a one-time
+> `delivery_code` per delivery, serves the public `/d/{code}` confirmation
+> page itself, and exposes `POST /api/deliveries/confirm-by-code` —
+> anonymous, one-time, releases BOBO escrow on confirmation.
 
-| Current (stub) | With Engine |
+| Method | Status |
 |---|---|
-| `confirm_delivery()` logs only | POST to Engine `/api/deliveries/confirm-by-code` |
-| `get_delivery_status()` returns stub | GET delivery state by code |
-| `invalidate_code()` logs only | Engine invalidates one-time code |
-| Confirmation page shows minimal info | Shows order details, merchant, items |
+| `confirm_delivery()` | ✅ wired — POSTs to `/api/deliveries/confirm-by-code` (stdlib urllib) |
+| `generate_delivery_url()` | ✅ works — codes come from the Engine's delivery API (`delivery_code` field) |
+| `get_delivery_status()` | stub — Engine has no JSON status-by-code endpoint (page-only) |
+| `invalidate_code()` | no-op — Engine enforces one-time use server-side |
+
+The standalone FastAPI page server below is now redundant for production
+(the Engine serves `/d/{code}` directly) — keep it for offline testing only.
 
 ## License
 

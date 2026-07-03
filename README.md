@@ -18,7 +18,7 @@ planned vendored forks that have **not been imported yet**.
 | `live/mcp_server` | ✅ Built — 15 OBS tools over MCP (FastMCP, stdio) |
 | `live/agent_loop` | ✅ Built (prototype) — rule-based Wolof/French intent detection; STT input is mock-only (`inject_text`) |
 | `live/nfc_controller` | ✅ Built (prototype) — card registry + tap handler; hardware read loop is mock-only |
-| `live/nfc_delivery` | ⚠️ Scaffold — URL generation + standalone page work; Engine client is stubs (see Engine gap below) |
+| `live/nfc_delivery` | ✅ Built — confirm-by-code wired to the live Engine endpoint; status-by-code still stub |
 | `live/qr_overlay` | ✅ Built — QR generation + OBS overlay; the deep-link routes it encodes are not served by the Engine yet |
 | `live/overlays`, `live/scenes`, `live/multistream` | ✅ Built — HTML overlays, scene blueprint (not an importable OBS collection), RTMP configs |
 | `voice/` (Voicebox fork) | 🔲 Planned — not yet vendored |
@@ -162,10 +162,11 @@ roadmap.
 
 ## Hybrid flow: merchant proposes / model executes / engine disposes
 
-> **Status: design.** The Studio side of this flow is built (QR generation,
-> NFC bridge, overlays). The Engine side is **not implemented yet** — see
-> "Engine gaps" below. Until it lands, generated QR/NFC URLs point at routes
-> the Engine does not serve.
+> **Status: partially live.** The Studio side is built (QR generation, NFC
+> bridge, overlays) and the **delivery half of the Engine side now exists**:
+> one-time delivery codes, the public `/d/{code}` page, and anonymous
+> confirm-by-code with escrow release. The sales half (marketplace pages for
+> the QR deep links) is still missing — see "Engine gaps" below.
 
 ```
 MERCHANT PROPOSES
@@ -212,22 +213,21 @@ post-delivery flows (review request, re-order prompt).
 
 The delivery code is one-time-use — the same tag can't confirm twice.
 
-### Engine gaps (required before this flow works end-to-end)
+### Engine gaps (what still blocks end-to-end)
 
-As of 2026-07 the Engine (Yaatal-Engine repo) exposes a JSON API only.
-This flow needs, on the Engine side:
+1. **Marketplace pages** for the `/m /i /c` deep links (or a web app serving
+   them) — QR codes still point at pages nobody serves.
+2. **`/l/{session}/{product}` routes** — the redirect/landing half of
+   attribution. (The *data* half is done: orders carry `live_session_id`,
+   accepted by both `POST /api/orders` and BOBO checkout.)
 
-1. **Marketplace pages** for the `/m /i /c` deep links (or a web app serving them)
-2. **Live-session attribution** — `/l/{session}/{product}` routes + attribution on orders
-3. **Delivery codes** — a one-time-use `delivery_code` generated at ship time
-   (today deliveries are confirmed by *id* with the buyer's JWT via
-   `POST /api/deliveries/{id}/confirm`, which cannot serve an anonymous NFC tap)
-4. **Public confirm-by-code endpoint** (e.g. `POST /api/deliveries/confirm-by-code`)
-   and the `/d/{code}` confirmation page
+### Engine gaps closed (2026-07)
 
-The escrow-release plumbing already exists — the Engine's confirm handler
-releases held BOBO payments — so the gap is the code-based public entry
-point, not the payment logic.
+- ✅ **Delivery codes** — every delivery mints a one-time `delivery_code`
+- ✅ **`POST /api/deliveries/confirm-by-code`** — anonymous confirm, one-time
+  use enforced server-side, BOBO escrow released on confirmation
+- ✅ **`GET /d/{code}`** — Engine serves the mobile FR/Wolof confirmation page
+- ✅ `live/nfc_delivery` is wired to the real endpoint (stdlib urllib)
 
 ## License
 
