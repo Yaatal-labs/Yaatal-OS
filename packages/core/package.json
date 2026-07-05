@@ -21,7 +21,6 @@
   "peerDependencies": {
     "react": "*",
     "react-native": "*",
-    "@supabase/supabase-js": "*",
     "expo-speech": "~14.0.8",
     "expo-av": "~16.0.8",
     "expo-image-picker": "~17.0.11"

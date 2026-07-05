@@ -5,8 +5,8 @@
  * This module re-exports the Engine-backed auth service from @njooba/core,
  * which uses @yaatal/client (createYaatalClient) under the hood.
  *
- * The previous implementation used Supabase Auth (@supabase/supabase-js).
- * Supabase has been replaced by the Yaatal Engine.
+ * The previous backend auth dependency has been fully replaced by the
+ * Yaatal Engine.
  */
 
 export {
