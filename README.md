@@ -16,7 +16,7 @@ planned vendored forks that have **not been imported yet**.
 |---|---|
 | `live/obs_controller` | ✅ Built — OBS control via obsws-python (verified against obsws-python 1.8.0) |
 | `live/mcp_server` | ✅ Built — 15 OBS tools over MCP (FastMCP, stdio) |
-| `live/agent_loop` | ✅ Built (prototype) — rule-based Wolof/French intent detection; STT input is mock-only (`inject_text`) |
+| `live/agent_loop` | ✅ Built (prototype) — rule-based Wolof/French intent detection; STT input is mock-only (`inject_text`); comment input has a real WhatsApp source (`WhatsAppSource`, polls Engine `/api/social/events`) alongside the mock `add_comment()` path |
 | `live/nfc_controller` | ✅ Built (prototype) — card registry + tap handler; hardware read loop is mock-only |
 | `live/nfc_delivery` | ✅ Built — confirm-by-code wired to the live Engine endpoint; status-by-code still stub |
 | `live/qr_overlay` | ✅ Built — QR generation + OBS overlay; the deep-link routes it encodes are not served by the Engine yet |
@@ -140,10 +140,17 @@ pip install -r live/nfc_delivery/requirements.txt
 uvicorn --factory live.nfc_delivery.server:app_factory --port 8080
 ```
 
-The agent loop and NFC reader run in mock mode out of the box
+The agent loop's STT input and the NFC reader run in mock mode out of the box
 (`STTListener.inject_text(...)`, `NFCReader.inject_tap(...)`) — real
 microphone STT and the ACR122U reader are integration work, tracked in the
-roadmap.
+roadmap. Comment input has one real platform source: `WhatsAppSource`
+(`live/agent_loop/whatsapp_source.py`) polls the Engine's `GET
+/api/social/events` and feeds `CommentMonitor.add_comment(...)` — the same
+seam the mock/manual `add_comment()` calls use. It requires the Engine
+deployed with that endpoint live and `YAATAL_ENGINE_URL` / `YAATAL_TOKEN`
+set (it's a no-op without an Engine URL); carrying real WhatsApp traffic
+also requires WhatsApp webhook credentials configured Engine-side. Facebook
+Live / TikTok Live / YouTube Live chat comment sources are still planned.
 
 ## Roadmap
 
@@ -155,7 +162,7 @@ roadmap.
 6. **Composition** — replace Remotion (source-available, paid >3 employees) with MotionForge (MIT)
 7. **Live selling** — wire OBS MCP server to gateway, test with real sellers in Dakar
 8. **Live captions** — STT → `send_caption` → OBS stream (French first, Wolof as STT improves)
-9. **Agent loop hardening** — real microphone STT, platform comment APIs, native-speaker review of the Wolof trigger lexicon
+9. **Agent loop hardening** — real microphone STT, remaining platform comment APIs (Facebook Live, TikTok Live, YouTube Live chat — WhatsApp is done via `WhatsAppSource`), native-speaker review of the Wolof trigger lexicon
 10. **NFC controller hardware** — nfcpy/ACR122U read loop (currently mock)
 11. **Detection layer** — African market signal detection (TikTok Senegal, Instagram diaspora, Google Trends)
 12. **Engine integration** — see "Engine gaps" below; product catalog → scenes, sold-out → inventory, clips → video pipeline, NFC registry → Engine catalog
@@ -228,6 +235,12 @@ The delivery code is one-time-use — the same tag can't confirm twice.
   use enforced server-side, BOBO escrow released on confirmation
 - ✅ **`GET /d/{code}`** — Engine serves the mobile FR/Wolof confirmation page
 - ✅ `live/nfc_delivery` is wired to the real endpoint (stdlib urllib)
+- ✅ **`GET /api/social/events`** — the Engine persists inbound WhatsApp
+  messages (`social_events` table) and serves them authed, filterable by
+  `platform`/`kind`/`since`; `live/agent_loop/whatsapp_source.py` polls it
+  (stdlib urllib) into `CommentMonitor`. Requires the Engine deployed with
+  this endpoint live, `YAATAL_ENGINE_URL`/`YAATAL_TOKEN` set, and WhatsApp
+  webhook credentials configured Engine-side to carry real traffic.
 
 ## License
 

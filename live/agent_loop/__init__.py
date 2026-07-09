@@ -9,6 +9,7 @@ from .orchestrator import (
     CommentEvent,
     EngagementMetrics,
 )
+from .whatsapp_source import WhatsAppSource
 
 __all__ = [
     "AgentLoop",
@@ -18,4 +19,5 @@ __all__ = [
     "TranscriptEvent",
     "CommentEvent",
     "EngagementMetrics",
+    "WhatsAppSource",
 ]

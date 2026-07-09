@@ -21,6 +21,7 @@ audience's comments, detects intents, and orchestrates OBS automatically.
 |---|---|
 | `orchestrator.py` | AgentLoop — ties STT, comments, engagement → OBS actions |
 | `stt_listener.py` | Captures seller speech → Voicebox/Faster-Whisper → TranscriptEvent |
+| `whatsapp_source.py` | Polls Engine `GET /api/social/events` → feeds `CommentMonitor.add_comment()` |
 | `SpeechIntentDetector` | Rule-based Wolof/French intent parsing (price, sold-out, switch) |
 | `CommentMonitor` | Receives platform comments, detects questions, calculates velocity |
 | `EngagementWatcher` | Monitors viewer count + comment velocity, detects spikes/drops |
@@ -52,10 +53,16 @@ stt = STTListener(on_transcript=agent.process_transcript, language="auto")
 stt.start()
 agent.start()
 
+# WhatsApp comments, polled from the Engine (no-op unless YAATAL_ENGINE_URL is set)
+from live.agent_loop import WhatsAppSource
+whatsapp = WhatsAppSource(comments)  # reads YAATAL_ENGINE_URL / YAATAL_TOKEN from env
+whatsapp.start()
+
 # Go live
 controller.go_live()
 
-# In production: platform APIs feed comments
+# Other platforms still feed comments manually — Facebook/TikTok/YouTube
+# Live comment APIs are not wired yet (see the repo README's roadmap):
 # comments.add_comment("facebook", "Awa", "Combien le sac?")
 # engagement.update(EngagementMetrics(viewer_count=150, comment_velocity=8.0))
 
@@ -68,6 +75,7 @@ controller.go_live()
 # End
 agent.stop()
 stt.stop()
+whatsapp.stop()
 controller.end_session()
 ```
 
