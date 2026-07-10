@@ -54,3 +54,6 @@ Thumbs.db
 *.pem
 *.key
 secrets/
+
+# === Local-only data assets (never committed, never uploaded — see live/data_faucet) ===
+/data/

@@ -30,33 +30,44 @@ logger = logging.getLogger(__name__)
 # ─── Speech intent detection (Wolof + French) ───────────────────────
 
 # Price patterns — FCFA format (Senegal/West Africa)
+# Every pattern requires a currency cue (mille/francs/FCFA/junni) so that
+# unrelated numbers ("3 000 personnes qui regardent") never become the price.
 PRICE_PATTERNS = [
-    # French: "12 mille" / "12 mille francs" / "12000"
-    re.compile(r'(\d[\d\s]*\d?)\s*(?:mille|milliers?|francs?|fcfa|cfa)', re.I),
-    # French: "douze mille" (written numbers — limited coverage)
-    re.compile(r'(douze|quinze|vingt|trente|cinquante|cent|deux\s+mille)\s+(?:mille|francs?)', re.I),
-    # Direct number: "12000" or "12 000"
-    re.compile(r'(\d{1,3}(?:\s?\d{3})+)', re.I),
+    # French digits + cue: "12 mille" / "12 mille francs" / "12 000 FCFA"
+    re.compile(r'(\d[\d\s]*\d|\d)\s*(?:mille|milliers?|francs?|fcfa|cfa)', re.I),
+    # French written numbers + cue: "douze mille" / "cinquante mille francs"
+    re.compile(
+        r'(deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|'
+        r'quatorze|quinze|seize|vingt|trente|quarante|cinquante|soixante|cent)'
+        r'\s+(?:mille|francs?)', re.I),
     # Wolof number words (basic — extend as STT improves)
-    re.compile(r'(fukki?\s+junni|junni?\s+(?:ak\s+\w+)?|ñar\s+fukki?\s+junni)', re.I),
+    re.compile(r'(fukki?\s+junni|junni?\s+(?:ak\s+\w+)?|ñaari?\s+fukki?\s+junni)', re.I),
 ]
 
+# French written numbers → value (used by the written-number pattern above)
+FRENCH_NUMBER_WORDS = {
+    "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six": 6, "sept": 7,
+    "huit": 8, "neuf": 9, "dix": 10, "onze": 11, "douze": 12, "treize": 13,
+    "quatorze": 14, "quinze": 15, "seize": 16, "vingt": 20, "trente": 30,
+    "quarante": 40, "cinquante": 50, "soixante": 60, "cent": 100,
+}
+
 # Sold-out triggers — Wolof + French
+# Keep triggers unambiguous: a false sold-out stamps the product on stream
+# and fires an auto-clip. Common words ("suñu" = "our", bare "amul" =
+# "there isn't", "ñépp" = "all", "c'est tout") are deliberately excluded
+# because they appear constantly in ordinary selling speech.
 SOLD_OUT_TRIGGERS = [
     # Wolof
-    "am na ñu",       # "there is some left" — wait, this means "there IS some"
-    "amul",            # "there is none"
+    "jeex na",         # "it is finished"
     "amul ñu",         # "there is none of it"
-    "suñu",            # "finished"
-    "jekhsaal",        # "all gone"
-    "ñépp",            # "all (sold)"
+    "dara desul",      # "nothing remains"
     # French
     "vendu",           # "sold"
     "tout vendu",      # "all sold"
     "rupture",         # "out of stock"
     "stock épuisé",    # "stock exhausted"
     "plus en stock",   # "no more in stock"
-    "c'est tout",      # "that's all"
     # English (mixed speech is common)
     "sold out",
     "out of stock",
@@ -117,42 +128,35 @@ class SpeechIntentDetector:
     def detect_price(self, text: str) -> Optional[str]:
         """Extract a price from seller speech.
 
-        Returns formatted price string (e.g. "12,000 FCFA") or None.
+        Returns formatted price string (e.g. "12 000 FCFA") or None.
         """
         for pattern in PRICE_PATTERNS:
             match = pattern.search(text)
-            if match:
-                raw = match.group(1)
-                # Normalize: remove spaces, handle "mille"
-                cleaned = re.sub(r'\s+', '', raw)
-                if 'mille' in raw.lower() or 'milliers' in raw.lower():
-                    # "12 mille" → "12,000"
-                    num = re.sub(r'[^0-9]', '', cleaned)
-                    if num:
-                        try:
-                            val = int(num) * 1000
-                            return f"{val:,} FCFA".replace(",", " ")
-                        except ValueError:
-                            pass
-                else:
-                    try:
-                        val = int(cleaned)
-                        return f"{val:,} FCFA".replace(",", " ")
-                    except ValueError:
-                        pass
+            if not match:
+                continue
+            raw = match.group(1)
+            # The ×1000 cue ("mille") lives in the full match, not in the
+            # captured number group — "12 mille francs" captures "12".
+            full = match.group(0).lower()
+
+            word_val = FRENCH_NUMBER_WORDS.get(raw.lower().strip())
+            digits = re.sub(r'[^0-9]', '', raw)
+            if word_val is not None:
+                val = word_val
+            elif digits:
+                val = int(digits)
+            else:
+                continue  # Wolof word pattern — no numeric value yet
+
+            if 'mille' in full or 'millier' in full:
+                val *= 1000
+            return f"{val:,} FCFA".replace(",", " ")
         return None
 
     def detect_sold_out(self, text: str) -> bool:
         """Check if the seller declared a product sold out."""
         text_lower = text.lower().strip()
-        for trigger in SOLD_OUT_TRIGGERS:
-            if trigger in text_lower:
-                # Special case: "am na ñu" means "there IS some left" (NOT sold out)
-                # But "amul ñu" means "there is none" (sold out)
-                if trigger == "am na ñu":
-                    continue
-                return True
-        return False
+        return any(trigger in text_lower for trigger in SOLD_OUT_TRIGGERS)
 
     def detect_product_switch(self, text: str) -> bool:
         """Check if the seller wants to switch to the next product."""
@@ -192,8 +196,7 @@ class CommentMonitor:
     QUESTION_PATTERNS = [
         re.compile(r'combien', re.I),        # "how much" (French)
         re.compile(r'prix', re.I),            # "price" (French)
-        re.compile(r'ñëf la', re.I),          # "how much" (Wolof)
-        re.compile(r'lañu jëf', re.I),        # "how much" (Wolof alt)
+        re.compile(r'ñaata', re.I),           # "how much" (Wolof: "ñaata la")
         re.compile(r'\?', re.I),              # Question mark
         re.compile(r'how much', re.I),        # English
         re.compile(r'price', re.I),           # English
@@ -202,9 +205,18 @@ class CommentMonitor:
         re.compile(r'dakar', re.I),           # Location questions
     ]
 
-    def __init__(self, max_history: int = 100):
+    def __init__(self, max_history: int = 100, recorder=None):
+        """
+        Args:
+            max_history: how many recent comments to keep in memory
+            recorder: optional live.data_faucet.SessionRecorder (or anything
+                with a record_comment(event) method) — when set, every
+                comment is also appended to the local training-data JSONL.
+                No-op/None by default; disabled recorders are cheap no-ops.
+        """
         self.comments: deque[CommentEvent] = deque(maxlen=max_history)
         self.on_comment: Optional[Callable[[CommentEvent], None]] = None
+        self.recorder = recorder
 
     def is_question(self, text: str) -> bool:
         """Detect if a comment is asking a question (especially about price)."""
@@ -227,6 +239,8 @@ class CommentMonitor:
         self.comments.append(event)
         logger.debug("Comment from %s on %s: %s (question=%s)",
                       user, platform, text, is_q)
+        if self.recorder:
+            self.recorder.record_comment(event)
         if self.on_comment:
             self.on_comment(event)
 
@@ -306,7 +320,7 @@ class AgentLoop:
                  engagement_watcher: EngagementWatcher):
         """
         Args:
-            controller: LiveController instance (from obs-controller)
+            controller: LiveController instance (from obs_controller)
             comment_monitor: CommentMonitor for viewer comments
             engagement_watcher: EngagementWatcher for metrics
         """
@@ -331,6 +345,10 @@ class AgentLoop:
         """
         text = event.text
         logger.debug("Transcript (%s): %s", event.language, text)
+
+        if not self.controller.session:
+            logger.debug("No active session — transcript ignored")
+            return
 
         # Check for sold-out first (highest priority)
         if self.detector.detect_sold_out(text):
@@ -360,9 +378,10 @@ class AgentLoop:
 
         # Check for product mention (seller talking about a specific product)
         if self.controller.session:
+            current = self.controller.session.current_product
             product_id = self.detector.detect_product_mention(
                 text, self.controller.session.products)
-            if product_id and product_id != self.controller.session.current_product.id:
+            if product_id and (current is None or product_id != current.id):
                 logger.info("Product mention detected: %s → switching", product_id)
                 self.controller.switch_to_product(
                     next(p for p in self.controller.session.products

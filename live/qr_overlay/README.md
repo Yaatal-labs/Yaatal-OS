@@ -25,6 +25,11 @@ The QR overlay only generates QR codes. The Engine does all the commerce:
 
 ## Deep link structure
 
+> ⚠️ **Engine gap:** these routes are the *design*. As of 2026-07 the
+> Engine exposes a JSON API only — no `/m /i /c /l` marketplace pages
+> and no session-attribution routes exist yet. QR codes generated today
+> point at URLs the Engine does not serve. Track this as Engine work.
+
 | URL | Destination | When to use |
 |---|---|---|
 | `yaatal.shop/m/{merchant_id}` | Merchant store page | Start/end of stream |
@@ -74,10 +79,20 @@ qr.hide_qr()
 
 ## OBS setup
 
-Add a Browser Source in OBS:
+Serve the overlay HTML first (OBS needs a URL to load):
+
+```bash
+cd live/qr_overlay
+python -m http.server 8000
+```
+
+Then add a Browser Source in OBS:
 - URL: `http://localhost:8000/qr_overlay.html?url=https://yaatal.shop&label=Scan`
 - Width: 300, Height: 380
 - Place in bottom-right corner of each product scene
 
-The `QROverlayController` updates this source dynamically via WebSocket
-when products change — no manual QR updating needed.
+The `QROverlayController` updates this source over the OBS WebSocket
+(`SetInputSettings` swaps the browser-source URL, which reloads the
+overlay with the new QR target) — no manual QR updating needed. If you
+serve the overlay somewhere else, pass that base URL as
+`QROverlayController(..., overlay_base="http://your-host:port")`.

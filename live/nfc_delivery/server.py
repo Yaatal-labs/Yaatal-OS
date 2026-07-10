@@ -24,6 +24,7 @@ Hybrid flow:
   Engine disposes: confirms delivery, closes order, releases payment
 """
 
+import json
 import logging
 import time
 from dataclasses import dataclass
@@ -58,8 +59,9 @@ class DeliveryBridge:
       3. A lightweight confirmation page server (optional — the Engine
          can serve the page directly, this is for standalone deployment)
 
-    NOT wired to the Engine yet — the API client has stubs.
-    Engine integration will connect to the real Engine delivery API.
+    `confirm_delivery` is wired to the Engine's real anonymous endpoint
+    (`POST /api/deliveries/confirm-by-code`); status-by-code remains a stub
+    (no JSON endpoint Engine-side yet).
     """
 
     def __init__(self, engine_base_url: str = "https://yaatal.shop",
@@ -105,7 +107,7 @@ class DeliveryBridge:
             for code in delivery_codes
         }
 
-    # ─── Engine API client (stubs — wire when Engine is ready) ──────
+    # ─── Engine API client ───────────────────────────────────────────
 
     def confirm_delivery(self, delivery_code: str,
                          location_lat: float = None,
@@ -113,41 +115,47 @@ class DeliveryBridge:
                          device_info: str = "") -> dict:
         """Send a delivery confirmation to the Yaatal Engine.
 
-        Called when a customer taps the NFC tag. The Engine:
-          1. Validates the delivery code
-          2. Marks the order as delivered
-          3. Releases payment to merchant (if escrowed)
-          4. Triggers post-delivery flows (review request, re-order prompt)
+        Calls the Engine's anonymous one-time-code endpoint
+        (`POST /api/deliveries/confirm-by-code`). The Engine validates the
+        code, marks the order delivered, releases escrowed payment for
+        BOBO-linked orders, and permanently burns the code.
 
         Args:
             delivery_code: The code from the NFC tag
-            location_lat: Optional GPS latitude (if phone provides it)
-            location_lon: Optional GPS longitude
-            device_info: Optional device info (user agent)
+            location_lat: Optional GPS latitude (currently unused by Engine)
+            location_lon: Optional GPS longitude (currently unused by Engine)
+            device_info: Optional device info (currently unused by Engine)
 
         Returns:
-            Engine response dict (order_id, status, message)
+            dict — on success: {"status": "confirmed", "delivery_id", "order_id",
+            "payment_released"}; on failure: {"status": "error", "http_status",
+            "message"} (400 = code already used, 404 = unknown code).
         """
-        # TODO: Wire to real Engine API
-        # import requests
-        # response = requests.post(
-        #     f"{self.engine_base_url}/api/delivery/confirm",
-        #     headers={"Authorization": f"Bearer {self.engine_api_key}"},
-        #     json={
-        #         "delivery_code": delivery_code,
-        #         "location": {"lat": location_lat, "lon": location_lon},
-        #         "device_info": device_info,
-        #         "confirmed_at": time.time(),
-        #     },
-        # )
-        # return response.json()
+        # ponytail: stdlib urllib, not requests — one POST doesn't earn a dep.
+        import urllib.error
+        import urllib.request
 
-        logger.info("Delivery confirmation (stub): code=%s", delivery_code)
-        return {
-            "status": "stub",
-            "message": "Not wired to Engine yet — confirmation logged only",
-            "delivery_code": delivery_code,
-        }
+        url = f"{self.engine_base_url}/api/deliveries/confirm-by-code"
+        payload = json.dumps({"delivery_code": delivery_code}).encode()
+        req = urllib.request.Request(
+            url, data=payload,
+            headers={"Content-Type": "application/json"}, method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                result = json.loads(resp.read().decode())
+                logger.info("Delivery confirmed: code=%s order=%s released=%s",
+                            delivery_code, result.get("order_id"),
+                            result.get("payment_released"))
+                return result
+        except urllib.error.HTTPError as e:
+            logger.warning("Delivery confirmation rejected (%s): code=%s",
+                           e.code, delivery_code)
+            return {"status": "error", "http_status": e.code,
+                    "message": e.read().decode(errors="replace")}
+        except (urllib.error.URLError, TimeoutError) as e:
+            logger.error("Engine unreachable for confirmation: %s", e)
+            return {"status": "error", "http_status": 0, "message": str(e)}
 
     def get_delivery_status(self, delivery_code: str) -> dict:
         """Check the delivery status of a code from the Engine.
@@ -158,36 +166,28 @@ class DeliveryBridge:
         Returns:
             Engine response with order info + delivery status
         """
-        # TODO: Wire to real Engine API
-        # import requests
-        # response = requests.get(
-        #     f"{self.engine_base_url}/api/delivery/{delivery_code}",
-        #     headers={"Authorization": f"Bearer {self.engine_api_key}"},
-        # )
-        # return response.json()
-
+        # ponytail: still a stub — the Engine serves GET /d/{code} as an HTML
+        # page but exposes no JSON status-by-code endpoint yet. Upgrade path:
+        # Engine GET /api/deliveries/status-by-code/{code} if a machine-readable
+        # status check is ever actually needed (the confirm call already
+        # returns the outcome).
         logger.info("Delivery status check (stub): code=%s", delivery_code)
         return {
             "status": "stub",
             "delivery_code": delivery_code,
-            "message": "Not wired to Engine yet",
+            "message": "Engine exposes no JSON status-by-code endpoint yet",
         }
 
     def invalidate_code(self, delivery_code: str) -> dict:
-        """Invalidate a delivery code (one-time use).
+        """Deprecated: the Engine burns codes server-side on confirmation.
 
-        Called after successful confirmation so the same NFC tag can't
-        be used to confirm delivery twice.
-
-        Args:
-            delivery_code: The code to invalidate
-
-        Returns:
-            Engine response
+        One-time use is enforced by the Engine (`code_used_at`); a used code
+        can never confirm again. There is nothing for the client to invalidate.
         """
-        # TODO: Wire to real Engine API
-        logger.info("Invalidate delivery code (stub): %s", delivery_code)
-        return {"status": "stub", "message": "Not wired to Engine yet"}
+        logger.info("invalidate_code is a no-op — Engine enforces one-time use "
+                    "server-side (code=%s)", delivery_code)
+        return {"status": "noop",
+                "message": "Engine enforces one-time use server-side"}
 
 
 # ─── Optional standalone confirmation page server ───────────────────
@@ -204,7 +204,8 @@ def create_delivery_server(bridge: DeliveryBridge):
       POST /api/delivery/confirm — API endpoint for confirmations
       GET  /api/delivery/{code}  — API status check
 
-    Run: uvicorn live.nfc_delivery.server:create_delivery_server(bridge) --factory
+    Run from the repo root:
+      uvicorn --factory live.nfc_delivery.server:app_factory
     """
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import HTMLResponse, JSONResponse
@@ -344,3 +345,8 @@ def create_delivery_server(bridge: DeliveryBridge):
         return bridge.get_delivery_status(delivery_code)
 
     return app
+
+
+def app_factory():
+    """Uvicorn factory: `uvicorn --factory live.nfc_delivery.server:app_factory`."""
+    return create_delivery_server(DeliveryBridge())

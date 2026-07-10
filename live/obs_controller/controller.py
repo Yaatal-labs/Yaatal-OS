@@ -283,7 +283,8 @@ class LiveController:
         """
         self.client.save_replay_buffer()
         result = self.client.get_last_replay_buffer_replay()
-        clip_path = result.replay_buffer_replay_path if result else "unknown"
+        # obsws-python snake_cases the OBS response field `savedReplayPath`
+        clip_path = getattr(result, "saved_replay_path", None) or "unknown"
         if self.session:
             self.session.clips_saved.append(clip_path)
         logger.info("Moment clipped: %s", clip_path)

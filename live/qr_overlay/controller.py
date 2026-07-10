@@ -91,19 +91,27 @@ class QROverlayController:
     loads. When the product changes, the QR URL updates.
 
     The actual QR rendering is done client-side in the browser source
-    (using a JavaScript QR library), so no server-side image generation
-    is needed. The overlay HTML receives the URL via postMessage or
-    URL parameters and renders the QR code.
+    (using a JavaScript QR library), so no server-side image *generation*
+    is needed — but `qr_overlay.html` itself must be reachable by OBS.
+    Serve it with any static server (e.g. `python -m http.server 8000`
+    from this directory) and pass that base as `overlay_base`, or host a
+    copy anywhere OBS can reach.
+
+    Updates go over the OBS WebSocket: changing the browser source URL
+    (SetInputSettings) reloads the overlay with the new QR target.
     """
 
-    def __init__(self, controller, url_builder: QRURLBuilder):
+    def __init__(self, controller, url_builder: QRURLBuilder,
+                 overlay_base: str = "http://localhost:8000"):
         """
         Args:
             controller: LiveController instance
             url_builder: QRURLBuilder for constructing marketplace URLs
+            overlay_base: Base URL where qr_overlay.html is served
         """
         self.controller = controller
         self.url_builder = url_builder
+        self.overlay_base = overlay_base.rstrip("/")
         self.current_session_id: Optional[str] = None
 
     def set_session_id(self, session_id: str):
@@ -136,8 +144,9 @@ class QROverlayController:
         # Update the QR overlay browser source in OBS
         # The overlay HTML (qr_overlay.html) reads the URL from settings
         overlay_input = "QR_Overlay"
-        scene_name = self.controller.session.current_product and \
-                     f"Product_{self.controller.session.current_product.id}"
+        session = self.controller.session
+        current = session.current_product if session else None
+        scene_name = f"Product_{current.id}" if current else None
 
         if scene_name:
             try:
@@ -217,5 +226,4 @@ class QROverlayController:
         """
         from urllib.parse import urlencode
         params = urlencode({"url": qr_url, "label": label})
-        # Local file path for the overlay HTML
-        return f"http://localhost:8000/qr_overlay.html?{params}"
+        return f"{self.overlay_base}/qr_overlay.html?{params}"

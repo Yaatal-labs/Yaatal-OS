@@ -26,7 +26,7 @@ orchestrate livestream selling sessions.
 ## Install
 
 ```bash
-pip install -r ../obs-controller/requirements.txt
+pip install -r ../obs_controller/requirements.txt
 pip install mcp
 ```
 
@@ -47,7 +47,7 @@ Add to `.mcp.json`:
   "mcpServers": {
     "yaatal-live": {
       "command": "python",
-      "args": ["/path/to/Yaatal-Studio/live/mcp-server/server.py"],
+      "args": ["/path/to/Yaatal-Studio/live/mcp_server/server.py"],
       "env": {
         "OBS_HOST": "localhost",
         "OBS_PORT": "4455",
