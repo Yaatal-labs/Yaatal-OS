@@ -21,6 +21,7 @@ planned vendored forks that have **not been imported yet**.
 | `live/nfc_delivery` | ✅ Built — confirm-by-code wired to the live Engine endpoint; status-by-code still stub |
 | `live/qr_overlay` | ✅ Built — QR generation + OBS overlay; the deep-link routes it encodes are not served by the Engine yet |
 | `live/overlays`, `live/scenes`, `live/multistream` | ✅ Built — HTML overlays, scene blueprint (not an importable OBS collection), RTMP configs |
+| `live/data_faucet` | ✅ Built — consent-gated, local-only session recorder (`SessionRecorder`); appends live comments to per-session JSONL for the private Kallaama dataset, out-of-band (never uploaded by this repo); a `record_utterance()` seam exists for voice transcripts but nothing produces transcripts yet (STT is still mock-only) |
 | `voice/` (Voicebox fork) | 🔲 Planned — not yet vendored |
 | `video/` (MoneyPrinterTurbo + MotionForge forks) | 🔲 Planned — not yet vendored |
 | `yaatal/` (Wolof models, prompts, detection, commerce, sdk) | 🔲 Specs only — READMEs describe the plan; no models or code yet |
@@ -30,9 +31,9 @@ planned vendored forks that have **not been imported yet**.
 
 Everything **currently in this repo** is original Yaatal Labs work.
 The `live/` layer modules marked MIT below are intended for release under
-MIT; `agent_loop`, `nfc_controller`, `nfc_delivery`, `qr_overlay`, and
-everything under `yaatal/` are proprietary. (License files are not yet
-committed — they land with the first tagged release.)
+MIT; `agent_loop`, `nfc_controller`, `nfc_delivery`, `qr_overlay`,
+`data_faucet`, and everything under `yaatal/` are proprietary. (License
+files are not yet committed — they land with the first tagged release.)
 
 | Layer | License | Source |
 |---|---|---|
@@ -45,6 +46,7 @@ committed — they land with the first tagged release.)
 | `live/overlays/` | MIT (intended) | Original — HTML Browser Source templates |
 | `live/scenes/` | MIT (intended) | Original — OBS scene blueprint JSON |
 | `live/multistream/` | MIT (intended) | Original — RTMP routing config templates |
+| `live/data_faucet/` | Proprietary | Original — consent-gated session recorder feeding the private Kallaama dataset |
 
 Planned vendored upstreams (MIT — each will carry its upstream LICENSE
 when imported):
@@ -74,7 +76,8 @@ Yaatal-Studio/
 │   ├── qr_overlay/                   # QR codes on stream → deep links → Engine marketplace
 │   ├── overlays/                     # HTML Browser Source templates (price, CTA, etc.)
 │   ├── scenes/                       # OBS scene blueprint JSON (manual setup — see its README)
-│   └── multistream/                  # RTMP routing configs (Facebook, YouTube, TikTok)
+│   ├── multistream/                  # RTMP routing configs (Facebook, YouTube, TikTok)
+│   └── data_faucet/                  # Consent-gated session recorder → local JSONL for Kallaama
 │
 ├── yaatal/                           # Proprietary layer — SPECS ONLY today
 │   ├── wolof-models/                 # (planned) Wolof TTS/STT models + training scripts
@@ -152,6 +155,19 @@ set (it's a no-op without an Engine URL); carrying real WhatsApp traffic
 also requires WhatsApp webhook credentials configured Engine-side. Facebook
 Live / TikTok Live / YouTube Live chat comment sources are still planned.
 
+Every session's comment traffic is also the exact Wolof/French commerce
+language the private ML lane (Kallaama dataset, `ml/edge-voice-lane` in
+Yaatal-Engine) trains on — `live/data_faucet` (`SessionRecorder`) captures
+it instead of letting the agent loop discard it after use. It's opt-in and
+local-only: disabled unless the seller has set `YAATAL_DATA_CONSENT=1` on
+that rig **and** `YAATAL_DATA_DIR` (default `./data/kallaama`) is writable;
+when either is missing every method is a no-op. Comments are pseudonymized
+(8-hex sha256 of the handle/phone, raw value never written) and appended to
+one JSONL file per session — nothing is read back and nothing leaves the
+box; the private ML lane collects the files out-of-band. `record_utterance()`
+is the matching seam for voice transcripts, wired for later — the agent
+loop's STT is still mock-only, so nothing calls it yet.
+
 ## Roadmap
 
 1. **Vendor the forks** — import Voicebox, MoneyPrinterTurbo, MotionForge with their MIT licenses
@@ -162,7 +178,7 @@ Live / TikTok Live / YouTube Live chat comment sources are still planned.
 6. **Composition** — replace Remotion (source-available, paid >3 employees) with MotionForge (MIT)
 7. **Live selling** — wire OBS MCP server to gateway, test with real sellers in Dakar
 8. **Live captions** — STT → `send_caption` → OBS stream (French first, Wolof as STT improves)
-9. **Agent loop hardening** — real microphone STT, remaining platform comment APIs (Facebook Live, TikTok Live, YouTube Live chat — WhatsApp is done via `WhatsAppSource`), native-speaker review of the Wolof trigger lexicon
+9. **Agent loop hardening** — real microphone STT, remaining platform comment APIs (Facebook Live, TikTok Live, YouTube Live chat — WhatsApp is done via `WhatsAppSource`), native-speaker review of the Wolof trigger lexicon; once real STT lands, wire its transcripts into `SessionRecorder.record_utterance()` (`live/data_faucet` — the seam already exists, unused until then)
 10. **NFC controller hardware** — nfcpy/ACR122U read loop (currently mock)
 11. **Detection layer** — African market signal detection (TikTok Senegal, Instagram diaspora, Google Trends)
 12. **Engine integration** — see "Engine gaps" below; product catalog → scenes, sold-out → inventory, clips → video pipeline, NFC registry → Engine catalog

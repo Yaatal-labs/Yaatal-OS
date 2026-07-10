@@ -205,9 +205,18 @@ class CommentMonitor:
         re.compile(r'dakar', re.I),           # Location questions
     ]
 
-    def __init__(self, max_history: int = 100):
+    def __init__(self, max_history: int = 100, recorder=None):
+        """
+        Args:
+            max_history: how many recent comments to keep in memory
+            recorder: optional live.data_faucet.SessionRecorder (or anything
+                with a record_comment(event) method) — when set, every
+                comment is also appended to the local training-data JSONL.
+                No-op/None by default; disabled recorders are cheap no-ops.
+        """
         self.comments: deque[CommentEvent] = deque(maxlen=max_history)
         self.on_comment: Optional[Callable[[CommentEvent], None]] = None
+        self.recorder = recorder
 
     def is_question(self, text: str) -> bool:
         """Detect if a comment is asking a question (especially about price)."""
@@ -230,6 +239,8 @@ class CommentMonitor:
         self.comments.append(event)
         logger.debug("Comment from %s on %s: %s (question=%s)",
                       user, platform, text, is_q)
+        if self.recorder:
+            self.recorder.record_comment(event)
         if self.on_comment:
             self.on_comment(event)
 
