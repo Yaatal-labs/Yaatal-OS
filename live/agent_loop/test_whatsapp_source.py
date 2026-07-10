@@ -128,3 +128,30 @@ class WhatsAppSourceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TelegramPlatformTest(unittest.TestCase):
+    """The source is platform-generic: platform="telegram" polls and labels
+    telegram events through the identical path."""
+
+    def test_platform_param_flows_to_fetch_and_comment(self):
+        captured = {}
+
+        def fake_fetch(engine_url, token, since):
+            captured["called"] = True
+            return [{
+                "id": "ev-tg-1", "platform": "telegram", "kind": "message.text",
+                "external_id": "tg-1", "sender": "moussa_dk",
+                "body": "Ñaata la?", "received_at": "2026-07-10T00:00:00+00:00",
+                "created_at": "2026-07-10T00:00:00+00:00",
+            }]
+
+        monitor = CommentMonitor()
+        source = WhatsAppSource(monitor, engine_url="http://engine.test",
+                                token="t", fetch=fake_fetch, platform="telegram")
+        self.assertEqual(source.platform, "telegram")
+        source.poll_once()
+        self.assertTrue(captured["called"])
+        self.assertEqual(len(monitor.comments), 1)
+        self.assertEqual(monitor.comments[0].platform, "telegram")
+        self.assertEqual(monitor.comments[0].user, "moussa_dk")

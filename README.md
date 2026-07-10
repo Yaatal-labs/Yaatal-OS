@@ -16,7 +16,7 @@ planned vendored forks that have **not been imported yet**.
 |---|---|
 | `live/obs_controller` | ✅ Built — OBS control via obsws-python (verified against obsws-python 1.8.0) |
 | `live/mcp_server` | ✅ Built — 15 OBS tools over MCP (FastMCP, stdio) |
-| `live/agent_loop` | ✅ Built (prototype) — rule-based Wolof/French intent detection; STT input is mock-only (`inject_text`); comment input has a real WhatsApp source (`WhatsAppSource`, polls Engine `/api/social/events`) alongside the mock `add_comment()` path |
+| `live/agent_loop` | ✅ Built (prototype) — rule-based Wolof/French intent detection; STT input is mock-only (`inject_text`); comment input has a real, platform-generic Engine source (`WhatsAppSource`, polls `/api/social/events` — `platform="whatsapp"` default, `platform="telegram"` works the moment the Engine ingests Telegram) alongside the mock `add_comment()` path |
 | `live/nfc_controller` | ✅ Built (prototype) — card registry + tap handler; hardware read loop is mock-only |
 | `live/nfc_delivery` | ✅ Built — confirm-by-code wired to the live Engine endpoint; status-by-code still stub |
 | `live/qr_overlay` | ✅ Built — QR generation + OBS overlay; the deep-link routes it encodes are not served by the Engine yet |

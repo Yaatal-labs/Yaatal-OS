@@ -48,7 +48,8 @@ class WhatsAppSource:
 
     def __init__(self, comment_monitor, engine_url: Optional[str] = None,
                  token: Optional[str] = None, poll_interval: float = 3.0,
-                 fetch: Optional[Callable[[str, str, Optional[str]], list]] = None):
+                 fetch: Optional[Callable[[str, str, Optional[str]], list]] = None,
+                 platform: str = PLATFORM):
         """
         Args:
             comment_monitor: CommentMonitor instance to feed via add_comment()
@@ -59,8 +60,12 @@ class WhatsAppSource:
             fetch: Injectable fetch(engine_url, token, since) -> list[dict],
                 used by tests to avoid real network calls. Defaults to
                 _fetch_events (stdlib urllib GET).
+            platform: which Engine social_events platform to poll — any
+                channel the Engine ingests works ("whatsapp" default,
+                "telegram", ...). The class name is historical.
         """
         self.comment_monitor = comment_monitor
+        self.platform = platform
         self.engine_url = (engine_url if engine_url is not None
                             else os.environ.get("YAATAL_ENGINE_URL", "")).rstrip("/")
         self.token = token if token is not None else os.environ.get("YAATAL_TOKEN", "")
@@ -125,7 +130,7 @@ class WhatsAppSource:
             return  # skip events with empty/None body
 
         sender = event.get("sender") or "unknown"
-        self.comment_monitor.add_comment(PLATFORM, sender, body)
+        self.comment_monitor.add_comment(self.platform, sender, body)
 
     def _fetch_events(self, engine_url: str, token: str,
                        since: Optional[str]) -> list:
@@ -134,7 +139,7 @@ class WhatsAppSource:
         ponytail: stdlib urllib, not requests — mirrors nfc_delivery's
         DeliveryBridge.confirm_delivery; one polling GET doesn't earn a dep.
         """
-        params = {"platform": PLATFORM}
+        params = {"platform": self.platform}
         if since:
             params["since"] = since
         url = f"{engine_url}/api/social/events?{urllib.parse.urlencode(params)}"
