@@ -1,5 +1,7 @@
 # Yaatal-Studio
 
+🇬🇧 English · [🇫🇷 Français](README.fr.md)
+
 Social commerce tooling tailored to the African market — voice + video content
 production and OBS livestream selling for Wolof/French commerce.
 
@@ -92,9 +94,31 @@ Yaatal-Studio/
 Planned (not yet in the repo): `voice/voicebox/`, `video/MoneyPrinterTurbo/`,
 `video/composition/motionforge/`.
 
+## Wolof model inventory
+
+Moved to [`docs/WOLOF-MODEL-INVENTORY.md`](docs/WOLOF-MODEL-INVENTORY.md) —
+the license-vetted third-party HF fallback models (TTS + STT/ASR). The plan
+of record is the in-house models below.
 
 
+## AI models: target vs current
 
+Studio's intent detection and voice wiring **target Yaatal's in-house
+models**, trained in the Engine repo's `ml/edge-voice-lane` branch (R&D
+lane, not merged to `main`) — the third-party HF Wolof models in [`docs/WOLOF-MODEL-INVENTORY.md`](docs/WOLOF-MODEL-INVENTORY.md) are the
+**fallback**, not the plan.
+
+| Role | Target model | Status in Studio today |
+|---|---|---|
+| Ears (ASR) | `yaatal-wa-ears-granite` | 🔲 Not wired — STT is mock-only (`inject_text`) |
+| Brain (intent / tool-routing) | `yaatal-tool-router-granite-350m-v2` (slot-F1 0.969) | 🔲 Not wired — `live/agent_loop` uses a rule-based Wolof/French lexicon |
+| Mouth (TTS) | `yaatal-wolof-moss-tts-nano` | 🔲 Not wired — no TTS integration yet |
+
+Current R&D focus is **MiniMind-O**: one Apache-2.0 omni-model meant to
+hear/speak/tool-call Wolof, eventually consolidating the three organs above.
+Until any of this lands, Studio keeps its rule-based lexicon and mock STT
+(see "built vs planned" above); the HF models in `docs/WOLOF-MODEL-INVENTORY.md` are the
+fallback path if third-party models get wired ahead of the in-house ones.
 
 ## Getting started (live/ layer)
 
@@ -156,80 +180,16 @@ loop's STT is still mock-only, so nothing calls it yet.
 11. **Detection layer** — African market signal detection (TikTok Senegal, Instagram diaspora, Google Trends)
 12. **Engine integration** — see "Engine gaps" below; product catalog → scenes, sold-out → inventory, clips → video pipeline, NFC registry → Engine catalog
 
-## Hybrid flow: merchant proposes / model executes / engine disposes
+## Hybrid flow (résumé)
 
-> **Status: partially live.** The Studio side is built (QR generation, NFC
-> bridge, overlays) and the **delivery half of the Engine side now exists**:
-> one-time delivery codes, the public `/d/{code}` page, and anonymous
-> confirm-by-code with escrow release. The sales half (marketplace pages for
-> the QR deep links) is still missing — see "Engine gaps" below.
+**Merchant proposes / model executes / Engine disposes.** Studio produces the
+livestream and the physical-world triggers — QR deep links carrying a
+`live_session_id` so sales are attributed to the stream that drove them, and
+NFC package stickers carrying one-time delivery codes so a customer tap
+confirms delivery, releases escrow, and closes the order Engine-side. Full
+flow diagram, deep-link table, NFC mechanics, and the Engine-gaps ledger:
+[`docs/COMMERCE-FLOW.md`](docs/COMMERCE-FLOW.md).
 
-```
-MERCHANT PROPOSES
-  → Signals intent: "I want to sell these products on a live stream"
-  → Provides product data, images, prices
-  → Packs orders with NFC delivery tags for fulfillment
-
-MODEL EXECUTES (Yaatal-Studio)
-  → Agent loop orchestrates the livestream (STT, comments, OBS)
-  → QR codes on screen → deep links to Engine marketplace
-  → NFC controller lets seller control stream via physical cards
-  → Replay clips → video pipeline → Reels/TikTok content
-
-ENGINE DISPOSES (Yaatal Engine)
-  → Serves marketplace pages (store, item details, checkout)
-  → Processes orders, payments, inventory
-  → NFC delivery confirmation → closes order, releases payment
-  → Attributes sales to livestream sessions
-```
-
-### Sales channel: QR codes → deep links → Engine marketplace
-
-During the livestream, QR codes are displayed on the OBS stream.
-Viewers scan with their phone camera → deep link opens → lands on
-the Yaatal Engine marketplace.
-
-| Deep link | Destination | When |
-|---|---|---|
-| `yaatal.shop/m/{merchant}` | Merchant store | Start/end of stream |
-| `yaatal.shop/i/{product}` | Item details | During product showcase |
-| `yaatal.shop/c/{product}` | Direct checkout | Impulse buy moment |
-| `yaatal.shop/l/{session}/{product}` | Live session item (attributed) | During stream — tracks sale to the live |
-
-The `/l/{session_id}/` prefix lets the Engine attribute purchases to
-specific livestream sessions — measuring which streams drive the most sales.
-
-### Delivery: NFC confirmation → Engine closes order
-
-Each shipped package includes an NFC sticker with a unique delivery code.
-When the customer receives it, they tap the sticker with their phone →
-opens `yaatal.shop/d/{delivery_code}` → confirms delivery → the Engine
-marks the order delivered, releases payment to the merchant, and triggers
-post-delivery flows (review request, re-order prompt).
-
-The delivery code is one-time-use — the same tag can't confirm twice.
-
-### Engine gaps (what still blocks end-to-end)
-
-1. **Marketplace pages** for the `/m /i /c` deep links (or a web app serving
-   them) — QR codes still point at pages nobody serves.
-2. **`/l/{session}/{product}` routes** — the redirect/landing half of
-   attribution. (The *data* half is done: orders carry `live_session_id`,
-   accepted by both `POST /api/orders` and BOBO checkout.)
-
-### Engine gaps closed (2026-07)
-
-- ✅ **Delivery codes** — every delivery mints a one-time `delivery_code`
-- ✅ **`POST /api/deliveries/confirm-by-code`** — anonymous confirm, one-time
-  use enforced server-side, BOBO escrow released on confirmation
-- ✅ **`GET /d/{code}`** — Engine serves the mobile FR/Wolof confirmation page
-- ✅ `live/nfc_delivery` is wired to the real endpoint (stdlib urllib)
-- ✅ **`GET /api/social/events`** — the Engine persists inbound WhatsApp
-  messages (`social_events` table) and serves them authed, filterable by
-  `platform`/`kind`/`since`; `live/agent_loop/whatsapp_source.py` polls it
-  (stdlib urllib) into `CommentMonitor`. Requires the Engine deployed with
-  this endpoint live, `YAATAL_ENGINE_URL`/`YAATAL_TOKEN` set, and WhatsApp
-  webhook credentials configured Engine-side to carry real traffic.
 
 ## License
 
