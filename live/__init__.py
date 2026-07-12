@@ -1,1 +1,1 @@
-"""Yaatal Live — OBS livestream selling layer."""
+# Yaatal Studio live/ package

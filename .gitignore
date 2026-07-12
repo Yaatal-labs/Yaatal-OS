@@ -54,6 +54,8 @@ Thumbs.db
 *.pem
 *.key
 secrets/
+live/.env
+.env.local
 
 # === Local-only data assets (never committed, never uploaded — see live/data_faucet) ===
 /data/
