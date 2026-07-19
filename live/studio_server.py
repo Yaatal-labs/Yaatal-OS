@@ -27,6 +27,13 @@ import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 
+try:
+    from live.harness_client import HarnessClient, HarnessClientError
+except ModuleNotFoundError as exc:
+    if exc.name != "live":
+        raise
+    from harness_client import HarnessClient, HarnessClientError
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("yaatal.studio")
 
@@ -35,7 +42,15 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "https://api.ollama.com")
 OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
 OLLAMA_INTENT_MODEL = os.getenv("OLLAMA_INTENT_MODEL", "gemma3:4b")
 ENGINE_API_URL = os.getenv("ENGINE_API_URL", "http://localhost:5150")
+STUDIO_HOST = os.getenv("STUDIO_HOST", "127.0.0.1")
 STUDIO_PORT = int(os.getenv("STUDIO_PORT", "8484"))
+HARNESS_BIN = os.getenv("YAATAL_HARNESS_BIN", "")
+HARNESS_MODEL_BACKEND = os.getenv("YAATAL_EDGE_MODEL_BACKEND", "mock")
+HARNESS_FALLBACK = os.getenv("YAATAL_HARNESS_FALLBACK", "0") == "1"
+HARNESS_CLIENT = (
+    HarnessClient(binary=HARNESS_BIN, model_backend=HARNESS_MODEL_BACKEND)
+    if HARNESS_BIN else None
+)
 
 OVERLAYS_DIR = Path(__file__).parent / "overlays"
 
@@ -136,6 +151,33 @@ async def llm_intent(text: str) -> dict:
     except Exception as e:
         logger.warning("LLM intent failed (%s), falling back to regex", e)
         return regex_intent(text)
+
+
+def edge_decision_to_intent(response: dict) -> dict:
+    """Map a governed edge-turn response to the dashboard's legacy shape."""
+    proposal = response.get("proposal") or {}
+    tool = proposal.get("tool")
+    intent_by_tool = {
+        "studio.update_price_overlay": "price_change",
+        "studio.mark_sold_out_overlay": "sold_out",
+        "studio.switch_product": "product_switch",
+    }
+    allowed = response.get("decision") == "allow"
+    price_fcfa = proposal.get("price_fcfa") if allowed else None
+    price = (
+        f"{price_fcfa:,} FCFA".replace(",", " ")
+        if isinstance(price_fcfa, int) and not isinstance(price_fcfa, bool)
+        else None
+    )
+    confidence = proposal.get("confidence", 0.0) if allowed else 0.0
+    return {
+        "intent": intent_by_tool.get(tool, "none") if allowed else "none",
+        "price": price,
+        "product_name": None,
+        "confidence": confidence,
+        "source": "harness",
+        "edge_turn": response,
+    }
 
 
 # ─── Engine Client ──────────────────────────────────────────────
@@ -326,27 +368,73 @@ async def status():
     engine = await engine_health()
     ollama = await ollama_health()
     return {
-        "studio": {"port": STUDIO_PORT, "version": "0.1.0"},
+        "studio": {"host": STUDIO_HOST, "port": STUDIO_PORT, "version": "0.1.0"},
         "engine": engine,
         "ollama": ollama,
         "intent_model": OLLAMA_INTENT_MODEL,
+        "harness": {
+            "configured": HARNESS_CLIENT is not None,
+            "model_backend": HARNESS_MODEL_BACKEND,
+        },
         "overlays": [f.name for f in OVERLAYS_DIR.glob("*.html")] if OVERLAYS_DIR.exists() else [],
     }
 
 
 @app.post("/api/intent")
 async def detect_intent(request: Request):
-    """Parse speech intent from text. Uses LLM (Ollama) with regex fallback."""
+    """Parse speech through the governed Harness, or the standalone fallback."""
     body = await request.json()
     text = body.get("text", "")
     use_llm = body.get("use_llm", True)
-    if use_llm and OLLAMA_API_KEY:
+    use_harness = body.get("use_harness", True)
+    allow_fallback = (
+        HARNESS_FALLBACK and body.get("allow_fallback", False) is True
+    )
+
+    if HARNESS_CLIENT is not None:
+        if not use_harness:
+            if not allow_fallback:
+                return JSONResponse(
+                    {
+                        "error": "harness_required",
+                        "detail": (
+                            "fallback requires YAATAL_HARNESS_FALLBACK=1 "
+                            "and allow_fallback=true"
+                        ),
+                    },
+                    status_code=409,
+                )
+            result = (
+                await llm_intent(text)
+                if use_llm and OLLAMA_API_KEY
+                else regex_intent(text)
+            )
+        else:
+            try:
+                response = await asyncio.to_thread(
+                    HARNESS_CLIENT.propose,
+                    text,
+                    body.get("language", "mixed"),
+                    body.get("confidence", 1.0),
+                )
+                result = edge_decision_to_intent(response)
+            except HarnessClientError as exc:
+                if not allow_fallback:
+                    return JSONResponse(
+                        {
+                            "error": "harness_edge_turn_failed",
+                            "detail": str(exc),
+                        },
+                        status_code=502,
+                    )
+                result = regex_intent(text)
+                result["source"] = "regex_fallback"
+    elif use_llm and OLLAMA_API_KEY:
         result = await llm_intent(text)
     else:
         result = regex_intent(text)
     await broadcast({"type": "intent", "text": text, "result": result})
     return result
-
 
 @app.post("/api/test/e2e")
 async def trigger_e2e():
@@ -555,7 +643,7 @@ async def dashboard():
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("Starting Yaatal Studio on port %d", STUDIO_PORT)
+    logger.info("Starting Yaatal Studio on %s:%d", STUDIO_HOST, STUDIO_PORT)
     logger.info("Engine API: %s", ENGINE_API_URL)
     logger.info("Ollama Cloud: %s (model: %s)", OLLAMA_BASE_URL, OLLAMA_INTENT_MODEL)
-    uvicorn.run(app, host="0.0.0.0", port=STUDIO_PORT)
+    uvicorn.run(app, host=STUDIO_HOST, port=STUDIO_PORT)

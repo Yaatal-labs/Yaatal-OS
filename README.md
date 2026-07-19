@@ -18,7 +18,7 @@ planned vendored forks that have **not been imported yet**.
 |---|---|
 | `live/obs_controller` | ✅ Built — OBS control via obsws-python (verified against obsws-python 1.8.0) |
 | `live/mcp_server` | ✅ Built — 15 OBS tools over MCP (FastMCP, stdio) |
-| `live/agent_loop` | ✅ Built (prototype) — rule-based Wolof/French intent detection; STT input is mock-only (`inject_text`); comment input has a real, platform-generic Engine source (`WhatsAppSource`, polls `/api/social/events` — `platform="whatsapp"` default, `platform="telegram"` works the moment the Engine ingests Telegram) alongside the mock `add_comment()` path |
+| `live/agent_loop` | ✅ Built (prototype) — rule-based Wolof/French fallback plus an optional governed `edge-turn.v1` bridge to the Engine-aware Harness; STT input is mock-only (`inject_text`); comment input has a real, platform-generic Engine source (`WhatsAppSource`, polls `/api/social/events` — `platform="whatsapp"` default, `platform="telegram"` works the moment the Engine ingests Telegram) alongside the mock `add_comment()` path |
 | `live/nfc_controller` | ✅ Built (prototype) — card registry + tap handler; hardware read loop is mock-only |
 | `live/nfc_delivery` | ✅ Built — confirm-by-code wired to the live Engine endpoint; status-by-code still stub |
 | `live/qr_overlay` | ✅ Built — QR generation + OBS overlay; the deep-link routes it encodes are not served by the Engine yet |
@@ -111,7 +111,7 @@ lane, not merged to `main`) — the third-party HF Wolof models in [`docs/WOLOF-
 | Role | Target model | Status in Studio today |
 |---|---|---|
 | Ears (ASR) | `yaatal-wa-ears-granite` | 🔲 Not wired — STT is mock-only (`inject_text`) |
-| Brain (intent / tool-routing) | `yaatal-tool-router-granite-350m-v2` (slot-F1 0.969) | 🔲 Not wired — `live/agent_loop` uses a rule-based Wolof/French lexicon |
+| Brain (intent / tool-routing) | `yaatal-tool-router-granite-350m-v2` (slot-F1 0.969) | 🔲 Native in-house models not wired; optional edge-turn.v1 Harness path is executable with Mock/MiniMind backends and remains fail-closed before OBS |
 | Mouth (TTS) | `yaatal-wolof-moss-tts-nano` | 🔲 Not wired — no TTS integration yet |
 
 Current R&D focus is **MiniMind-O**: one Apache-2.0 omni-model meant to
