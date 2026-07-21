@@ -26,6 +26,7 @@ from typing import Optional
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("yaatal.studio")
@@ -34,10 +35,11 @@ logger = logging.getLogger("yaatal.studio")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "https://api.ollama.com")
 OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
 OLLAMA_INTENT_MODEL = os.getenv("OLLAMA_INTENT_MODEL", "gemma3:4b")
-ENGINE_API_URL = os.getenv("ENGINE_API_URL", "http://localhost:5150")
+ENGINE_API_URL = os.getenv("ENGINE_API_URL", "http://yaatal-engine:8080")
 STUDIO_PORT = int(os.getenv("STUDIO_PORT", "8484"))
 
 OVERLAYS_DIR = Path(__file__).parent / "overlays"
+DASHBOARD_DIR = Path(__file__).parent / "dashboard"
 
 # ─── E2E Test State ─────────────────────────────────────────────
 @dataclass
@@ -319,6 +321,10 @@ async def run_e2e_tests():
 
 app = FastAPI(title="Yaatal Studio", version="0.1.0")
 
+# Serve dashboard static assets (styles.css, app.js) under /dashboard/
+if DASHBOARD_DIR.exists():
+    app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR)), name="dashboard-static")
+
 
 @app.get("/api/status")
 async def status():
@@ -550,7 +556,11 @@ setInterval(refreshStatus, 5000);
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
-    return DASHBOARD_HTML
+    """Serve the Yaatal Studio dashboard (three-panel dark-themed UI)."""
+    index_path = DASHBOARD_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path), media_type="text/html")
+    return HTMLResponse("<h1>Dashboard not found at live/dashboard/index.html</h1>", status_code=404)
 
 
 if __name__ == "__main__":

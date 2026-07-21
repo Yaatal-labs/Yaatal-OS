@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yaatal Studio — Live Production Dashboard</title>
+  <link rel="stylesheet" href="/dashboard/styles.css">
+</head>
+<body data-view="dashboard">
+  <!-- ─── Top bar ─────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo">
+        <span class="logo-mark">▲</span>
+        <span class="logo-text">YAATAL STUDIO</span>
+      </div>
+      <span class="topbar-sub" data-i18n="studio_tagline">Live Production Studio</span>
+    </div>
+    <div class="topbar-right">
+      <a class="platform-link yt" title="YouTube" data-platform="youtube">▶</a>
+      <a class="platform-link ig" title="Instagram" data-platform="instagram">◎</a>
+      <a class="platform-link fb" title="Facebook" data-platform="facebook">f</a>
+      <a class="platform-link tk" title="TikTok" data-platform="tiktok">♪</a>
+      <button class="lang-toggle" id="langToggle">FR</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- ─── Left sidebar ───────────────────────────────────────── -->
+    <aside class="sidebar">
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard" data-i18n="nav_dashboard">
+          <span class="nav-icon">◆</span> Dashboard
+        </button>
+        <button class="nav-item" data-view="studio" data-i18n="nav_studio">
+          <span class="nav-icon">●</span> Live Studio
+        </button>
+        <button class="nav-item" data-view="content" data-i18n="nav_content">
+          <span class="nav-icon">▤</span> Content Library
+        </button>
+        <button class="nav-item" data-view="catalog" data-i18n="nav_catalog">
+          <span class="nav-icon">▦</span> Product Catalog
+        </button>
+        <button class="nav-item" data-view="analytics" data-i18n="nav_analytics">
+          <span class="nav-icon">↗</span> Analytics
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="status-pill" id="enginePill">
+          <span class="dot"></span>
+          <span data-i18n="engine_status">Engine</span>
+        </div>
+        <div class="status-pill" id="obsPill">
+          <span class="dot"></span> OBS
+        </div>
+      </div>
+    </aside>
+
+    <!-- ─── Main panel ────────────────────────────────────────── -->
+    <main class="main">
+
+      <!-- ── Dashboard view ──────────────────────────────────── -->
+      <section class="view view-dashboard active" id="view-dashboard">
+        <div class="view-header">
+          <div>
+            <h1 data-i18n="prepare_live">Prepare for Live</h1>
+            <p class="view-sub" data-i18n="prepare_live_sub">Set up your stream before going live.</p>
+          </div>
+          <div class="view-header-actions">
+            <button class="btn btn-primary btn-go-live" id="goLiveBtn">
+              <span class="live-dot"></span>
+              <span data-i18n="go_live">Go Live</span>
+              <span class="i18n-fr">Démarrer le Direct</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <!-- Live preview -->
+          <div class="card live-preview-card">
+            <div class="card-header">
+              <h2 data-i18n="stream_preview">Live Stream Preview</h2>
+              <span class="badge badge-live">LIVE</span>
+            </div>
+            <div class="preview-stage">
+              <div class="preview-placeholder">
+                <div class="preview-icon">🎥</div>
+                <p data-i18n="preview_empty">Camera offline — press Go Live to begin.</p>
+              </div>
+              <div class="preview-overlay">
+                <div class="overlay-product" id="overlayProduct">
+                  <span class="overlay-name" data-i18n="no_product_overlay">No product on overlay</span>
+                  <span class="overlay-price" id="overlayPrice"></span>
+                </div>
+              </div>
+            </div>
+            <div class="preview-meta">
+              <div class="meta-item">
+                <span class="meta-label" data-i18n="stream_title">Stream Title</span>
+                <span class="meta-value" data-i18n="default_stream_title">Yaatal Live Commerce</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label" data-i18n="scheduled_at">Scheduled</span>
+                <span class="meta-value" data-i18n="default_scheduled">Today, 19:00 GMT</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scheduled streams -->
+          <div class="card schedule-card">
+            <div class="card-header">
+              <h2 data-i18n="scheduled_streams">Scheduled Livestreams</h2>
+            </div>
+            <ul class="schedule-list" id="scheduleList">
+              <li class="schedule-item">
+                <div class="schedule-time">19:00</div>
+                <div class="schedule-info">
+                  <div class="schedule-title">Robe Bazin — Collection Soirée</div>
+                  <div class="schedule-sub" data-i18n="default_scheduled_sub">Dakar • Fashion</div>
+                </div>
+                <span class="badge badge-soon" data-i18n="soon">Soon</span>
+              </li>
+              <li class="schedule-item">
+                <div class="schedule-time">21:30</div>
+                <div class="schedule-info">
+                  <div class="schedule-title">Cuir Sénégalais — Sac & Accessoires</div>
+                  <div class="schedule-sub">Dakar • Leather</div>
+                </div>
+                <span class="badge badge-upcoming" data-i18n="upcoming">Upcoming</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Top products -->
+          <div class="card products-card">
+            <div class="card-header">
+              <h2 data-i18n="top_products">Top Products</h2>
+              <button class="btn btn-ghost btn-sm" id="refreshProducts" data-i18n="refresh">Refresh</button>
+            </div>
+            <div class="product-gallery" id="productGallery">
+              <div class="gallery-loading" data-i18n="loading_products">Loading products…</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Live Studio view ─────────────────────────────────── -->
+      <section class="view view-studio" id="view-studio">
+        <div class="view-header">
+          <div>
+            <h1 data-i18n="live_studio">Live Studio</h1>
+            <p class="view-sub" data-i18n="live_studio_sub">Control your stream in real time.</p>
+          </div>
+          <div class="view-header-actions">
+            <div class="stream-timer" id="streamTimer">00:00:00</div>
+          </div>
+        </div>
+
+        <div class="studio-grid">
+          <!-- Scenes -->
+          <div class="card scenes-card">
+            <div class="card-header">
+              <h2 data-i18n="scenes">Scenes</h2>
+              <button class="btn btn-ghost btn-sm" id="addSceneBtn" data-i18n="add_scene">+ Add Scene</button>
+            </div>
+            <ul class="scene-list" id="sceneList">
+              <li class="scene-item active" data-scene="INTRO">INTRO</li>
+              <li class="scene-item" data-scene="PRODUCT SHOWCASE">PRODUCT SHOWCASE</li>
+              <li class="scene-item" data-scene="Q&A">Q&amp;A</li>
+              <li class="scene-item" data-scene="OUTRO">OUTRO</li>
+            </ul>
+          </div>
+
+          <!-- Video preview -->
+          <div class="card studio-preview-card">
+            <div class="card-header">
+              <h2 data-i18n="live_preview">Live Preview</h2>
+              <span class="badge badge-onair">ON AIR</span>
+            </div>
+            <div class="studio-stage">
+              <div class="studio-placeholder">
+                <div class="preview-icon">🎥</div>
+                <p data-i18n="studio_preview_empty">No scene active.</p>
+              </div>
+              <div class="scene-active-label" id="activeSceneLabel">INTRO</div>
+            </div>
+          </div>
+
+          <!-- Chat + Product queue -->
+          <div class="right-panel">
+            <div class="card chat-card">
+              <div class="card-header">
+                <h2 data-i18n="live_chat">Live Chat</h2>
+                <span class="chat-count" id="chatCount">0</span>
+              </div>
+              <div class="chat-feed" id="chatFeed"></div>
+            </div>
+
+            <div class="card queue-card">
+              <div class="card-header">
+                <h2 data-i18n="product_queue">Product Queue</h2>
+                <button class="btn btn-ghost btn-sm" id="addQueueProduct" data-i18n="add_to_queue">+ Add</button>
+              </div>
+              <ul class="queue-list" id="queueList"></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom toolbar -->
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button class="ctrl-btn" id="micToggle" title="Microphone">
+              <span class="ctrl-icon">🎙</span>
+              <span class="ctrl-label" data-i18n="mic_on">Mic On</span>
+            </button>
+            <button class="ctrl-btn" id="camToggle" title="Camera">
+              <span class="ctrl-icon">📹</span>
+              <span class="ctrl-label" data-i18n="cam_on">Cam On</span>
+            </button>
+            <button class="ctrl-btn" id="shareToggle" title="Screen Share">
+              <span class="ctrl-icon">🖥</span>
+              <span class="ctrl-label" data-i18n="share">Share</span>
+            </button>
+          </div>
+          <div class="toolbar-center">
+            <div class="health-indicator">
+              <span class="dot dot-good"></span>
+              <span data-i18n="health_excellent">Santé: Excellent</span>
+            </div>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn btn-danger btn-stop" id="stopStreamBtn" data-i18n="stop_stream">Stop Stream</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Content Library (placeholder) ───────────────────── -->
+      <section class="view" id="view-content">
+        <div class="view-header">
+          <h1 data-i18n="content_library">Content Library</h1>
+        </div>
+        <div class="empty-state" data-i18n="coming_soon">Coming soon.</div>
+      </section>
+
+      <!-- ── Product Catalog ──────────────────────────────────── -->
+      <section class="view" id="view-catalog">
+        <div class="view-header">
+          <h1 data-i18n="product_catalog">Product Catalog</h1>
+          <p class="view-sub" data-i18n="catalog_sub">Browse all products from the Engine.</p>
+        </div>
+        <div class="product-gallery" id="catalogGallery">
+          <div class="gallery-loading" data-i18n="loading_products">Loading products…</div>
+        </div>
+      </section>
+
+      <!-- ── Analytics (placeholder) ──────────────────────────── -->
+      <section class="view" id="view-analytics">
+        <div class="view-header">
+          <h1 data-i18n="analytics">Analytics</h1>
+        </div>
+        <div class="empty-state" data-i18n="coming_soon">Coming soon.</div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ─── Footer status bar ────────────────────────────────────── -->
+  <footer class="statusbar">
+    <div class="statusbar-item">
+      <span class="dot dot-good"></span>
+      <span data-i18n="obs_integration">OBS Integration</span>: <span class="status-ok">Connected</span>
+    </div>
+    <div class="statusbar-item">
+      <span class="dot dot-good"></span>
+      <span data-i18n="stream_health">Stream Health</span>: <span class="status-ok" data-i18n="excellent">Excellent</span>
+    </div>
+    <div class="statusbar-item">
+      <span class="dot dot-good"></span>
+      <span data-i18n="language_support">Language Support</span>: <span class="status-ok">EN · FR · WO</span>
+    </div>
+  </footer>
+
+  <!-- ─── Toast ───────────────────────────────────────────────── -->
+  <div class="toast" id="toast"></div>
+
+  <script src="/dashboard/app.js"></script>
+</body>
+</html>

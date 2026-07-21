@@ -11,8 +11,8 @@ COPY live/ /app/live/
 # Env defaults
 ENV STUDIO_PORT=8484
 ENV OLLAMA_BASE_URL=https://api.ollama.com
-ENV OLLAMA_INTENT_MODEL=gemma3:4b
-ENV ENGINE_API_URL=http://localhost:5150
+ENV OLLAMA_INTENT_MODEL=deepseek-v4-flash
+ENV ENGINE_API_URL=http://yaatal-engine:8080
 
 EXPOSE 8484
 
