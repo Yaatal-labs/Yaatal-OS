@@ -28,6 +28,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from live.engine_client import EngineClient, get_engine_client
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("yaatal.studio")
 
@@ -40,6 +42,17 @@ STUDIO_PORT = int(os.getenv("STUDIO_PORT", "8484"))
 
 OVERLAYS_DIR = Path(__file__).parent / "overlays"
 DASHBOARD_DIR = Path(__file__).parent / "dashboard"
+
+# ─── Live session state ─────────────────────────────────────────
+@dataclass
+class StudioSessionState:
+    """Tracks the current live session state locally + on Engine."""
+    is_live: bool = False
+    engine_session_id: Optional[str] = None
+    started_at: float = 0.0
+    seller_name: str = ""
+
+_session_state = StudioSessionState()
 
 # ─── E2E Test State ─────────────────────────────────────────────
 @dataclass
@@ -352,6 +365,141 @@ async def detect_intent(request: Request):
         result = regex_intent(text)
     await broadcast({"type": "intent", "text": text, "result": result})
     return result
+
+
+# ─── Studio Live Session Endpoints (proxy to Engine) ────────────
+
+@app.post("/api/studio/go-live")
+async def go_live(request: Request):
+    """Go live: creates a live session on Engine (POST /api/live-sessions).
+
+    Body (optional):
+      seller_name: str — name of the seller
+      title: str — stream title
+      product_ids: list — product IDs to queue
+
+    Falls back to standalone mode (just marks local state as live) if Engine
+    is unreachable.
+    """
+    global _session_state
+    if _session_state.is_live:
+        return {"status": "already_live", "session_id": _session_state.engine_session_id}
+
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass  # body is optional
+
+    seller_name = body.get("seller_name", "")
+    title = body.get("title", "Yaatal Live Commerce")
+    product_ids = body.get("product_ids", [])
+
+    # Try to create a live session on Engine
+    engine = await get_engine_client()
+    engine_payload = {
+        "seller_name": seller_name,
+        "title": title,
+    }
+    if product_ids:
+        engine_payload["product_ids"] = product_ids
+
+    engine_result = await engine.create_live_session(engine_payload)
+
+    _session_state.is_live = True
+    _session_state.started_at = time.time()
+    _session_state.seller_name = seller_name
+    _session_state.engine_session_id = (
+        str(engine_result.get("id")) if engine_result else None
+    )
+
+    await broadcast({
+        "type": "session_state",
+        "is_live": True,
+        "engine_session_id": _session_state.engine_session_id,
+        "engine_connected": engine_result is not None,
+    })
+
+    return {
+        "status": "live",
+        "engine_session_id": _session_state.engine_session_id,
+        "engine_connected": engine_result is not None,
+        "seller_name": seller_name,
+        "title": title,
+        "fallback": engine_result is None,
+    }
+
+
+@app.post("/api/studio/stop-stream")
+async def stop_stream():
+    """Stop stream: ends the current live session on Engine.
+
+    Falls back to just clearing local state if Engine is unreachable.
+    """
+    global _session_state
+    if not _session_state.is_live:
+        return {"status": "not_live"}
+
+    engine_result = None
+    if _session_state.engine_session_id:
+        engine = await get_engine_client()
+        engine_result = await engine.end_live_session(_session_state.engine_session_id)
+
+    duration = time.time() - _session_state.started_at if _session_state.started_at else 0
+
+    _session_state.is_live = False
+    _session_state.engine_session_id = None
+    _session_state.started_at = 0.0
+
+    await broadcast({
+        "type": "session_state",
+        "is_live": False,
+        "engine_connected": engine_result is not None,
+    })
+
+    return {
+        "status": "stopped",
+        "engine_connected": engine_result is not None,
+        "duration_seconds": int(duration),
+    }
+
+
+@app.get("/api/studio/product-queue")
+async def product_queue():
+    """Get the product queue for the current live session.
+
+    Proxies to Engine GET /api/live-sessions/current/products (JWT auth).
+    Falls back to the Engine catalog (no auth needed) if the live-sessions
+    endpoint fails, or to mock data if Engine is fully unreachable.
+    """
+    engine = await get_engine_client()
+
+    # Try authed endpoint first (products queued for current session)
+    products = await engine.get_session_products()
+    if products:
+        return {"products": products, "source": "engine_live_session"}
+
+    # Fallback: try unauthed catalog
+    catalog = await engine.get_catalog()
+    if catalog:
+        return {"products": catalog, "source": "engine_catalog_fallback"}
+
+    # Final fallback: mock data
+    mock = [
+        {"id": 1, "name": "Robe Bazin Moderne", "price_cents": 7500000,
+         "price_display": "75 000 FCFA", "stock": 10, "stock_status": "in_stock",
+         "category": "Fashion", "images": []},
+        {"id": 2, "name": "Sac en Cuir Sénégal", "price_cents": 4500000,
+         "price_display": "45 000 FCFA", "stock": 5, "stock_status": "in_stock",
+         "category": "Leather", "images": []},
+    ]
+    return {"products": mock, "source": "mock_fallback"}
+
+
+@app.get("/api/studio/session-state")
+async def session_state():
+    """Get the current live session state."""
+    return asdict(_session_state)
 
 
 @app.post("/api/test/e2e")

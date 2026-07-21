@@ -10,10 +10,11 @@ Wraps obsws-python (MIT) to provide live-selling-specific functions:
 - Multi-platform stream control
 - Live captions via Voicebox STT → SendStreamCaption
 
-NOT wired to Yaatal Engine yet — standalone module.
-Product data comes from dicts, not the Engine API. Engine wiring is planned.
+Engine integration: fetches product data from Engine /api/catalog/:id
+for overlay rendering. Falls back to local Product data if Engine is down.
 """
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Optional
@@ -27,18 +28,40 @@ logger = logging.getLogger(__name__)
 class Product:
     """A product being sold on a livestream.
 
-    This is a standalone dataclass — NOT wired to the Yaatal Engine.
-    When Engine wiring is added, this will be replaced by or mapped from
-    the Engine's product catalog model.
+    Can be created from Engine API data via Product.from_engine() or manually.
+    When Engine wiring is active, product data (name, price_display, images)
+    is fetched from /api/catalog/:id instead of being hardcoded.
     """
     id: str
     name: str
-    price: str  # e.g. "12,000 FCFA"
+    price: str  # e.g. "12,000 FCFA" or Engine's price_display
     cta: str = "Achetez maintenant"  # Call to action
     image_path: Optional[str] = None  # Path to product image file
     description: Optional[str] = None
     stock: Optional[int] = None
     language: str = "wolof"  # wolof | french | mixed
+
+    @classmethod
+    def from_engine(cls, data: dict) -> "Product":
+        """Create a Product from Engine /api/catalog/:id response.
+
+        Maps Engine fields to the local Product dataclass:
+          - name → name
+          - price_display (or price_cents → formatted) → price
+          - images[0] → image_path
+          - description → description
+          - stock → stock
+        """
+        from live.engine_client import cents_to_display, engine_product_to_dict
+        d = engine_product_to_dict(data)
+        return cls(
+            id=d["id"],
+            name=d["name"],
+            price=d["price"],
+            image_path=d.get("image_path"),
+            description=d.get("description"),
+            stock=d.get("stock"),
+        )
 
 
 @dataclass
@@ -77,16 +100,40 @@ class LiveController:
     MEDIA_INPUT = "ffmpeg_source"
 
     def __init__(self, host: str = "localhost", port: int = 4455,
-                 password: str = "", timeout: int = 5):
+                 password: str = "", timeout: int = 5,
+                 engine_client=None):
         self.client = ReqClient(host=host, port=port,
                                 password=password, timeout=timeout)
         self.session: Optional[LiveSession] = None
+        self.engine = engine_client  # EngineClient or None for standalone
         logger.info("Connected to OBS at %s:%d", host, port)
 
     def disconnect(self):
         if self.client:
             self.client.disconnect()
             logger.info("Disconnected from OBS")
+
+    # ─── Engine integration ───────────────────────────────────────
+
+    def fetch_product_from_engine(self, product_id: str | int) -> Optional[Product]:
+        """Fetch a product from Engine /api/catalog/:id and return a Product.
+
+        Falls back to None if Engine is unreachable or not wired.
+        The caller should use local product data as fallback.
+        """
+        if not self.engine:
+            return None
+        try:
+            data = asyncio.run(self.engine.get_product(product_id))
+            if data:
+                product = Product.from_engine(data)
+                logger.info("Fetched product %s from Engine: %s @ %s",
+                            product_id, product.name, product.price)
+                return product
+        except Exception as e:
+            logger.warning("Engine fetch for product %s failed: %s — using local data",
+                           product_id, e)
+        return None
 
     # ─── Scene management ───────────────────────────────────────────
 
@@ -157,7 +204,27 @@ class LiveController:
         return name
 
     def switch_to_product(self, product: Product):
-        """Switch the live scene to a product's scene."""
+        """Switch the live scene to a product's scene.
+
+        If Engine is wired, attempts to refresh product data from Engine
+        (GET /api/catalog/:id) before switching. Falls back to the passed
+        Product if Engine is unreachable.
+        """
+        # Try to refresh from Engine for latest name/price/images
+        if self.engine:
+            fresh = self.fetch_product_from_engine(product.id)
+            if fresh:
+                # Update overlay-relevant fields from Engine
+                product.name = fresh.name
+                product.price = fresh.price
+                if fresh.image_path:
+                    product.image_path = fresh.image_path
+                if fresh.description:
+                    product.description = fresh.description
+                if fresh.stock is not None:
+                    product.stock = fresh.stock
+                logger.debug("Product %s refreshed from Engine for overlay", product.id)
+
         scene_name = f"Product_{product.id}"
         self.client.set_current_program_scene(scene_name)
         logger.info("Switched to product scene: %s (%s)",

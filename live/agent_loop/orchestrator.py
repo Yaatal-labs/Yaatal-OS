@@ -16,7 +16,9 @@ string matching. Engine integration will provide semantic product matching
 via Qdrant + BGE-M3.
 """
 
+import asyncio
 import logging
+import os
 import re
 import threading
 import time
@@ -317,17 +319,21 @@ class AgentLoop:
     """
 
     def __init__(self, controller, comment_monitor: CommentMonitor,
-                 engagement_watcher: EngagementWatcher):
+                 engagement_watcher: EngagementWatcher,
+                 engine_client=None):
         """
         Args:
             controller: LiveController instance (from obs_controller)
             comment_monitor: CommentMonitor for viewer comments
             engagement_watcher: EngagementWatcher for metrics
+            engine_client: Optional EngineClient for posting updates to Engine API.
+                If None, Engine wiring is disabled (standalone mode).
         """
         self.controller = controller
         self.comment_monitor = comment_monitor
         self.engagement_watcher = engagement_watcher
         self.detector = SpeechIntentDetector()
+        self.engine = engine_client
 
         # Wire callbacks
         self.comment_monitor.on_comment = self._handle_comment
@@ -357,6 +363,8 @@ class AgentLoop:
                 logger.info("Sold-out detected for %s: %s", product.name, text)
                 self.controller.mark_sold_out(product)
                 self.controller.clip_moment()
+                # POST to Engine: mark product as sold out (stock=0)
+                self._engine_post_sold_out(product)
             return
 
         # Check for product switch
@@ -374,6 +382,8 @@ class AgentLoop:
                             product.name, text, price)
                 self.controller.update_price(product, price)
                 self.controller.send_caption(f"Prix: {price}")
+                # POST to Engine: update product price
+                self._engine_post_price(product, price)
             return
 
         # Check for product mention (seller talking about a specific product)
@@ -428,18 +438,93 @@ class AgentLoop:
                 # In production: earpiece whisper or monitor overlay
 
     def _switch_to_next_product(self):
-        """Switch to the next product in the session."""
+        """Switch to the next product in the session.
+
+        If Engine is wired, fetches fresh product data from Engine for the next
+        product before switching. Falls back to local session data if Engine is
+        unreachable.
+        """
         if not self.controller.session:
             return
         session = self.controller.session
         if session.current_product_index < len(session.products) - 1:
             session.current_product_index += 1
             product = session.current_product
+            # Try to refresh product data from Engine before switching
+            if self.engine:
+                self._engine_refresh_product(product)
             self.controller.switch_to_product(product)
             self.controller.mark_product_chapter(product)
             logger.info("Switched to next product: %s", product.name)
         else:
             logger.info("No more products — at end of session")
+
+    # ─── Engine wiring helpers ───────────────────────────────────
+
+    def _engine_post_price(self, product, price_str: str):
+        """POST price update to Engine (fire-and-forget, graceful fallback)."""
+        if not self.engine:
+            return
+        from live.engine_client import parse_price_to_cents
+        cents = parse_price_to_cents(price_str)
+        if cents is None:
+            logger.warning("Could not parse price '%s' to cents — skipping Engine update", price_str)
+            return
+        # Run async call from sync context
+        self._run_async(self.engine.set_price(product.id, cents))
+
+    def _engine_post_sold_out(self, product):
+        """POST sold-out (stock=0) to Engine (fire-and-forget, graceful fallback)."""
+        if not self.engine:
+            return
+        self._run_async(self.engine.mark_sold_out(product.id))
+
+    def _engine_refresh_product(self, product):
+        """Fetch fresh product data from Engine and update the local Product in-place.
+
+        Falls back silently if Engine is unreachable.
+        """
+        if not self.engine:
+            return
+        try:
+            data = self._run_async(self.engine.get_product(product.id))
+            if data:
+                # Update local product with Engine data
+                if data.get("name"):
+                    product.name = data["name"]
+                if data.get("price_display"):
+                    product.price = data["price_display"]
+                elif data.get("price_cents"):
+                    from live.engine_client import cents_to_display
+                    product.price = cents_to_display(data["price_cents"])
+                if data.get("stock") is not None:
+                    product.stock = data["stock"]
+                images = data.get("images") or []
+                if images:
+                    product.image_path = images[0]
+                if data.get("description"):
+                    product.description = data["description"]
+                logger.debug("Refreshed product %s from Engine", product.id)
+        except Exception as e:
+            logger.debug("Engine refresh failed for %s: %s (using local data)", product.id, e)
+
+    @staticmethod
+    def _run_async(coro):
+        """Run an async coroutine from sync context (fire-and-forget).
+
+        If we're inside an event loop, schedules it as a task.
+        Otherwise, creates a new event loop to run it.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+            # We're in an async context — schedule as task
+            asyncio.ensure_future(coro, loop=loop)
+        except RuntimeError:
+            # No running loop — run synchronously (blocking, but Engine is fast/timeout-bounded)
+            try:
+                asyncio.run(coro)
+            except Exception as e:
+                logger.debug("Engine async call failed: %s", e)
 
     def start(self):
         """Start the agent loop (non-blocking)."""

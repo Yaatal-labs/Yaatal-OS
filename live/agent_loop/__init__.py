@@ -10,6 +10,7 @@ from .orchestrator import (
     EngagementMetrics,
 )
 from .whatsapp_source import WhatsAppSource
+from ..engine_client import EngineClient
 
 __all__ = [
     "AgentLoop",
@@ -20,4 +21,5 @@ __all__ = [
     "CommentEvent",
     "EngagementMetrics",
     "WhatsAppSource",
+    "EngineClient",
 ]

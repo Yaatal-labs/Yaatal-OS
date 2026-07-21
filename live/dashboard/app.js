@@ -383,7 +383,7 @@ function startMockChat() {
 }
 
 // ─── Stream controls ──────────────────────────────────────────
-function goLive() {
+async function goLive() {
   if (isLive) return;
   isLive = true;
   toast(t('toast_golive'));
@@ -396,15 +396,57 @@ function goLive() {
     const timer = $('#streamTimer');
     if (timer) timer.textContent = `${h}:${m}:${s}`;
   }, 1000);
+  // POST to Studio → Engine live session
+  try {
+    const res = await fetch('/api/studio/go-live', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Yaatal Live Commerce' }),
+    });
+    const data = await res.json();
+    if (data.fallback) {
+      toast(lang === 'fr' ? 'Mode autonome — Engine non connecté' : 'Standalone mode — Engine not connected', 3200);
+    }
+    // Fetch product queue from Engine
+    fetchProductQueue();
+  } catch (err) {
+    console.warn('go-live API failed:', err);
+  }
 }
 
-function stopStream() {
+async function stopStream() {
   if (!isLive) return;
   isLive = false;
   clearInterval(timerInterval);
   toast(t('toast_stop'));
   const timer = $('#streamTimer');
   if (timer) timer.textContent = '00:00:00';
+  // POST to Studio → end Engine live session
+  try {
+    await fetch('/api/studio/stop-stream', { method: 'POST' });
+  } catch (err) {
+    console.warn('stop-stream API failed:', err);
+  }
+}
+
+// ─── Product queue from Engine ─────────────────────────────────
+async function fetchProductQueue() {
+  try {
+    const res = await fetch('/api/studio/product-queue', { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return;
+    const data = await res.json();
+    const engineProducts = data.products || [];
+    if (engineProducts.length && !queue.length) {
+      // Auto-populate queue from Engine products
+      engineProducts.slice(0, 6).forEach(p => {
+        queue.push({ ...p, overlayOn: false });
+      });
+      renderQueue();
+      toast(`${engineProducts.length} ${lang === 'fr' ? 'produits chargés' : 'products loaded'} (${data.source})`);
+    }
+  } catch (err) {
+    console.warn('Product queue fetch failed:', err);
+  }
 }
 
 // ─── Engine health ─────────────────────────────────────────────
@@ -420,9 +462,28 @@ async function checkEngineHealth() {
   }
 }
 
+// ─── Theme toggle ─────────────────────────────────────────────
+function toggleTheme() {
+  const current = document.body.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.body.setAttribute('data-theme', next);
+  $('#themeToggle').textContent = next === 'dark' ? '🌙' : '☀️';
+  try { localStorage.setItem('yaatal-theme', next); } catch {}
+}
+
+function initTheme() {
+  let saved;
+  try { saved = localStorage.getItem('yaatal-theme'); } catch {}
+  if (saved === 'light') {
+    document.body.setAttribute('data-theme', 'light');
+    $('#themeToggle').textContent = '☀️';
+  }
+}
+
 // ─── Wire up ──────────────────────────────────────────────────
 function wireEvents() {
   $('#langToggle').addEventListener('click', toggleLang);
+  $('#themeToggle').addEventListener('click', toggleTheme);
 
   $$('.nav-item').forEach(b => {
     b.addEventListener('click', () => switchView(b.dataset.view));
@@ -473,6 +534,7 @@ function wireEvents() {
 
 // ─── Init ─────────────────────────────────────────────────────
 async function init() {
+  initTheme();
   applyI18n();
   wireEvents();
   renderQueue();
