@@ -26,11 +26,18 @@ Hybrid flow:
 
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass
 from typing import Optional
 
+import httpx
+
 logger = logging.getLogger(__name__)
+
+# ─── Config ────────────────────────────────────────────────────────────
+ENGINE_API_URL = os.getenv("ENGINE_API_URL", "http://yaatal-engine:8080").rstrip("/")
+ENGINE_CHECKOUT_BASE = os.getenv("ENGINE_CHECKOUT_BASE", "https://engine.njooba.com").rstrip("/")
 
 
 @dataclass
@@ -64,14 +71,17 @@ class DeliveryBridge:
     (no JSON endpoint Engine-side yet).
     """
 
-    def __init__(self, engine_base_url: str = "https://yaatal.shop",
+    def __init__(self, engine_api_url: str = ENGINE_API_URL,
+                 engine_checkout_base: str = ENGINE_CHECKOUT_BASE,
                  engine_api_key: str = ""):
         """
         Args:
-            engine_base_url: Yaatal Engine base URL
-            engine_api_key: API key for Engine authentication
+            engine_api_url: Yaatal Engine API base URL (e.g. http://yaatal-engine:8080)
+            engine_checkout_base: Engine public-facing checkout base (e.g. https://engine.njooba.com)
+            engine_api_key: API key for Engine authentication (if needed)
         """
-        self.engine_base_url = engine_base_url.rstrip("/")
+        self.engine_api_url = engine_api_url.rstrip("/")
+        self.engine_checkout_base = engine_checkout_base.rstrip("/")
         self.engine_api_key = engine_api_key
 
     # ─── NFC URL generation (for programming tags) ──────────────────
@@ -88,7 +98,7 @@ class DeliveryBridge:
         Returns:
             URL string (e.g. https://yaatal.shop/d/ABC123XYZ)
         """
-        return f"{self.engine_base_url}/d/{delivery_code}"
+        return f"{self.engine_checkout_base}/d/{delivery_code}"
 
     def generate_delivery_urls(self, delivery_codes: list[str]) -> dict[str, str]:
         """Generate NFC URLs for multiple delivery codes (batch).
@@ -109,10 +119,11 @@ class DeliveryBridge:
 
     # ─── Engine API client ───────────────────────────────────────────
 
-    def confirm_delivery(self, delivery_code: str,
-                         location_lat: float = None,
-                         location_lon: float = None,
-                         device_info: str = "") -> dict:
+    async def confirm_delivery(self, delivery_code: str,
+                               location_lat: Optional[float] = None,
+                               location_lon: Optional[float] = None,
+                               device_info: str = "",
+                               order_id: str = "") -> dict:
         """Send a delivery confirmation to the Yaatal Engine.
 
         Calls the Engine's anonymous one-time-code endpoint
@@ -125,37 +136,47 @@ class DeliveryBridge:
             location_lat: Optional GPS latitude (currently unused by Engine)
             location_lon: Optional GPS longitude (currently unused by Engine)
             device_info: Optional device info (currently unused by Engine)
+            order_id: Optional order ID (Engine resolves from code)
 
         Returns:
             dict — on success: {"status": "confirmed", "delivery_id", "order_id",
             "payment_released"}; on failure: {"status": "error", "http_status",
             "message"} (400 = code already used, 404 = unknown code).
         """
-        # ponytail: stdlib urllib, not requests — one POST doesn't earn a dep.
-        import urllib.error
-        import urllib.request
+        url = f"{self.engine_api_url}/api/deliveries/confirm-by-code"
+        payload = {"delivery_code": delivery_code}
+        if order_id:
+            payload["order_id"] = order_id
 
-        url = f"{self.engine_base_url}/api/deliveries/confirm-by-code"
-        payload = json.dumps({"delivery_code": delivery_code}).encode()
-        req = urllib.request.Request(
-            url, data=payload,
-            headers={"Content-Type": "application/json"}, method="POST",
-        )
+        headers = {"Content-Type": "application/json"}
+        if self.engine_api_key:
+            headers["Authorization"] = f"Bearer {self.engine_api_key}"
+
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                result = json.loads(resp.read().decode())
-                logger.info("Delivery confirmed: code=%s order=%s released=%s",
-                            delivery_code, result.get("order_id"),
-                            result.get("payment_released"))
-                return result
-        except urllib.error.HTTPError as e:
-            logger.warning("Delivery confirmation rejected (%s): code=%s",
-                           e.code, delivery_code)
-            return {"status": "error", "http_status": e.code,
-                    "message": e.read().decode(errors="replace")}
-        except (urllib.error.URLError, TimeoutError) as e:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                if resp.status_code == 200:
+                    result = resp.json()
+                    logger.info("Delivery confirmed: code=%s order=%s released=%s",
+                                delivery_code, result.get("order_id"),
+                                result.get("payment_released"))
+                    return result
+                else:
+                    logger.warning("Delivery confirmation rejected (%s): code=%s",
+                                   resp.status_code, delivery_code)
+                    return {
+                        "status": "error",
+                        "http_status": resp.status_code,
+                        "message": resp.text or "Confirmation rejected",
+                    }
+        except httpx.ConnectError as e:
             logger.error("Engine unreachable for confirmation: %s", e)
-            return {"status": "error", "http_status": 0, "message": str(e)}
+            return {"status": "engine_unreachable", "http_status": 0,
+                    "message": "Engine service unavailable"}
+        except (httpx.TimeoutException, Exception) as e:
+            logger.error("Engine request failed: %s", e)
+            return {"status": "error", "http_status": 0,
+                    "message": str(e)}
 
     def get_delivery_status(self, delivery_code: str) -> dict:
         """Check the delivery status of a code from the Engine.
@@ -192,7 +213,47 @@ class DeliveryBridge:
 
 # ─── Optional standalone confirmation page server ───────────────────
 
-def create_delivery_server(bridge: DeliveryBridge):
+def _error_page(title: str, message: str) -> str:
+    """Generate a mobile-first error page for delivery failures."""
+    return f"""<!DOCTYPE html>
+<html lang="wo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title} — Yaatal</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+            background: #f5f5f5; color: #1a1a1a;
+            padding: 20px; max-width: 500px; margin: 0 auto;
+        }}
+        .error-card {{
+            background: white; border-radius: 16px;
+            padding: 32px 24px; text-align: center;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1); margin-top: 40px;
+        }}
+        .error-icon {{
+            width: 80px; height: 80px; border-radius: 50%;
+            background: #f44336; margin: 0 auto 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 40px; color: white;
+        }}
+        .error-title {{ font-size: 22px; font-weight: 700; margin-bottom: 8px; }}
+        .error-subtitle {{ font-size: 14px; color: #666; margin-bottom: 16px; line-height: 1.4; }}
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="error-icon">✕</div>
+        <div class="error-title">{title}</div>
+        <div class="error-subtitle">{message}</div>
+    </div>
+</body>
+</html>"""
+
+
+def create_delivery_server(bridge: Optional[DeliveryBridge] = None):
     """Create a lightweight FastAPI server for delivery confirmation pages.
 
     This is OPTIONAL — the Yaatal Engine can serve the /d/{code} page
@@ -210,7 +271,10 @@ def create_delivery_server(bridge: DeliveryBridge):
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import HTMLResponse, JSONResponse
 
-    app = FastAPI(title="Yaatal Delivery Confirmation", version="0.1.0")
+    if bridge is None:
+        bridge = DeliveryBridge()
+
+    app = FastAPI(title="Yaatal Delivery Confirmation", version="0.2.0")
 
     @app.get("/d/{delivery_code}", response_class=HTMLResponse)
     async def delivery_page(delivery_code: str, request: Request):
@@ -218,8 +282,9 @@ def create_delivery_server(bridge: DeliveryBridge):
 
         Customer taps NFC tag → phone opens this page → confirms delivery.
         The page shows order info (from Engine) and a confirm button.
+        If Engine is unreachable, shows a service-unavailable error page.
         """
-        # Get delivery info from Engine
+        # Get delivery info from Engine (stub for now — no JSON endpoint)
         info = bridge.get_delivery_status(delivery_code)
 
         # Extract device/location if available
@@ -274,6 +339,10 @@ def create_delivery_server(bridge: DeliveryBridge):
             display: none; color: #4CAF50; font-weight: 600;
             margin-top: 16px; font-size: 18px;
         }}
+        .error-msg {{
+            display: none; color: #f44336; font-weight: 600;
+            margin-top: 16px; font-size: 15px;
+        }}
     </style>
 </head>
 <body>
@@ -295,12 +364,15 @@ def create_delivery_server(bridge: DeliveryBridge):
         <div class="confirmed-msg" id="confirmedMsg">
             ✓ Livraison confirmée. Merci !
         </div>
+        <div class="error-msg" id="errorMsg"></div>
     </div>
     <script>
         async function confirmDelivery() {{
             const btn = document.getElementById('confirmBtn');
             btn.disabled = true;
             btn.textContent = 'Confirmation...';
+            const errEl = document.getElementById('errorMsg');
+            errEl.style.display = 'none';
             try {{
                 const resp = await fetch('/api/delivery/confirm', {{
                     method: 'POST',
@@ -311,31 +383,55 @@ def create_delivery_server(bridge: DeliveryBridge):
                     }}),
                 }});
                 const data = await resp.json();
-                if (data.status === 'confirmed' || data.status === 'stub') {{
+                if (data.status === 'confirmed') {{
                     btn.style.display = 'none';
                     document.getElementById('confirmedMsg').style.display = 'block';
+                }} else if (data.status === 'engine_unreachable') {{
+                    btn.disabled = false;
+                    btn.textContent = 'Réessayer';
+                    errEl.textContent = 'Service indisponible. Réessayez plus tard.';
+                    errEl.style.display = 'block';
                 }} else {{
                     btn.disabled = false;
                     btn.textContent = 'Réessayer';
+                    errEl.textContent = data.message || 'Erreur de confirmation';
+                    errEl.style.display = 'block';
                 }}
             }} catch(e) {{
                 btn.disabled = false;
                 btn.textContent = 'Réessayer';
+                errEl.textContent = 'Connexion échouée. Réessayez.';
+                errEl.style.display = 'block';
             }}
         }}
     </script>
 </body>
 </html>"""
 
+    @app.get("/d/{delivery_code}/error", response_class=HTMLResponse)
+    async def delivery_error_page(delivery_code: str):
+        """Service-unavailable fallback page when Engine is down."""
+        return _error_page(
+            "Service indisponible",
+            "Le service de confirmation est temporairement indisponible. "
+            "Veuillez réessayer plus tard."
+        )
+
     @app.post("/api/delivery/confirm")
     async def confirm_api(request: Request):
-        """API endpoint for delivery confirmation."""
+        """API endpoint for delivery confirmation.
+
+        Posts to Engine POST /api/deliveries/confirm-by-code.
+        Returns Engine response or error if Engine unreachable.
+        """
         body = await request.json()
         delivery_code = body.get("delivery_code", "")
         device_info = body.get("device_info", "")
-        result = bridge.confirm_delivery(
+        order_id = body.get("order_id", "")
+        result = await bridge.confirm_delivery(
             delivery_code=delivery_code,
             device_info=device_info,
+            order_id=order_id,
         )
         return JSONResponse(result)
 
