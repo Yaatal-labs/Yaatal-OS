@@ -341,6 +341,8 @@ if DASHBOARD_DIR.exists():
     app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR)), name="dashboard-static")
 
 
+
+
 @app.get("/api/status")
 async def status():
     """System status endpoint."""
