@@ -53,10 +53,7 @@ If a task genuinely requires one of these, ask the founder first. The guard scri
   French speech intents (price, sold-out, product switch). **Has a mock mode** (`STTListener.mock`)
   for testing without a microphone or STT engine — use `inject_text()` to feed transcripts.
 - **`nfc-controller/`** — Physical NFC card reader → OBS actions (seller's physical controller).
-- **`nfc-delivery/`** — FastAPI server. NFC delivery confirmation bridge: customer taps NFC tag →
-  `https://yaatal.shop/d/{delivery_code}` → confirms delivery to Yaatal Engine → closes order.
-- **`nfc-viewer/`** — FastAPI server. NFC tap-to-buy for viewers: `https://yaatal.shop/p/{product_id}`
-  → product page → redirect to Engine checkout. Uses local JSON catalog (Engine integration planned).
+- **`nfc-delivery/`** — **Delivery confirmation only.** Customer taps NFC tag in the delivered package → `https://yaatal.shop/d/{delivery_code}` → confirms delivery to Yaatal Engine → closes order. NOT a product page, NOT tap-to-buy. Viewers buy via QR codes on the stream overlay → `live_links` → Engine marketplace (BOBO checkout).
 - **`qr-overlay/`** — Generates QR codes for OBS stream overlays. Deep links to Engine marketplace
   (`/m/{merchant}`, `/i/{product}`, `/c/{product}`, `/l/{session}/{product}`). QR is display-only;
   Engine handles all commerce.
@@ -107,7 +104,6 @@ listener.inject_text('Le prix est quinze mille francs')  # simulates seller spee
 ## Configuration model
 
 - No config framework — each module reads env vars or local files directly.
-- `nfc-viewer` uses a local JSON catalog (`example_catalog.json`); Engine API integration is planned.
 - `nfc-delivery` expects Engine API URL via env (`ENGINE_API_URL` or similar).
 - OBS WebSocket connection: host/port/password from env or defaults (`localhost:4455`).
 
@@ -118,14 +114,16 @@ listener.inject_text('Le prix est quinze mille francs')  # simulates seller spee
 - No test suite exists yet — if adding tests, use `pytest` and keep them in a `tests/` dir.
 - Python 3.11 is available with `fastapi`, `uvicorn`, `httpx`, `websockets` already installed.
 
-## Engine integration status
+## Architecture — who does what
 
-Most `live/` modules are **standalone** — not yet wired to Yaatal Engine. Product data comes
-as dicts or local JSON. Engine integration will provide:
-- Semantic product matching via Qdrant + BGE-M3
-- Live product catalog pulled from Engine commerce API
-- Delivery confirmation posted to Engine order endpoints
-- Purchase attribution from live session links
+- **Engine** = Point of Truth. Commerce state (products, orders, deliveries, payments). The source of truth.
+- **BOBO** = Marketplace. Public checkout, KYC, escrow. Customer-facing commerce layer.
+- **LiveKit** = African reality. Low-bandwidth video calls / live sessions for phone-based commerce.
+- **USSD/SMS** = African reality. Offline commerce for customers without smartphones.
+- **Harness** = Socials + runtime. Agent governance — audits every model action, controls social channels (Telegram, WhatsApp). The trust boundary.
+- **Studio** = Merchant cockpit. OBS, live overlays, product queue, agent loop. Seller's interface to Engine + Harness.
+- **NFC** = Delivery confirmation ONLY. Customer taps NFC tag in package → confirms delivery → Engine closes order. NOT tap-to-buy.
+- **QR overlay** = Viewer buy path. Viewers scan QR on stream → `live_links` → Engine marketplace (BOBO checkout).
 
 When adding Engine wiring, keep the standalone interface as a fallback/test path.
 

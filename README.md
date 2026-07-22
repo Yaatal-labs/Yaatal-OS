@@ -74,7 +74,6 @@ Yaatal-Studio/
 │   ├── agent_loop/                   # STT intent detection + comment monitor + engagement
 │   ├── nfc_controller/               # Physical NFC cards → seller controls the stream
 │   ├── nfc_delivery/                 # NFC delivery confirmation → Engine closes order
-│   ├── nfc_viewer/                   # DEPRECATED — replaced by nfc_delivery
 │   ├── qr_overlay/                   # QR codes on stream → deep links → Engine marketplace
 │   ├── overlays/                     # HTML Browser Source templates (price, CTA, etc.)
 │   ├── scenes/                       # OBS scene blueprint JSON (manual setup — see its README)
