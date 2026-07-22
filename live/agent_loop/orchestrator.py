@@ -320,20 +320,28 @@ class AgentLoop:
 
     def __init__(self, controller, comment_monitor: CommentMonitor,
                  engagement_watcher: EngagementWatcher,
-                 engine_client=None):
+                 engine_client=None, harness_client=None):
         """
         Args:
             controller: LiveController instance (from obs_controller)
             comment_monitor: CommentMonitor for viewer comments
             engagement_watcher: EngagementWatcher for metrics
-            engine_client: Optional EngineClient for posting updates to Engine API.
-                If None, Engine wiring is disabled (standalone mode).
+            engine_client: Optional EngineClient for READ-ONLY operations
+                (get_catalog, get_product). Write operations (update_product,
+                set_price, mark_sold_out) are only called by this loop AFTER
+                the Harness approves — never directly by the model.
+            harness_client: HarnessClient for sending proposals to the Harness
+                edge-turn endpoint. The Harness validates (policy + audit) and
+                returns Allow/Deny. Only on Allow does this loop execute
+                OBS overlay + Engine update. If None, all write intents are
+                blocked (no fallback to direct Engine).
         """
         self.controller = controller
         self.comment_monitor = comment_monitor
         self.engagement_watcher = engagement_watcher
         self.detector = SpeechIntentDetector()
         self.engine = engine_client
+        self.harness = harness_client
 
         # Wire callbacks
         self.comment_monitor.on_comment = self._handle_comment
@@ -347,7 +355,12 @@ class AgentLoop:
         """Process a transcript chunk from Voicebox STT.
 
         Called by the STT listener whenever new speech is transcribed.
-        Detects intents and triggers OBS actions.
+        Detects intents and routes them through the Harness for policy
+        validation before executing any OBS or Engine actions.
+
+        ARCHITECTURE: Model detects intent → Harness edge-turn → Allow/Deny
+        → only on Allow: execute (OBS overlay + Engine update).
+        The model NEVER touches Engine directly.
         """
         text = event.text
         logger.debug("Transcript (%s): %s", event.language, text)
@@ -361,16 +374,24 @@ class AgentLoop:
             product = self.controller.session.current_product
             if product:
                 logger.info("Sold-out detected for %s: %s", product.name, text)
-                self.controller.mark_sold_out(product)
-                self.controller.clip_moment()
-                # POST to Engine: mark product as sold out (stock=0)
-                self._engine_post_sold_out(product)
+                self._propose_and_execute(
+                    text=text,
+                    language=event.language,
+                    confidence=event.confidence,
+                    intent="sold_out",
+                    product=product,
+                )
             return
 
         # Check for product switch
         if self.detector.detect_product_switch(text):
             logger.info("Product switch detected: %s", text)
-            self._switch_to_next_product()
+            self._propose_and_execute(
+                text=text,
+                language=event.language,
+                confidence=event.confidence,
+                intent="product_switch",
+            )
             return
 
         # Check for price mention
@@ -380,13 +401,18 @@ class AgentLoop:
             if product:
                 logger.info("Price detected for %s: %s → %s",
                             product.name, text, price)
-                self.controller.update_price(product, price)
-                self.controller.send_caption(f"Prix: {price}")
-                # POST to Engine: update product price
-                self._engine_post_price(product, price)
+                self._propose_and_execute(
+                    text=text,
+                    language=event.language,
+                    confidence=event.confidence,
+                    intent="price_change",
+                    product=product,
+                    price=price,
+                )
             return
 
         # Check for product mention (seller talking about a specific product)
+        # This is a read-only OBS action — no Engine write, no Harness needed
         if self.controller.session:
             current = self.controller.session.current_product
             product_id = self.detector.detect_product_mention(
@@ -437,20 +463,166 @@ class AgentLoop:
                             next_product.name, next_product.price)
                 # In production: earpiece whisper or monitor overlay
 
-    def _switch_to_next_product(self):
-        """Switch to the next product in the session.
+    def _propose_and_execute(
+        self,
+        text: str,
+        language: str,
+        confidence: float,
+        intent: str,
+        product=None,
+        price: Optional[str] = None,
+    ):
+        """Send a proposal to the Harness edge-turn and execute on Allow.
 
-        If Engine is wired, fetches fresh product data from Engine for the next
-        product before switching. Falls back to local session data if Engine is
-        unreachable.
+        ARCHITECTURE: intent → harness_client.propose() → Allow/Deny
+        → only on Allow: execute (OBS overlay + Engine update)
+        → on Deny or unreachable: log, do nothing (NO fallback to direct Engine)
+
+        Args:
+            text: Seller's transcribed speech.
+            language: ISO language code (wo, fr, en).
+            confidence: STT confidence (0.0–1.0).
+            intent: "price_change" | "sold_out" | "product_switch"
+            product: Current Product object (for price_change and sold_out).
+            price: Formatted price string (for price_change).
         """
+        if not self.harness:
+            logger.warning(
+                "No harness_client configured — intent '%s' blocked "
+                "(no fallback to direct Engine)", intent,
+            )
+            return
+
+        # Send proposal to Harness
+        response = self._run_async(
+            self.harness.propose(
+                transcript_text=text,
+                language=language,
+                confidence=confidence,
+                model_backend=os.getenv("MODEL_BACKEND", "mock"),
+            )
+        )
+
+        if response is None:
+            logger.warning(
+                "Harness unreachable for intent '%s' — NOT executing "
+                "(no fallback to direct Engine)", intent,
+            )
+            return
+
+        if not response.allowed:
+            logger.warning(
+                "Harness DENIED intent '%s': tool=%s audit=%s",
+                intent, response.tool, response.audit_event_id,
+            )
+            return
+
+        # Harness said Allow — execute the approved tool
+        logger.info(
+            "Harness ALLOWED intent '%s': tool=%s product=%s price=%s audit=%s",
+            intent, response.tool, response.product_id,
+            response.price_fcfa, response.audit_event_id,
+        )
+
+        if intent == "price_change":
+            self._execute_price_change(response, product, price)
+        elif intent == "sold_out":
+            self._execute_sold_out(response, product)
+        elif intent == "product_switch":
+            self._execute_product_switch(response)
+        else:
+            logger.warning("Unknown intent '%s' — skipping execution", intent)
+
+    def _execute_price_change(self, response, product, price_str: Optional[str]):
+        """Execute Harness-approved price change: OBS overlay + Engine update."""
+        if not price_str:
+            logger.warning("No price string provided for price_change — skipping")
+            return
+        # OBS overlay (local, always runs)
+        self.controller.update_price(product, price_str)
+        self.controller.send_caption(f"Prix: {price_str}")
+
+        # Engine update (Harness-approved execution — NOT model→Engine)
+        if self.engine and response.product_id:
+            from live.engine_client import parse_price_to_cents
+            cents = parse_price_to_cents(price_str)
+            if cents is not None:
+                self._run_async(
+                    self.engine.update_product(
+                        response.product_id, price_cents=cents,
+                    )
+                )
+                logger.info(
+                    "Engine price updated (Harness-approved): product=%s cents=%d",
+                    response.product_id, cents,
+                )
+            else:
+                logger.warning(
+                    "Could not parse price '%s' to cents — Engine update skipped",
+                    price_str,
+                )
+        elif not self.engine:
+            logger.debug("No engine_client — Engine update skipped (OBS only)")
+
+    def _execute_sold_out(self, response, product):
+        """Execute Harness-approved sold-out: OBS overlay + Engine update."""
+        # OBS overlay (local, always runs)
+        self.controller.mark_sold_out(product)
+        self.controller.clip_moment()
+
+        # Engine update (Harness-approved execution — NOT model→Engine)
+        if self.engine and response.product_id:
+            self._run_async(
+                self.engine.update_product(
+                    response.product_id, stock=0, is_active=False,
+                )
+            )
+            logger.info(
+                "Engine sold-out updated (Harness-approved): product=%s stock=0",
+                response.product_id,
+            )
+        elif not self.engine:
+            logger.debug("No engine_client — Engine update skipped (OBS only)")
+
+    def _execute_product_switch(self, response):
+        """Execute Harness-approved product switch: fetch from Engine + OBS."""
         if not self.controller.session:
             return
         session = self.controller.session
+
+        # If Harness specified a product_id, try to fetch it from Engine
+        if response.product_id and self.engine:
+            data = self._run_async(self.engine.get_product(response.product_id))
+            if data:
+                # Find or create Product from Engine data
+                from live.engine_client import engine_product_to_dict, cents_to_display
+                product_dict = engine_product_to_dict(data)
+                # Try to match to existing session product, else switch by ID
+                matched = None
+                for p in session.products:
+                    if str(p.id) == str(response.product_id):
+                        matched = p
+                        # Refresh from Engine
+                        if data.get("name"):
+                            matched.name = data["name"]
+                        if data.get("price_display"):
+                            matched.price = data["price_display"]
+                        elif data.get("price_cents"):
+                            matched.price = cents_to_display(data["price_cents"])
+                        break
+                if matched:
+                    self.controller.switch_to_product(matched)
+                    self.controller.mark_product_chapter(matched)
+                    logger.info("Switched to product (Harness-approved): %s", matched.name)
+                    return
+                else:
+                    logger.info("Product %s not in session queue — using next product", response.product_id)
+
+        # Fall back to next product in session queue
         if session.current_product_index < len(session.products) - 1:
             session.current_product_index += 1
             product = session.current_product
-            # Try to refresh product data from Engine before switching
+            # Read-only Engine refresh (no Harness needed for reads)
             if self.engine:
                 self._engine_refresh_product(product)
             self.controller.switch_to_product(product)
@@ -458,26 +630,6 @@ class AgentLoop:
             logger.info("Switched to next product: %s", product.name)
         else:
             logger.info("No more products — at end of session")
-
-    # ─── Engine wiring helpers ───────────────────────────────────
-
-    def _engine_post_price(self, product, price_str: str):
-        """POST price update to Engine (fire-and-forget, graceful fallback)."""
-        if not self.engine:
-            return
-        from live.engine_client import parse_price_to_cents
-        cents = parse_price_to_cents(price_str)
-        if cents is None:
-            logger.warning("Could not parse price '%s' to cents — skipping Engine update", price_str)
-            return
-        # Run async call from sync context
-        self._run_async(self.engine.set_price(product.id, cents))
-
-    def _engine_post_sold_out(self, product):
-        """POST sold-out (stock=0) to Engine (fire-and-forget, graceful fallback)."""
-        if not self.engine:
-            return
-        self._run_async(self.engine.mark_sold_out(product.id))
 
     def _engine_refresh_product(self, product):
         """Fetch fresh product data from Engine and update the local Product in-place.

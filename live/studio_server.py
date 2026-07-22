@@ -29,6 +29,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from live.engine_client import EngineClient, get_engine_client
+from live.harness_client import HarnessClient, get_harness_client
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("yaatal.studio")
@@ -38,6 +39,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "https://api.ollama.com")
 OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
 OLLAMA_INTENT_MODEL = os.getenv("OLLAMA_INTENT_MODEL", "gemma3:4b")
 ENGINE_API_URL = os.getenv("ENGINE_API_URL", "http://yaatal-engine:8080")
+HARNESS_URL = os.getenv("HARNESS_URL", "http://localhost:8090")
 STUDIO_PORT = int(os.getenv("STUDIO_PORT", "8484"))
 
 OVERLAYS_DIR = Path(__file__).parent / "overlays"
@@ -344,10 +346,12 @@ async def status():
     """System status endpoint."""
     engine = await engine_health()
     ollama = await ollama_health()
+    harness = await harness_health()
     return {
         "studio": {"port": STUDIO_PORT, "version": "0.1.0"},
         "engine": engine,
         "ollama": ollama,
+        "harness": harness,
         "intent_model": OLLAMA_INTENT_MODEL,
         "overlays": [f.name for f in OVERLAYS_DIR.glob("*.html")] if OVERLAYS_DIR.exists() else [],
     }
@@ -500,6 +504,72 @@ async def product_queue():
 async def session_state():
     """Get the current live session state."""
     return asdict(_session_state)
+
+
+@app.get("/api/studio/audit")
+async def studio_audit():
+    """Read recent audit events from the Harness JSONL file.
+
+    The Harness writes audit events to a JSONL file (one JSON object per line).
+    This endpoint reads the last N events and returns them as a list.
+
+    Env vars:
+      HARNESS_AUDIT_FILE — path to the Harness audit JSONL file
+        (default: /root/yaatal-engine/data/audit_events.jsonl)
+    """
+    audit_file = os.getenv(
+        "HARNESS_AUDIT_FILE",
+        "/root/yaatal-engine/data/audit_events.jsonl",
+    )
+    audit_path = Path(audit_file)
+    if not audit_path.exists():
+        return {
+            "events": [],
+            "source": str(audit_path),
+            "message": "Audit file not found — Harness may not have written events yet",
+        }
+
+    # Read last N lines from the JSONL file
+    max_events = 50
+    events = []
+    try:
+        with open(audit_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        # Parse from the end (most recent first)
+        for line in reversed(lines):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+            if len(events) >= max_events:
+                break
+    except Exception as e:
+        return {
+            "events": [],
+            "source": str(audit_path),
+            "error": str(e),
+        }
+
+    return {
+        "events": events,
+        "count": len(events),
+        "source": str(audit_path),
+    }
+
+
+@app.get("/api/studio/harness-health")
+async def harness_health():
+    """Check if the Harness edge-turn endpoint is reachable."""
+    harness = await get_harness_client()
+    reachable = await harness.health()
+    return {
+        "reachable": reachable,
+        "url": HARNESS_URL,
+        "endpoint": f"{HARNESS_URL}/edge-turn",
+    }
 
 
 @app.post("/api/test/e2e")
@@ -715,5 +785,6 @@ if __name__ == "__main__":
     import uvicorn
     logger.info("Starting Yaatal Studio on port %d", STUDIO_PORT)
     logger.info("Engine API: %s", ENGINE_API_URL)
+    logger.info("Harness edge-turn: %s/edge-turn", HARNESS_URL)
     logger.info("Ollama Cloud: %s (model: %s)", OLLAMA_BASE_URL, OLLAMA_INTENT_MODEL)
     uvicorn.run(app, host="0.0.0.0", port=STUDIO_PORT)

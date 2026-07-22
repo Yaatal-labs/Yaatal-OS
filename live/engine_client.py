@@ -134,13 +134,27 @@ class EngineClient:
             logger.warning("get_product(%s) failed: %s", product_id, e)
             return None
 
-    # ─── product updates (authed) ───────────────────────────────
+    # ─── product updates (authed — Harness-gated execution only) ────
+    #
+    # ARCHITECTURE: The model NEVER calls these methods directly.
+    # Only the agent loop calls update_product() AFTER the Harness
+    # edge-turn returns Allow. This is the Harness-approved execution
+    # path, not a model→Engine bypass.
+    #
+    # The old convenience wrappers set_price() and mark_sold_out() have
+    # been removed — they were direct-write shortcuts that bypassed the
+    # Harness policy gate. All writes must go through update_product()
+    # as part of a Harness-approved execution.
 
     async def update_product(
         self, product_id: str | int, price_cents: int | None = None,
         stock: int | None = None, is_active: bool | None = None,
     ) -> Optional[dict]:
         """POST /api/products/:id — update product price/stock/active.
+
+        This is the Harness-approved execution path. Only called by
+        the agent loop after the Harness edge-turn returns Allow.
+        The model NEVER calls this directly.
 
         Returns response dict on success, None on failure.
         """
@@ -167,13 +181,11 @@ class EngineClient:
             logger.warning("update_product(%s) failed: %s", product_id, e)
             return None
 
-    async def set_price(self, product_id: str | int, price_cents: int) -> Optional[dict]:
-        """Convenience: update product price (price_cents)."""
-        return await self.update_product(product_id, price_cents=price_cents)
-
-    async def mark_sold_out(self, product_id: str | int) -> Optional[dict]:
-        """Convenience: set stock=0 on Engine."""
-        return await self.update_product(product_id, stock=0, is_active=False)
+    # NOTE: set_price() and mark_sold_out() convenience wrappers have been
+    # removed. They were direct-write shortcuts that let the model bypass
+    # the Harness policy gate. All Engine writes now go through
+    # update_product() as part of Harness-approved execution in the
+    # agent loop's _execute_* methods.
 
     # ─── live sessions (authed) ─────────────────────────────────
 
