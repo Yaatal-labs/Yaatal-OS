@@ -16,18 +16,32 @@
 
 ## Next — Prioritized
 
-### 1. Studio → Engine wiring verification + Harness integration
-**Status:** Code written, not tested end-to-end. Harness not wired.
+### 1. Fix agent loop → route through Harness, NOT direct to Engine
+**Status:** ARCHITECTURE VIOLATION — agent loop currently POSTs directly to Engine. Must go through Harness.
 
-- [ ] Test: agent loop detects price_change → verify Engine product updated
-- [ ] Test: agent loop detects sold_out → verify Engine stock=0
-- [ ] Test: OBS controller fetches product from Engine → verify overlay renders
-- [ ] Test: go-live endpoint → verify Engine creates live session
-- [ ] Test: NFC delivery → POST confirm-by-code → verify Engine closes order
-- [ ] Test: NFC viewer → fetch catalog → verify product page + checkout redirect
-- [ ] Test: QR overlay → verify Engine URLs in QR codes
-- [ ] Wire Harness audit: Studio actions (price update, go-live, sold-out) should emit audit events
-- [ ] Studio E2E test: update to cover the new Engine-wired endpoints
+The flow MUST be:
+```
+Agent loop detects intent (price_change, sold_out, product_switch)
+  → send ModelProposal to Harness edge-turn (transcript + Engine context)
+  → Harness: model proposes tool (studio.update_price_overlay, etc.)
+  → Harness: tool policy validates (price < 10M FCFA, product exists, etc.)
+  → Harness: audit event written to JSONL
+  → Harness returns Decision (Allow/Deny)
+  → ONLY on Allow: action executes (Engine update + OBS overlay)
+  → NEVER: model posts directly to Engine
+```
+
+- [ ] Remove `_engine_post_price()` and `_engine_post_sold_out()` from agent loop — model must NOT call Engine directly
+- [ ] Remove `update_product()` and `update_price()` from engine_client.py — these are execution paths that belong behind the Harness gate
+- [ ] Add Harness edge-turn client to agent loop: send transcript + product context → get Allow/Deny
+- [ ] Harness edge-turn needs an HTTP endpoint (currently CLI only) OR Studio calls it as subprocess
+- [ ] Harness edge-turn should fetch Engine context (products + live session) for validation
+- [ ] On Allow: agent loop executes OBS overlay + Engine update (through an approved execution path, not direct model→Engine)
+- [ ] On Deny: agent loop logs denial, does nothing
+- [ ] Audit trail: Harness writes JSONL, Studio dashboard shows recent audit events
+- [ ] Test: intent detected → proposal sent → Harness validates → Allow → action executes
+- [ ] Test: intent detected → proposal sent → Harness validates → Deny → nothing happens
+- [ ] Test: audit trail has the full chain (transcript → proposal → decision → action)
 
 ### 2. Alpine.js + HTMX adoption
 **Status:** Discussed, not started. Strong fit for Yaatal.
