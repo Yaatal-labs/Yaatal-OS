@@ -1,0 +1,20 @@
+# Cloudflare Workers — PWA deploy target.
+#
+# Serves the Expo web export (the same static bundle Cloudflare Pages serves)
+# as a Workers Static Assets site with single-page-application routing, so the
+# PWA on Workers matches the Pages deploy. Without this file the Workers build
+# has no config and `wrangler deploy` fails instantly at detection.
+name = "bobo"
+compatibility_date = "2025-01-01"
+
+# Build the workspace SDK, then produce the Expo web export into bobo-app/dist.
+# Mirrors netlify.toml's build command.
+[build]
+command = "pnpm --filter @yaatal/client build && pnpm --filter bobo-app exec expo export -p web"
+
+# Static-asset (no server code) Worker. `single-page-application` returns
+# index.html for unmatched routes — the Workers equivalent of the Pages/Netlify
+# `/* -> /index.html 200` SPA redirect.
+[assets]
+directory = "./bobo-app/dist"
+not_found_handling = "single-page-application"
