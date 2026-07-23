@@ -75,7 +75,9 @@ export const mapCatalogProductToProduct = (
     category,
     tags: [],
     image_url: images[0] || '',
-    video_url: images[1] || undefined,
+    // Catalog `images[]` are all images — the contract carries no video field.
+    // Leave `video_url` unset so the UI doesn't render a second image as a video.
+    video_url: undefined,
     stock_quantity: product.stock,
     upvotes: product.upvotes,
     view_count: 0,
