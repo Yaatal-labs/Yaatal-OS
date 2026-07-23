@@ -16,16 +16,42 @@ import {
   Alert,
   ActivityIndicator,
   StatusBar,
-  ImageBackground,
-  Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from 'react-native-vector-icons/Ionicons'
 import { ProductCard } from '../../components/ProductCard'
-import { productsService } from '@yaatal/core'
-import { useAuthStore } from '../../store/authStore'
-import { colors, theme, combineTextStyles } from '../../theme'
-import type { Product } from '@yaatal/core'
+import { catalogService } from '@njooba/core'
+import { colors, theme } from '../../theme'
+import type { Product } from '@njooba/core'
+
+// Public, unauthenticated marketplace browse over the Engine catalog. The catalog
+// endpoint takes page/per_page/category/merchant_id only.
+// ponytail: /api/catalog has no free-text param yet, so a search query filters the
+//           returned page client-side. Upgrade path = add `q` to ListCatalogParams
+//           and the Engine /api/catalog handler, then pass it straight through.
+const browseCatalog = async (
+  page: number,
+  category?: string,
+  query?: string
+) => {
+  const result = await catalogService.listCatalog({
+    page,
+    per_page: 20,
+    ...(category ? { category } : {}),
+  })
+
+  const q = query?.trim().toLowerCase()
+  if (!q) return result
+
+  return {
+    ...result,
+    items: result.items.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q)
+    ),
+  }
+}
 
 const CATEGORIES = [
   { value: 'all', label: 'Tout', icon: 'apps-outline' },
@@ -38,7 +64,6 @@ const CATEGORIES = [
 
 export const DiscoveryScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets()
-  const { profile } = useAuthStore()
   
   // State
   const [products, setProducts] = useState<Product[]>([])
@@ -61,17 +86,15 @@ export const DiscoveryScreen = ({ navigation }: any) => {
     const currentPage = reset ? 1 : page
 
     try {
-      if (searchQuery) {
-        const result = await productsService.search(searchQuery, currentPage, 20)
-        setProducts(reset ? result.items : [...products, ...result.items])
-      } else {
-        const result = await productsService.getAll(currentPage, 20)
-        setProducts(reset ? result.items : [...products, ...result.items])
-      }
+      const category = selectedCategory === 'all' ? undefined : selectedCategory
+      const result = await browseCatalog(currentPage, category, searchQuery)
+      setProducts(reset ? result.items : [...products, ...result.items])
 
       if (reset) {
-        const result = await productsService.getAll(1, 10)
-        const featured = result.items.filter((p) => p.is_featured || p.upvotes > 5)
+        const featuredResult = await browseCatalog(1)
+        const featured = featuredResult.items.filter(
+          (p) => p.is_featured || p.upvotes > 5
+        )
         setFeaturedProducts(featured)
       }
 
@@ -107,11 +130,15 @@ export const DiscoveryScreen = ({ navigation }: any) => {
     setPage(1)
 
     try {
-      // Hybrid AI Search (PowerSync version)
-      const result = await productsService.search(searchQuery, 1, 20)
+      const result = await browseCatalog(
+        1,
+        selectedCategory === 'all' ? undefined : selectedCategory,
+        searchQuery
+      )
       setProducts(result.items)
+      setPage(2)
     } catch (error) {
-      console.error('AI search failed:', error)
+      console.error('Catalog search failed:', error)
       await loadProducts(true)
     } finally {
       setIsAISearching(false)
@@ -134,6 +161,26 @@ export const DiscoveryScreen = ({ navigation }: any) => {
 
   const handleProductPress = (product: Product) => {
     navigation.navigate('ProductDetail', { productId: product.id })
+  }
+
+  const handleCategoryPress = async (category: string) => {
+    setSelectedCategory(category)
+    setPage(1)
+    setIsLoading(true)
+
+    try {
+      const result = await browseCatalog(
+        1,
+        category === 'all' ? undefined : category,
+        searchQuery
+      )
+      setProducts(result.items)
+      setPage(2)
+    } catch (error) {
+      console.error('Category browse failed:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // --- RENDER COMPONENTS ---
@@ -181,7 +228,7 @@ export const DiscoveryScreen = ({ navigation }: any) => {
             styles.categoryChip,
             selectedCategory === cat.value && styles.categoryChipActive,
           ]}
-          onPress={() => setSelectedCategory(cat.value)}
+          onPress={() => handleCategoryPress(cat.value)}
         >
           <Ionicons 
             name={cat.icon as any} 
@@ -241,9 +288,7 @@ export const DiscoveryScreen = ({ navigation }: any) => {
     </View>
   )
 
-  const filteredProducts = selectedCategory === 'all'
-    ? products
-    : products.filter((p) => p.category === selectedCategory)
+  const filteredProducts = products
 
   return (
     <View style={styles.container}>
