@@ -7,10 +7,13 @@
 name = "bobo"
 compatibility_date = "2025-01-01"
 
-# Build the workspace SDK, then produce the Expo web export into bobo-app/dist.
-# Mirrors netlify.toml's build command.
+# Build the workspace SDK, produce the Expo web export into bobo-app/dist, then
+# strip the Pages-style `_redirects` file. Its `/* /index.html 200` SPA rewrite
+# is rejected by the Workers deploy as a redirect loop (code 100324); on Workers
+# the SPA fallback is handled by `not_found_handling` below instead. `_redirects`
+# stays in bobo-app/public for the Cloudflare Pages / Netlify targets.
 [build]
-command = "pnpm --filter @yaatal/client build && pnpm --filter bobo-app exec expo export -p web"
+command = "pnpm --filter @yaatal/client build && pnpm --filter bobo-app exec expo export -p web && rm -f bobo-app/dist/_redirects"
 
 # Static-asset (no server code) Worker. `single-page-application` returns
 # index.html for unmatched routes — the Workers equivalent of the Pages/Netlify
