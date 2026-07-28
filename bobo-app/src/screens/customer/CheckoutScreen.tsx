@@ -20,9 +20,9 @@ import {
   Platform,
 } from 'react-native'
 import { useAuthStore } from '../../store/authStore'
-import { ordersService, type ShippingInfo, getProductImageUrl } from '@njooba/core'
+import { ordersService, type ShippingInfo, getProductImageUrl } from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
-import { formatCFA, validatePhoneNumber, type Product, type Order } from '@njooba/core'
+import { formatCFA, validatePhoneNumber, type Product, type Order } from '@yaatal/core'
 import { shippingService } from '../../services/shipping.service'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')

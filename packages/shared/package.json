@@ -1,5 +1,5 @@
 {
-  "name": "@njooba/shared",
+  "name": "@yaatal/shared",
   "version": "0.1.0",
   "description": "Shared utilities for BOBO",
   "main": "src/index.ts",

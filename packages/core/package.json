@@ -1,5 +1,5 @@
 {
-  "name": "@njooba/core",
+  "name": "@yaatal/core",
   "version": "0.1.0",
   "description": "BOBO core package - types, utilities, and Engine-backed shared services",
   "main": "./src/index.ts",

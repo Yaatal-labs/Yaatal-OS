@@ -141,7 +141,7 @@ importers:
 
   packages/ai:
     dependencies:
-      '@njooba/core':
+      '@yaatal/core':
         specifier: workspace:*
         version: link:../core
       expo-av:

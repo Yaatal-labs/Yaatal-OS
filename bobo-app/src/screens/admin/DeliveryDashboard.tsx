@@ -15,8 +15,8 @@ import {
   RefreshControl
 } from 'react-native'
 import { useAuthStore } from '../../store/authStore'
-import { deliveryService } from '@njooba/core'
-import { getDeliveryStatusText, getDeliveryStatusColor, type DeliveryRequest, type DeliveryPerson } from '@njooba/core'
+import { deliveryService } from '@yaatal/core'
+import { getDeliveryStatusText, getDeliveryStatusColor, type DeliveryRequest, type DeliveryPerson } from '@yaatal/core'
 
 export const DeliveryDashboard = () => {
   const { profile } = useAuthStore()

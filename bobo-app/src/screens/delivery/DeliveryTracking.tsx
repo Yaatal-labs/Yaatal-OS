@@ -14,7 +14,7 @@ import {
   ScrollView
 } from 'react-native'
 import { useAuthStore } from '../../store/authStore'
-import { deliveryService, getDeliveryStatusText, getDeliveryStatusColor, type DeliveryRequest } from '@njooba/core'
+import { deliveryService, getDeliveryStatusText, getDeliveryStatusColor, type DeliveryRequest } from '@yaatal/core'
 
 interface DeliveryTrackingProps {
   orderId: string
