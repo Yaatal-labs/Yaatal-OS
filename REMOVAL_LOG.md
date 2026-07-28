@@ -1,3 +1,8 @@
+> **⚠️ Stale (pre-Engine).** This log predates BOBO's migration onto the Yaatal
+> Engine and describes the older PocketBase/Supabase standalone extraction. It is
+> kept for history only. For the current backend reality and the active work plan,
+> see **`BOBO-ENGINE-ALIGNMENT.md`** and **`CLAUDE.md`**.
+
 # BOBO Standalone Extraction - Removal Log
 
 **Date:** 2026-01-19
