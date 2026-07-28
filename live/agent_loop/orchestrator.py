@@ -320,7 +320,9 @@ class AgentLoop:
 
     def __init__(self, controller, comment_monitor: CommentMonitor,
                  engagement_watcher: EngagementWatcher,
-                 engine_client=None, harness_client=None):
+                 engine_client=None, harness_client=None,
+                 proposal_resolver: Optional[Callable] = None,
+                 fallback_to_rules: bool = False):
         """
         Args:
             controller: LiveController instance (from obs_controller)
@@ -342,6 +344,8 @@ class AgentLoop:
         self.detector = SpeechIntentDetector()
         self.engine = engine_client
         self.harness = harness_client
+        self.proposal_resolver = proposal_resolver
+        self.fallback_to_rules = fallback_to_rules
 
         # Wire callbacks
         self.comment_monitor.on_comment = self._handle_comment
@@ -368,6 +372,20 @@ class AgentLoop:
         if not self.controller.session:
             logger.debug("No active session — transcript ignored")
             return
+        if self.proposal_resolver is not None:
+            try:
+                response = self.proposal_resolver(event)
+            except Exception as exc:
+                logger.warning("Harness edge turn failed: %s", exc)
+                if not self.fallback_to_rules:
+                    return
+                logger.info("Using explicit rule-based fallback")
+            else:
+                try:
+                    self._apply_edge_decision(response)
+                except (AttributeError, KeyError, TypeError, ValueError) as exc:
+                    logger.warning("Invalid Harness edge decision: %s", exc)
+                return
 
         # Check for sold-out first (highest priority)
         if self.detector.detect_sold_out(text):
@@ -427,6 +445,54 @@ class AgentLoop:
         # No intent detected — push as caption if confidence is high
         if event.confidence > 0.7:
             self.controller.send_caption(text)
+
+    def _apply_edge_decision(self, response: dict):
+        """Dispatch one already-governed Harness decision to local OBS."""
+        if not isinstance(response, dict):
+            raise ValueError("Harness decision must be an object")
+        decision = response.get("decision")
+        if decision in ("deny", "noop"):
+            return
+        if decision != "allow":
+            raise ValueError("Harness decision is invalid")
+
+        proposal = response.get("proposal")
+        if not isinstance(proposal, dict):
+            raise ValueError("Allowed Harness decision requires a proposal")
+        tool = proposal.get("tool")
+        product_id = proposal.get("product_id")
+        if not isinstance(product_id, str) or not product_id:
+            raise ValueError("Harness proposal has no product_id")
+
+        session = self.controller.session
+        product_index = next(
+            (index for index, product in enumerate(session.products)
+             if product.id == product_id),
+            None,
+        )
+        if product_index is None:
+            raise ValueError("Harness product is not present in Studio session")
+        product = session.products[product_index]
+
+        if tool == "studio.update_price_overlay":
+            price_fcfa = proposal.get("price_fcfa")
+            if (not isinstance(price_fcfa, int) or isinstance(price_fcfa, bool)
+                    or not 1 <= price_fcfa <= 10_000_000):
+                raise ValueError("Harness price_fcfa is invalid")
+            price = f"{price_fcfa:,} FCFA".replace(",", " ")
+            self.controller.update_price(product, price)
+            self.controller.send_caption(f"Prix: {price}")
+            return
+        if tool == "studio.mark_sold_out_overlay":
+            self.controller.mark_sold_out(product)
+            self.controller.clip_moment()
+            return
+        if tool == "studio.switch_product":
+            session.current_product_index = product_index
+            self.controller.switch_to_product(product)
+            self.controller.mark_product_chapter(product)
+            return
+        raise ValueError("Harness proposal tool is not allowed")
 
     def _handle_comment(self, event: CommentEvent):
         """Handle a viewer comment — push to OBS overlay."""

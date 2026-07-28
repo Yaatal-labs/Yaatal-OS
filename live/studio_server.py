@@ -29,7 +29,16 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from live.engine_client import EngineClient, get_engine_client
-from live.harness_client import HarnessClient, get_harness_client
+from live.harness_client import (
+    HarnessHttpClient,
+    HarnessCliClient,
+    HarnessClientError,
+    get_harness_client,
+    select_harness_transport,
+)
+
+# Backward-compat alias — existing code/tests use HarnessClient
+HarnessClient = HarnessHttpClient
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("yaatal.studio")
@@ -40,7 +49,22 @@ OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
 OLLAMA_INTENT_MODEL = os.getenv("OLLAMA_INTENT_MODEL", "gemma3:4b")
 ENGINE_API_URL = os.getenv("ENGINE_API_URL", "http://yaatal-engine:8080")
 HARNESS_URL = os.getenv("HARNESS_URL", "http://localhost:8090")
+STUDIO_HOST = os.getenv("STUDIO_HOST", "127.0.0.1")
 STUDIO_PORT = int(os.getenv("STUDIO_PORT", "8484"))
+HARNESS_BIN = os.getenv("YAATAL_HARNESS_BIN", "") or os.getenv("HARNESS_CLI_PATH", "")
+HARNESS_MODEL_BACKEND = os.getenv("YAATAL_EDGE_MODEL_BACKEND", "mock")
+HARNESS_FALLBACK = os.getenv("YAATAL_HARNESS_FALLBACK", "0") == "1"
+# Transport selection: HTTP (HARNESS_URL) → CLI (HARNESS_CLI_PATH/YAATAL_HARNESS_BIN) → None
+# HARNESS_CLIENT is the CLI fallback instance (for the CLI-based /api/intent path).
+# The HTTP transport is used by default via get_harness_client() / select_harness_transport().
+HARNESS_CLIENT: HarnessCliClient | None = None
+if HARNESS_BIN and not os.getenv("HARNESS_URL"):
+    try:
+        HARNESS_CLIENT = HarnessCliClient(
+            binary=HARNESS_BIN, model_backend=HARNESS_MODEL_BACKEND,
+        )
+    except HarnessClientError as exc:
+        logger.warning("Harness CLI client init failed: %s — no-op mode", exc)
 
 OVERLAYS_DIR = Path(__file__).parent / "overlays"
 DASHBOARD_DIR = Path(__file__).parent / "dashboard"
@@ -153,6 +177,42 @@ async def llm_intent(text: str) -> dict:
     except Exception as e:
         logger.warning("LLM intent failed (%s), falling back to regex", e)
         return regex_intent(text)
+
+
+def _tool_to_intent(tool: str) -> str:
+    """Map a Harness tool name to the dashboard's legacy intent label."""
+    return {
+        "studio.update_price_overlay": "price_change",
+        "studio.mark_sold_out_overlay": "sold_out",
+        "studio.switch_product": "product_switch",
+    }.get(tool, "none")
+
+
+def edge_decision_to_intent(response: dict) -> dict:
+    """Map a governed edge-turn response to the dashboard's legacy shape."""
+    proposal = response.get("proposal") or {}
+    tool = proposal.get("tool")
+    intent_by_tool = {
+        "studio.update_price_overlay": "price_change",
+        "studio.mark_sold_out_overlay": "sold_out",
+        "studio.switch_product": "product_switch",
+    }
+    allowed = response.get("decision") == "allow"
+    price_fcfa = proposal.get("price_fcfa") if allowed else None
+    price = (
+        f"{price_fcfa:,} FCFA".replace(",", " ")
+        if isinstance(price_fcfa, int) and not isinstance(price_fcfa, bool)
+        else None
+    )
+    confidence = proposal.get("confidence", 0.0) if allowed else 0.0
+    return {
+        "intent": intent_by_tool.get(tool, "none") if allowed else "none",
+        "price": price,
+        "product_name": None,
+        "confidence": confidence,
+        "source": "harness",
+        "edge_turn": response,
+    }
 
 
 # ─── Engine Client ──────────────────────────────────────────────
@@ -350,10 +410,14 @@ async def status():
     ollama = await ollama_health()
     harness = await harness_health()
     return {
-        "studio": {"port": STUDIO_PORT, "version": "0.1.0"},
+        "studio": {"host": STUDIO_HOST, "port": STUDIO_PORT, "version": "0.1.0"},
         "engine": engine,
         "ollama": ollama,
-        "harness": harness,
+        "harness": {
+            **harness,
+            "cli_configured": HARNESS_CLIENT is not None,
+            "model_backend": HARNESS_MODEL_BACKEND,
+        },
         "intent_model": OLLAMA_INTENT_MODEL,
         "overlays": [f.name for f in OVERLAYS_DIR.glob("*.html")] if OVERLAYS_DIR.exists() else [],
     }
@@ -361,11 +425,97 @@ async def status():
 
 @app.post("/api/intent")
 async def detect_intent(request: Request):
-    """Parse speech intent from text. Uses LLM (Ollama) with regex fallback."""
+    """Parse speech through the governed Harness, or the standalone fallback.
+
+    Transport priority:
+      1. HTTP (HARNESS_URL) — async, via HarnessHttpClient
+      2. CLI subprocess (HARNESS_CLI_PATH / YAATAL_HARNESS_BIN) — via HARNESS_CLIENT
+      3. LLM (Ollama) or regex fallback (only if HARNESS_FALLBACK=1)
+    """
     body = await request.json()
     text = body.get("text", "")
     use_llm = body.get("use_llm", True)
-    if use_llm and OLLAMA_API_KEY:
+    use_harness = body.get("use_harness", True)
+    allow_fallback = (
+        HARNESS_FALLBACK and body.get("allow_fallback", False) is True
+    )
+
+    # 1. Try HTTP transport (HARNESS_URL) — default
+    if use_harness and os.getenv("HARNESS_URL"):
+        harness_http = await get_harness_client()
+        response = await harness_http.propose(
+            transcript_text=text,
+            language=body.get("language", "wo"),
+            confidence=body.get("confidence", 1.0),
+            model_backend=HARNESS_MODEL_BACKEND,
+        )
+        if response is not None:
+            result = {
+                "intent": "none" if not response.allowed else _tool_to_intent(response.tool),
+                "price": (
+                    f"{response.price_fcfa:,} FCFA".replace(",", " ")
+                    if response.price_fcfa else None
+                ),
+                "product_name": None,
+                "confidence": response.confidence,
+                "source": "harness_http",
+                "edge_turn": {
+                    "decision": response.decision,
+                    "tool": response.tool,
+                    "product_id": response.product_id,
+                    "audit_event_id": response.audit_event_id,
+                },
+            }
+            await broadcast({"type": "intent", "text": text, "result": result})
+            return result
+        # HTTP failed — fall through to CLI or fallback
+        if not allow_fallback:
+            return JSONResponse(
+                {"error": "harness_http_unreachable", "detail": "Harness HTTP endpoint unavailable"},
+                status_code=502,
+            )
+
+    # 2. Try CLI subprocess transport (HARNESS_CLIENT)
+    if HARNESS_CLIENT is not None:
+        if not use_harness:
+            if not allow_fallback:
+                return JSONResponse(
+                    {
+                        "error": "harness_required",
+                        "detail": (
+                            "fallback requires YAATAL_HARNESS_FALLBACK=1 "
+                            "and allow_fallback=true"
+                        ),
+                    },
+                    status_code=409,
+                )
+            result = (
+                await llm_intent(text)
+                if use_llm and OLLAMA_API_KEY
+                else regex_intent(text)
+            )
+        else:
+            try:
+                response = await asyncio.to_thread(
+                    HARNESS_CLIENT.propose,
+                    text,
+                    body.get("language", "mixed"),
+                    body.get("confidence", 1.0),
+                )
+                result = edge_decision_to_intent(response)
+                result["source"] = "harness_cli"
+            except HarnessClientError as exc:
+                if not allow_fallback:
+                    return JSONResponse(
+                        {
+                            "error": "harness_edge_turn_failed",
+                            "detail": str(exc),
+                        },
+                        status_code=502,
+                    )
+                result = regex_intent(text)
+                result["source"] = "regex_fallback"
+    elif use_llm and OLLAMA_API_KEY:
         result = await llm_intent(text)
     else:
         result = regex_intent(text)
@@ -373,7 +523,7 @@ async def detect_intent(request: Request):
     return result
 
 
-# ─── Studio Live Session Endpoints (proxy to Engine) ────────────
+
 
 @app.post("/api/studio/go-live")
 async def go_live(request: Request):
@@ -785,8 +935,8 @@ async def dashboard():
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("Starting Yaatal Studio on port %d", STUDIO_PORT)
+    logger.info("Starting Yaatal Studio on %s:%d", STUDIO_HOST, STUDIO_PORT)
     logger.info("Engine API: %s", ENGINE_API_URL)
     logger.info("Harness edge-turn: %s/edge-turn", HARNESS_URL)
     logger.info("Ollama Cloud: %s (model: %s)", OLLAMA_BASE_URL, OLLAMA_INTENT_MODEL)
-    uvicorn.run(app, host="0.0.0.0", port=STUDIO_PORT)
+    uvicorn.run(app, host=STUDIO_HOST, port=STUDIO_PORT)

@@ -89,6 +89,42 @@ The SpeechIntentDetector recognizes:
 | **Sold out** | amul, amul ñu, suñu, jekhsaal | vendu, tout vendu, rupture, stock épuisé |
 | **Switch product** | bi ëww, lëgi | produit suivant, on passe à |
 
+## Governed edge-turn path
+
+To route seller transcripts through the Engine-aware edge Harness, pass a
+resolver to `AgentLoop`. The resolver receives the existing `TranscriptEvent`
+and returns one validated `edge-turn.v1` decision; local OBS actions remain
+limited to the three Studio overlay tools.
+
+```python
+from live.harness_client import HarnessClient
+
+harness = HarnessClient(
+    binary="/path/to/yaatal-edge-turn",
+    model_backend="mock",  # use "minimind" when the local server is ready
+)
+agent = AgentLoop(
+    controller,
+    comments,
+    engagement,
+    proposal_resolver=lambda event: harness.propose(
+        event.text, event.language, event.confidence
+    ),
+    fallback_to_rules=False,
+)
+```
+
+`fallback_to_rules` is deliberately off by default. A Harness process failure
+can use the existing rule detector only when this flag is explicitly enabled;
+invalid or unsafe Harness decisions never enter that fallback. The Studio HTTP
+server uses the same client when `YAATAL_HARNESS_BIN` is set. Its `/api/intent`
+endpoint permits fallback only when the operator sets
+`YAATAL_HARNESS_FALLBACK=1` and the request includes `allow_fallback: true`.
+
+Studio binds to `127.0.0.1` by default so seller speech and Harness control stay
+on the device. Set `STUDIO_HOST` only when remote access is deliberately
+required and protected by the deployment environment.
+
 When the Yaatal Engine is wired, product mention detection upgrades from
 string matching to Qdrant + BGE-M3 semantic search (seller says something
 fuzzy → nearest product match).
