@@ -36,25 +36,7 @@ export {
 } from './notifications.service.engine'
 export * from './engine.client'
 
-// Non-commerce services stay on the legacy HTTP/PocketBase implementations so
-// the active BOBO barrel does not import the legacy sync backend at startup.
-export {
-  AISearchService,
-  NLPEngine,
-  VoiceSearch,
-  VisualSearch,
-  RecommendationEngine,
-  VercelAIService,
-} from './ai.service'
-export { ChatService, chatService } from './chat.service'
-export type { ChatMessage } from './chat.service'
-export { DeliveryService, deliveryService } from './delivery.service'
-export type {
-  DeliveryRequest,
-  DeliveryPerson,
-  DeliveryZone,
-  DeliveryAssignment,
-  DeliveryQuote,
-  MerchantDeliveryPreferences,
-} from '../types/delivery'
+// AI, chat, and delivery services are pending Engine integration.
+// The legacy PocketBase-backed implementations have been removed.
+// See docs/TEAM-ONBOARDING.en.md for the integration roadmap.
 

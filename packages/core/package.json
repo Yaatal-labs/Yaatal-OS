@@ -12,8 +12,7 @@
     "@yaatal/client": "workspace:*",
     "dayjs": "^1.11.10",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^3.4.0",
-    "pocketbase": "^0.21.1"
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

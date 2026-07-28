@@ -48,11 +48,11 @@ BOBO currently spans three backends. Know which is which so you don't wire to th
 | Flow | Backend today | How you call it | Note |
 |---|---|---|---|
 | **Auth, products, orders, checkout** | **Yaatal Engine** ✅ | `@yaatal/core` → `authService`, `productsService`, `ordersService` | the canonical path — use this |
-| **Chat, delivery, AI-search** | **PocketBase** (legacy) | the `*.service.ts` PocketBase impls | works today; may consolidate to the Engine later |
+| **Chat, delivery, AI-search** | **Pending Engine** | legacy `*.service.ts` impls removed | awaiting Engine endpoints; not yet wired |
 | **Payments** | **DExchange** (mostly stubbed) | `payment.service.ts` | legacy; the Engine has its own Wave rail (to reconcile later) |
 | ~~Offline sync~~ | ~~PowerSync~~ 🗑️ | — | **dead — don't use; being removed** |
 
-> **Rule of thumb:** any *new* backend need goes to the **Engine**, not PocketBase/DExchange.
+> **Rule of thumb:** any *new* backend need goes to the **Engine**, not DExchange.
 
 ## 4. How to wire a feature to the Engine
 ```ts
@@ -131,11 +131,11 @@ BOBO s'étend aujourd'hui sur trois backends. Sachez lequel est lequel pour ne p
 | Flux | Backend aujourd'hui | Comment l'appeler | Note |
 |---|---|---|---|
 | **Auth, produits, commandes, checkout** | **Yaatal Engine** ✅ | `@yaatal/core` → `authService`, `productsService`, `ordersService` | le chemin canonique — utilisez ça |
-| **Chat, livraison, recherche IA** | **PocketBase** (legacy) | les impls PocketBase `*.service.ts` | fonctionne ; consolidation vers le Engine possible plus tard |
+| **Chat, livraison, recherche IA** | **En attente Engine** | les impls legacy `*.service.ts` supprimées | en attente des endpoints Engine ; pas encore câblé |
 | **Paiements** | **DExchange** (surtout stub) | `payment.service.ts` | legacy ; le Engine a son propre rail Wave (à réconcilier) |
 | ~~Synchro offline~~ | ~~PowerSync~~ 🗑️ | — | **mort — ne pas utiliser ; en suppression** |
 
-> **Règle simple :** tout *nouveau* besoin backend va au **Engine**, pas à PocketBase/DExchange.
+> **Règle simple :** tout *nouveau* besoin backend va au **Engine**, pas à DExchange.
 
 ## 4. Comment câbler une fonctionnalité au Engine
 ```ts

@@ -1,6 +1,6 @@
 /**
  * TypeScript Type Definitions
- * Based on PocketBase schema
+ * Based on Engine schema
  */
 
 // Base record interface

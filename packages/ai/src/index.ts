@@ -1,2 +1,3 @@
 // AI Services
-export * from './ai.service'
+// The legacy PocketBase-backed AI service has been removed.
+// AI features are pending Engine integration.

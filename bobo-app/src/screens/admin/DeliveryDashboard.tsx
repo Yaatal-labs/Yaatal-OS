@@ -37,7 +37,7 @@ export const DeliveryDashboard = () => {
 
   const loadDeliveries = async () => {
     try {
-      // In a real implementation, this would fetch from PocketBase
+      // In a real implementation, this would fetch from Engine
       // For now, we'll simulate with mock data
       const mockDeliveries: DeliveryRequest[] = [
         {

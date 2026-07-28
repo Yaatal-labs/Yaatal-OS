@@ -67,7 +67,7 @@ We are not against offline. We are against **offline that nobody controls**. In 
 | Checkout (cash) | ✅ Working | Completes immediately |
 | Checkout (Wave) | ⚠️ Stub only | Shows pending screen, polls status. No real XOF yet. |
 | Product catalog empty | ⚠️ No seed data | Returns `200 []`. Need seed merchants + products. |
-| AI, chat, delivery | ❌ Legacy path | Still on old HTTP/PocketBase. Not Engine-backed. |
+| AI, chat, delivery | ❌ Pending Engine | Legacy PocketBase implementations removed. Awaiting Engine endpoints. |
 | EAS build config | ❌ Missing | No `eas.json`. TestFlight / Play Console blocked. |
 
 ---
