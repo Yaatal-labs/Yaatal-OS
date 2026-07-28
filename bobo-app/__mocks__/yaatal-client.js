@@ -21,6 +21,13 @@ const __mockClient = {
     merchants: async () => ({ merchants: [], total: 0, page: 1, per_page: 20 }),
     orders: async () => ({ orders: [], total: 0, page: 1, per_page: 20 }),
   },
+  catalog: {
+    list: async () => ({ products: [], total: 0, page: 1, per_page: 20 }),
+    get: ok,
+  },
+  liveSessions: {
+    currentProducts: async () => ({ session: null, products: [] }),
+  },
   notifications: {
     list: async () => [],
     unreadCount: async () => 0,

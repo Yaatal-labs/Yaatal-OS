@@ -7,6 +7,13 @@ export {
   mapEngineProductToProduct,
 } from './products.service.engine'
 export {
+  CatalogServiceEngine as CatalogService,
+  catalogServiceEngine as catalogService,
+  catalogServiceEngine,
+  mapCatalogProductToProduct,
+  type CatalogProductView,
+} from './catalog.service.engine'
+export {
   OrdersServiceEngine as OrdersService,
   ordersServiceEngine as ordersService,
   ordersServiceEngine,
