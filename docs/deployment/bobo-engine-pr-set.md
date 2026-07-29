@@ -162,13 +162,13 @@ Inspect the generated bundle:
 
 ```powershell
 rg -n "import\.meta" bobo-app/dist/_expo/static/js/web
-rg -n "yaatal-engine-production\.up\.railway\.app" bobo-app/dist/_expo/static/js/web
+rg -n "engine.njooba.com" bobo-app/dist/_expo/static/js/web
 ```
 
 Expected result:
 
 - the first command returns no matches;
-- the second command finds the deployed Railway Engine domain;
+- the second command finds the deployed engine.njooba.com domain;
 - `https://bobo-6g9.pages.dev/Login` renders;
 - `GET /api/products` returns `200`.
 
