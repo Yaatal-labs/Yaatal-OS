@@ -75,7 +75,7 @@ Copy `.env.example` to `.env`:
 
 ```bash
 # The only thing you really need
-EXPO_PUBLIC_ENGINE_API_URL=https://yaatal-engine-production.up.railway.app
+EXPO_PUBLIC_ENGINE_API_URL=https://engine.njooba.com
 
 # Dead vars — do not set. Kept in .env.example for rollback reference only.
 # EXPO_PUBLIC_SUPABASE_URL=
@@ -175,7 +175,7 @@ Copie `.env.example` vers `.env` :
 
 ```bash
 # Seule chose vraiment nécessaire
-EXPO_PUBLIC_ENGINE_API_URL=https://yaatal-engine-production.up.railway.app
+EXPO_PUBLIC_ENGINE_API_URL=https://engine.njooba.com
 
 # Variables mortes — ne pas configurer. Conservées dans .env.example pour référence de rollback.
 # EXPO_PUBLIC_SUPABASE_URL=
