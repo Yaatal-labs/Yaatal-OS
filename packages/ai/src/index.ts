@@ -1,3 +1,3 @@
 // AI Services
-// The legacy PocketBase-backed AI service has been removed.
+// AI services are Engine-backed.
 // AI features are pending Engine integration.

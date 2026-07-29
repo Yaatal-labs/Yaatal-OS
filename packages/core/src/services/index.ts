@@ -34,9 +34,21 @@ export {
   notificationsServiceEngine,
   type NotificationListParams,
 } from './notifications.service.engine'
+export {
+  ChatServiceEngine as ChatService,
+  chatServiceEngine as chatService,
+  chatServiceEngine,
+  type ChatMessage,
+} from './chat.service.engine'
+export {
+  AIServiceEngine as AIService,
+  aiServiceEngine as aiService,
+  aiServiceEngine,
+  type ProductSearchResult,
+} from './ai.service.engine'
+export {
+  DeliveryServiceEngine as DeliveryService,
+  deliveryServiceEngine as deliveryService,
+  deliveryServiceEngine,
+} from './delivery.service.engine'
 export * from './engine.client'
-
-// AI, chat, and delivery services are pending Engine integration.
-// The legacy PocketBase-backed implementations have been removed.
-// See docs/TEAM-ONBOARDING.en.md for the integration roadmap.
-
