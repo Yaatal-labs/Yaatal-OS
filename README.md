@@ -55,7 +55,7 @@ BOBO/
 | Mobile | React Native 0.76 + Expo 54 |
 | State | Zustand |
 | Offline | IntentQueue (coming) · PowerSync (legacy, parked) |
-| Backend | Yaatal Engine (Rust, Railway Postgres) |
+| Backend | Yaatal Engine (Rust, engine.njooba.com) |
 | Navigation | React Navigation 6 |
 
 ## Current Status
@@ -66,7 +66,7 @@ BOBO/
 | Product catalog | ✅ Working (endpoint live, needs seed data) |
 | Checkout (cash) | ✅ Working |
 | Checkout (Wave) | ⚠️ Stub only — pending flow, no real XOF |
-| AI, chat, delivery | ❌ Still on legacy path |
+|| AI, chat, delivery | ✅ Engine-backed |
 | EAS build config | ❌ Missing — TestFlight / Play Console blocked |
 
 ## Environment Variables
@@ -155,7 +155,7 @@ BOBO/
 | Mobile | React Native 0.76 + Expo 54 |
 | État | Zustand |
 | Hors ligne | IntentQueue (à venir) · PowerSync (legacy, garé) |
-| Backend | Yaatal Engine (Rust, Railway Postgres) |
+| Backend | Yaatal Engine (Rust, engine.njooba.com) |
 | Navigation | React Navigation 6 |
 
 ## État Actuel
@@ -166,7 +166,7 @@ BOBO/
 | Catalogue produits | ✅ Fonctionnel (endpoint en ligne, besoin de données seeds) |
 | Paiement (espèces) | ✅ Fonctionnel |
 | Paiement (Wave) | ⚠️ Bouchon seulement — flux en attente, pas de vrai XOF |
-| IA, chat, livraison | ❌ Toujours sur l'ancien chemin |
+|| IA, chat, livraison | ✅ Moteur Engine |
 | Config EAS build | ❌ Manquant — soumission TestFlight / Play Console bloquée |
 
 ## Variables d'Environnement

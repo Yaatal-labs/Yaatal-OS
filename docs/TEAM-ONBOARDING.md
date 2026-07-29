@@ -48,7 +48,7 @@ BOBO currently spans three backends. Know which is which so you don't wire to th
 | Flow | Backend today | How you call it | Note |
 |---|---|---|---|
 | **Auth, products, orders, checkout** | **Yaatal Engine** ✅ | `@yaatal/core` → `authService`, `productsService`, `ordersService` | the canonical path — use this |
-| **Chat, delivery, AI-search** | **Pending Engine** | legacy `*.service.ts` impls removed | awaiting Engine endpoints; not yet wired |
+| **Chat, delivery, AI-search** | **Engine** ✅ | `@yaatal/core` → `chatService`, `deliveryService`, `aiService` (`*.service.engine.ts`) | Engine-backed; marketplace delivery features (driver pool, quotes) pending Engine marketplace |
 | **Payments** | **DExchange** (mostly stubbed) | `payment.service.ts` | legacy; the Engine has its own Wave rail (to reconcile later) |
 | ~~Offline sync~~ | ~~PowerSync~~ 🗑️ | — | **dead — don't use; being removed** |
 
@@ -131,7 +131,7 @@ BOBO s'étend aujourd'hui sur trois backends. Sachez lequel est lequel pour ne p
 | Flux | Backend aujourd'hui | Comment l'appeler | Note |
 |---|---|---|---|
 | **Auth, produits, commandes, checkout** | **Yaatal Engine** ✅ | `@yaatal/core` → `authService`, `productsService`, `ordersService` | le chemin canonique — utilisez ça |
-| **Chat, livraison, recherche IA** | **En attente Engine** | les impls legacy `*.service.ts` supprimées | en attente des endpoints Engine ; pas encore câblé |
+| **Chat, livraison, recherche IA** | **Engine** ✅ | `@yaatal/core` → `chatService`, `deliveryService`, `aiService` (`*.service.engine.ts`) | câblé au Engine ; fonctionnalités marketplace de livraison (pool de livreurs, devis) en attente du marketplace Engine |
 | **Paiements** | **DExchange** (surtout stub) | `payment.service.ts` | legacy ; le Engine a son propre rail Wave (à réconcilier) |
 | ~~Synchro offline~~ | ~~PowerSync~~ 🗑️ | — | **mort — ne pas utiliser ; en suppression** |
 

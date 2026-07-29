@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) and other agents whe
 | State | Zustand |
 | Offline | PowerSync + SQLite |
 | Backend | **Yaatal Engine** via `@yaatal/client` (`github:Yaatal-labs/Yaatal-SDK#main`) |
-| Legacy (migrating off) | PocketBase (delivery + chat only) |
+| Legacy (preserved for rollback) | PowerSync stopped; PocketBase fully removed |
 | Package manager | pnpm `10.18.2` (node ≥ 18) |
 
 ## Monorepo layout
@@ -42,9 +42,9 @@ pnpm workspace globs: `packages/ai`, `packages/core`, `packages/shared`, `bobo-a
 ## The Engine runtime path (how the app talks to the backend)
 
 - `packages/core/src/services/engine.client.ts` owns the `@yaatal/client` instance (`createYaatalClient`, default base URL `http://localhost:5150`), the auth-token lifecycle, and a low-level `engineRequest` helper.
-- Engine-backed services: `auth.service.engine.ts`, `products.service.engine.ts`, `orders.service.engine.ts`, `analytics.service.engine.ts`, `notifications.service.engine.ts`.
+- Engine-backed services: `auth.service.engine.ts`, `products.service.engine.ts`, `orders.service.engine.ts`, `analytics.service.engine.ts`, `notifications.service.engine.ts`, `chat.service.engine.ts`, `ai.service.engine.ts`, `delivery.service.engine.ts`.
 - `packages/core/src/services/index.ts` is the **barrel** — it re-exports the active Engine services under their canonical names (`AuthService`, `ProductsService`, `OrdersService`, …). Import services from `@njooba/core`, not from the individual files.
-- **Still on PocketBase (mid-migration):** `delivery.service.ts` and `chat.service.ts`. Porting delivery to the Engine (`client.delivery`, delivery codes, `/d/{code}` confirm, escrow release) is the next major item — see `BOBO-ENGINE-ALIGNMENT.md`.
+- **PocketBase fully removed.** Chat, AI, and delivery are now Engine-backed (`chat.service.engine.ts`, `ai.service.engine.ts`, `delivery.service.engine.ts`). Only delivery marketplace features (driver pool, quotes, assignment) remain stubbed pending Engine marketplace. Supabase excised. PowerSync stopped (legacy preserved for rollback).
 
 ## Build / run / test
 
@@ -63,7 +63,7 @@ pnpm test                    # bobo-app tests
 ## Conventions & guardrails
 
 - **One `@yaatal/client`.** The only `@yaatal/client` is the SDK GitHub dependency in `packages/core`. Do not re-vendor a local copy — a stale in-repo copy previously collided with it and mis-built on Netlify.
-- **Don't reach for PocketBase/Supabase for new work.** Supabase has been removed. PocketBase remains only for delivery + chat until those port to the Engine; don't add new PocketBase collections.
+- **Don't reach for PocketBase/Supabase for new work.** Both have been fully removed. All services are now Engine-backed. Don't add PocketBase collections or Supabase dependencies.
 - **App-agnostic backend logic belongs in the Engine**, not in BOBO. BOBO-specific commerce surfaces (checkout/KYC/merchant) are exposed by the Engine's BOBO bridge and consumed here via `client.bobo`.
 
 ## Development

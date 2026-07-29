@@ -22,7 +22,7 @@ was re-based onto that trunk — the alignment plan's items only make sense ther
 | # | Item | Status |
 |---|---|---|
 | 1 | Kill `@yaatal/client` collision + fix Netlify | ✅ done |
-| 2 | Port delivery to the Engine | ✅ **hybrid** done (record lifecycle on Engine; marketplace features staged) |
+| 2 | Port delivery to the Engine | ✅ done (`delivery.service.engine.ts`; marketplace features staged) |
 | 3 | Finish Supabase excision | ✅ done |
 | 4 | Bump SDK pin when new surface merges | ⏳ pending SDK merge |
 | 5 | Decide the payments seam | ✅ **decided** (direct rails, no aggregator) |
@@ -50,8 +50,12 @@ the delivery hybrid port type-checks clean against the real SDK types.
 ## 3. Decisions made
 
 ### Delivery → a marketplace (design banked, Engine build pending sign-off)
-- **Hybrid port (option a) DONE:** delivery *record* lifecycle on the Engine;
-  merchant preferences, driver pool, quotes, assignment stay local for now.
+- **Delivery port DONE:** delivery record lifecycle on the Engine via
+  `delivery.service.engine.ts`. Merchant preferences, driver pool, quotes,
+  assignment remain stubbed pending Engine marketplace.
+- **Chat port DONE:** `chat.service.engine.ts` now Engine-backed.
+- **AI port DONE:** `ai.service.engine.ts` now Engine-backed.
+- **PocketBase fully removed** — 8 files deleted, npm dependency dropped.
 - **Vision:** merchant preferences + **pluggable third-party carriers (API adapters)**
   + **individual driver self-signup**. BOBO already has the UI for all of it.
 - **Shape (recommended):** unified `delivery_providers` registry
@@ -80,8 +84,9 @@ the delivery hybrid port type-checks clean against the real SDK types.
    + self-signup/approval/assign endpoints → re-point the two BOBO screens →
    SDK `client.delivery.drivers`.
 3. **Start OM + Free merchant onboarding in parallel** — critical path for those adapters.
-4. **SDK bumps** as each Engine surface lands; then BOBO drops the last PocketBase
-   delivery bits (chat becomes the only remaining PocketBase surface).
+4. **SDK bumps** as each Engine surface lands. PocketBase is fully removed —
+   no remaining PocketBase surfaces. Only delivery marketplace features
+   (driver pool, quotes, assignment) remain stubbed pending Engine marketplace.
 5. **Housekeeping** — un-freeze BOBO `main` onto the integration trunk.
 
 ---

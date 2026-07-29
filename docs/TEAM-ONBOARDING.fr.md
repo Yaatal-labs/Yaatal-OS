@@ -67,7 +67,7 @@ On n'est pas contre le hors ligne. On est contre le hors ligne **que personne ne
 | Paiement (espèces) | ✅ Fonctionnel | Se finalise immédiatement |
 | Paiement (Wave) | ⚠️ Bouchon seulement | Affiche "en attente", interroge le statut. Pas encore de vrai XOF. |
 | Catalogue vide | ⚠️ Pas de données seeds | Renvoie `200 []`. Besoin de merchants et produits seeds. |
-| IA, chat, livraison | ❌ En attente Engine | Les implémentations legacy PocketBase ont été supprimées. En attente des endpoints Engine. |
+| IA, chat, livraison | ✅ Moteur Engine | `chat.service.engine.ts`, `ai.service.engine.ts`, `delivery.service.engine.ts` appellent les endpoints de l'Engine. Les fonctionnalités marketplace de livraison (pool de livreurs, devis) en attente du marketplace Engine. |
 | Config EAS build | ❌ Manquant | Pas de `eas.json`. Soumission TestFlight / Play Console bloquée. |
 
 ---

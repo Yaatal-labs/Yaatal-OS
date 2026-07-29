@@ -53,7 +53,7 @@ can resume cold. Last updated 2026-07-05.
 
 | Card | Owner | Notes |
 |---|---|---|
-| **Delivery metadata during hybrid** | founder | `getDeliveryByOrder/Status` now return Engine-only data → `delivery_person_*`/`delivery_cost` blank (graceful, no crash). **Rec: accept degradation**; marketplace Phase 1 restores it server-side. Alt: interim PocketBase shadow-record join (adds PB coupling — against the migration). qodo review on PR #4. |
+| **Delivery metadata during hybrid** | founder | `getDeliveryByOrder/Status` now return Engine-only data → `delivery_person_*`/`delivery_cost` blank (graceful, no crash). Marketplace Phase 1 restores it server-side. |
 | **Delivery marketplace decisions** | founder | Build order (**rec: drivers-first**); model shape (**rec: unified `delivery_providers` registry + `delivery_drivers`**); KYC (**rec: reuse `bobo_kyc`**); approval (merchant-approves vs auto-approve-then-rate); payouts (deferred). See `docs/DELIVERY-MARKETPLACE.md` §7. |
 | **Cloudflare stray Workers project** | founder/ops | "Workers Builds: bobo" fails independent of code (no `wrangler` config; Pages is green). Disconnect/configure that project in the Cloudflare dashboard. |
 | **OM + Free merchant onboarding** | founder/biz | Critical path for the payment adapters — start the Orange/Sonatel + Free/Yas merchant applications in parallel; adapters slot in once sandbox creds land. |
@@ -80,8 +80,8 @@ can resume cold. Last updated 2026-07-05.
 | Delivery Phase 3 — quotes/pricing + auto-selection | Engine | Phase 2 landed |
 | SDK pin bump (plan #4) — `confirmByCode`, `delivery_code`/`code_used_at`, `live_session_id`, `yaatal` CLI | SDK → BOBO | SDK `claude/project-synthesis-jnami5` merge |
 | Pass `live_session_id` through BOBO checkout (QR deep-link attribution) | BOBO | SDK bump above |
-| Re-point remaining delivery screens (preferences, tracking) at the Engine; drop last PocketBase delivery bits | BOBO | Delivery phases 1–3 |
-| Port `chat.service.ts` off PocketBase (or park with a note) | BOBO | after delivery |
+|| ~~Re-point remaining delivery screens at the Engine; drop last PocketBase delivery bits~~ | ~~BOBO~~ | ~~Delivery is now Engine-backed (`delivery.service.engine.ts`). PocketBase fully removed.~~ ✅ |
+|| ~~Port `chat.service.ts` off PocketBase (or park with a note)~~ | ~~BOBO~~ | ~~Chat is now Engine-backed (`chat.service.engine.ts`).~~ ✅ |
 | Payouts / disbursement design (driver/agency settlement, merchant payout) | Engine | payments + marketplace |
 
 ---
