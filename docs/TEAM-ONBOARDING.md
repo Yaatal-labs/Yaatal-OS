@@ -36,7 +36,7 @@ arrives through that typed client.
 2. **Don't reinvent shared logic.** If a second app (YOKK, etc.) would need it, it belongs in the
    Engine — ask backend for an endpoint, don't reimplement AI/search/trust logic in the app.
 3. **One env var wires everything:** `EXPO_PUBLIC_ENGINE_API_URL`. Set it per build; the default is
-   `http://localhost:5150`. Production Engine: `https://yaatal-engine-production.up.railway.app`.
+   `http://localhost:5150`. Production Engine: `https://engine.njooba.com`.
 4. **No new PowerSync.** The offline-sync code in the tree is **legacy/dead and slated for removal** —
    don't import it or add to it. Use the Engine HTTP client.
 5. **App UX stays in the app; shared primitives get promoted to the Engine.** One app needs it → app.
@@ -70,7 +70,7 @@ typed method to the Engine client in `@yaatal/core`. Never hard-code a raw `fetc
 
 ## 5. Local dev setup
 - **Point at the live Engine (simplest):** set
-  `EXPO_PUBLIC_ENGINE_API_URL=https://yaatal-engine-production.up.railway.app`, then `expo start --web`.
+  `EXPO_PUBLIC_ENGINE_API_URL=https://engine.njooba.com`, then `expo start --web`.
 - **Run the Engine locally (full control):** clone the *Yaatal-Engine* repo and run it (Docker Postgres
   + the Rust API), then set `EXPO_PUBLIC_ENGINE_API_URL=http://localhost:5150`.
 - **Web:** `expo start --web`. **Native:** dev client / EAS build (native build config is being set up).
@@ -119,7 +119,7 @@ besoin arrive par ce client typé.
    appartient au Engine — demandez un endpoint au backend, ne réimplémentez pas la logique
    IA/recherche/confiance dans l'app.
 3. **Une variable d'env câble tout :** `EXPO_PUBLIC_ENGINE_API_URL`. À définir par build ; défaut
-   `http://localhost:5150`. Engine de prod : `https://yaatal-engine-production.up.railway.app`.
+   `http://localhost:5150`. Engine de prod : `https://engine.njooba.com`.
 4. **Pas de nouveau PowerSync.** Le code de synchro offline présent est **legacy/mort et destiné à la
    suppression** — ne l'importez pas, n'y ajoutez rien. Utilisez le client HTTP du Engine.
 5. **L'UX d'app reste dans l'app ; les primitives partagées sont promues au Engine.** Une app en a
@@ -154,7 +154,7 @@ backend), puis ajoutez une méthode typée au client Engine dans `@yaatal/core`.
 
 ## 5. Mise en place du dev local
 - **Pointer sur le Engine en ligne (le plus simple) :** définissez
-  `EXPO_PUBLIC_ENGINE_API_URL=https://yaatal-engine-production.up.railway.app`, puis `expo start --web`.
+  `EXPO_PUBLIC_ENGINE_API_URL=https://engine.njooba.com`, puis `expo start --web`.
 - **Lancer le Engine en local (contrôle total) :** clonez le dépôt *Yaatal-Engine* et lancez-le
   (Postgres Docker + l'API Rust), puis `EXPO_PUBLIC_ENGINE_API_URL=http://localhost:5150`.
 - **Web :** `expo start --web`. **Natif :** dev client / build EAS (la config de build natif est en
