@@ -194,7 +194,7 @@ aside nav a:hover{color:var(--ink)}
   <h2>What is real right now</h2>
   <div class="status-grid">
     <div class="status-card ok"><div class="dot"></div><h4>BOBO web app</h4><p>Deployed at <code>bobo-6g9.pages.dev</code></p></div>
-    <div class="status-card ok"><div class="dot"></div><h4>Engine API</h4><p>Deployed at <code>yaatal-engine-production.up.railway.app</code></p></div>
+    <div class="status-card ok"><div class="dot"></div><h4>Engine API</h4><p>Deployed at <code>engine.njooba.com</code></p></div>
     <div class="status-card ok"><div class="dot"></div><h4>Auth (login, register)</h4><p>JWT via <code>/api/auth/*</code></p></div>
     <div class="status-card ok"><div class="dot"></div><h4>Product catalog</h4><p><code>GET /api/products</code> works</p></div>
     <div class="status-card ok"><div class="dot"></div><h4>Checkout (cash)</h4><p>Completes immediately</p></div>
@@ -218,7 +218,7 @@ git checkout codex/bobo-engine-netlify-integration
 pnpm install --frozen-lockfile
 
 # 3. Env — only this one matters
-EXPO_PUBLIC_ENGINE_API_URL=https://yaatal-engine-production.up.railway.app
+EXPO_PUBLIC_ENGINE_API_URL=https://engine.njooba.com
 
 # 4. Type-check and build
 pnpm --filter bobo-app type-check
@@ -267,7 +267,7 @@ rg -n "yaatal-engine-production" bobo-app/dist/_expo/static/js/web # should find
     <div class="ref-card"><div class="tag">Engine</div><h4>Yaatal Engine</h4><a href="https://github.com/Yaatal-labs/Yaatal-Engine" target="_blank" rel="noopener">github.com/Yaatal-labs/Yaatal-Engine</a></div>
     <div class="ref-card"><div class="tag">Engine PR</div><h4>Engine PR #28</h4><a href="https://github.com/Yaatal-labs/Yaatal-Engine/pull/28" target="_blank" rel="noopener">BOBO bridge + Railway deploy</a></div>
     <div class="ref-card"><div class="tag">Deployed</div><h4>BOBO web</h4><a href="https://bobo-6g9.pages.dev" target="_blank" rel="noopener">bobo-6g9.pages.dev</a></div>
-    <div class="ref-card"><div class="tag">Deployed</div><h4>Engine API</h4><a href="https://yaatal-engine-production.up.railway.app/health" target="_blank" rel="noopener">yaatal-engine-production.up.railway.app</a></div>
+    <div class="ref-card"><div class="tag">Deployed</div><h4>Engine API</h4><a href="https://engine.njooba.com/health" target="_blank" rel="noopener">engine.njooba.com</a></div>
   </div>
 </div>
 
