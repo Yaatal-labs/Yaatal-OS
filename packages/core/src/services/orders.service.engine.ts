@@ -12,6 +12,7 @@ import type {
   OrderList as EngineOrderList,
   OrderStatus as EngineOrderStatus,
 } from '@yaatal/client'
+import { isPiSpiAliasShaped } from '@yaatal/client'
 import { validatePhoneNumber } from '../utils/validation'
 import type { Order, Product } from '../types/models'
 import { analyticsService } from './analytics.service.engine'
@@ -245,7 +246,14 @@ export class OrdersServiceEngine {
     quantity: number,
     shippingInfo: ShippingInfo,
     paymentMethod: BoboPaymentMethod,
-    /** The buyer's PI-SPI payment address (SHID). Required for 'pispi'. */
+    /**
+     * The buyer's PI-SPI payment address (SHID) — **optional, and the flow
+     * selector**. Omit it and PI-SPI runs its QR flow: the merchant presents a
+     * QR, the buyer pays from their own bank app, and the Engine settles by
+     * polling. Supply it and the Engine sends a request-to-pay addressed to
+     * that buyer instead. Neither is a fallback for the other, and the QR flow
+     * is the one to use unless the buyer knows their 36-character address.
+     */
     pispiAlias?: string
   ): Promise<{
     success: boolean
@@ -269,6 +277,23 @@ export class OrdersServiceEngine {
 
       if (!shippingInfo.address?.trim()) {
         return { success: false, error: 'Adresse requise' }
+      }
+
+      // A supplied alias must be a payment address. The Engine answers 400 for
+      // a malformed one, but a round-trip is a poor way to tell a buyer they
+      // mistyped 36 characters — and an alias on a non-PI-SPI order means the
+      // caller has confused the two flows, which is worth saying out loud
+      // rather than silently dropping.
+      if (pispiAlias) {
+        if (paymentMethod !== 'pispi') {
+          return {
+            success: false,
+            error: "Adresse PI-SPI fournie pour un paiement qui n'est pas PI-SPI",
+          }
+        }
+        if (!isPiSpiAliasShaped(pispiAlias)) {
+          return { success: false, error: 'Adresse de paiement PI-SPI invalide' }
+        }
       }
 
       if (!shippingInfo.city?.trim()) {

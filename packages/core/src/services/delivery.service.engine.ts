@@ -250,7 +250,11 @@ export class DeliveryServiceEngine {
   }
 
   // -------------------------------------------------------------------------
-  // Marketplace stubs — pending Engine marketplace
+  // Marketplace — Engine-backed via `/api/delivery/*`.
+  //
+  // These were throwing stubs until the Engine grew the marketplace routes and
+  // the SDK exposed them. The one exception is `getDeliveryQuote` below, which
+  // still throws: the Engine has no pricing surface to call.
   // -------------------------------------------------------------------------
 
   async getMerchantPreferences(): Promise<MerchantDeliveryPreferences | null> {

@@ -25,6 +25,7 @@ import { colors, typography, spacing } from '../../theme'
 import { formatCFA, validatePhoneNumber, type Product, type Order } from '@yaatal/core'
 import { isPiSpiAliasShaped } from '@yaatal/client'
 import { shippingService } from '../../services/shipping.service'
+import { PiSpiAliasScanner } from '../../components/PiSpiAliasScanner'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -47,6 +48,7 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
   // scanning the alias QR their wallet app shows — the same three ways
   // BCEAO's own checkout widget offers, because nobody types 36 characters.
   const [pispiAlias, setPispiAlias] = useState('')
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   // UI states
   const [isLoading, setIsLoading] = useState(false)
@@ -408,12 +410,7 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
                 />
                 <TouchableOpacity
                   style={styles.scanButton}
-                  onPress={() =>
-                    navigation.navigate('QRScanner', {
-                      mode: 'pispi-alias',
-                      onAlias: (alias: string) => setPispiAlias(alias),
-                    })
-                  }
+                  onPress={() => setScannerOpen(true)}
                 >
                   <Text style={styles.scanButtonText}>Scanner</Text>
                 </TouchableOpacity>
@@ -457,6 +454,20 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
           )}
         </TouchableOpacity>
       </View>
+
+      <PiSpiAliasScanner
+        visible={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onAlias={(alias) => {
+          setPispiAlias(alias)
+          // A scanned alias is valid by construction, so a stale validation
+          // error from a previous typed attempt must not survive it.
+          setErrors((prev) => {
+            const { pispiAlias: _cleared, ...rest } = prev
+            return rest
+          })
+        }}
+      />
     </KeyboardAvoidingView>
   )
 }

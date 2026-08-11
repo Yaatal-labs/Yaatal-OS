@@ -14,17 +14,13 @@ import {
 } from 'react-native'
 import { CameraView, Camera, BarcodeScanningResult } from 'expo-camera'
 import { parseBoboProductLink } from '@yaatal/core'
-import { parsePiSpiAlias } from '@yaatal/client'
 import { colors, typography, spacing } from '../../theme'
 
-export const QRScannerScreen = ({ route, navigation }: any) => {
-  // Two jobs, one camera. From the tab bar it reads BOBO product links; from
-  // checkout it reads the buyer's PI-SPI alias QR so they need not type a
-  // 36-character address.
-  const { mode, onAlias } = (route?.params ?? {}) as {
-    mode?: 'pispi-alias'
-    onAlias?: (alias: string) => void
-  }
+// One job: read BOBO product links from the Scanner tab. Reading the buyer's
+// PI-SPI alias is `PiSpiAliasScanner`, a modal rendered inside checkout —
+// checkout is reached from a different tab's stack, so it could never have
+// navigated here anyway.
+export const QRScannerScreen = ({ navigation }: any) => {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const [scanned, setScanned] = useState(false)
   const [isScanning, setIsScanning] = useState(true)
@@ -54,30 +50,6 @@ export const QRScannerScreen = ({ route, navigation }: any) => {
 
     setScanned(true)
     setIsScanning(false)
-
-    if (mode === 'pispi-alias') {
-      const alias = parsePiSpiAlias(data)
-      if (alias) {
-        onAlias?.(alias)
-        navigation.goBack()
-        return
-      }
-      Alert.alert(
-        'QR Code invalide',
-        "Ce QR code ne contient pas d'adresse de paiement PI-SPI",
-        [
-          {
-            text: 'Réessayer',
-            onPress: () => {
-              setScanned(false)
-              setIsScanning(true)
-            },
-          },
-          { text: 'Annuler', onPress: () => navigation.goBack() },
-        ]
-      )
-      return
-    }
 
     const deepLink = parseBoboProductLink(data)
 
