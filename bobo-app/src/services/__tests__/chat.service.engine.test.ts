@@ -177,7 +177,10 @@ describe('ChatServiceEngine', () => {
   })
 
   describe('subscribeToMessages', () => {
-    it('should set up polling and deliver messages via callback', (done) => {
+    // The poller ticks every 5000ms and jest's default timeout is also 5000ms,
+    // so waiting on real time raced the deadline and lost. Fake timers make the
+    // tick deterministic instead of nearly-always-too-late.
+    it('should set up polling and deliver messages via callback', async () => {
       const mockEvents = {
         events: [
           {
@@ -193,14 +196,23 @@ describe('ChatServiceEngine', () => {
       ;(getYaatalClient as jest.Mock).mockReturnValue({})
       ;(engineRequest as jest.Mock).mockResolvedValue(mockEvents)
 
-      const callback = jest.fn((message: ChatMessage) => {
+      jest.useFakeTimers()
+      try {
+        const callback = jest.fn()
+        service.subscribeToMessages('conv-1', callback)
+
+        // Async variant: the poll body awaits `getMessages`, so the promise
+        // queue has to drain between ticks for the callback to be reached.
+        await jest.advanceTimersByTimeAsync(5000)
+
+        expect(callback).toHaveBeenCalledTimes(1)
+        const message: ChatMessage = callback.mock.calls[0][0]
         expect(message._id).toBe('msg-poll-1')
         expect(message.text).toBe('Poll message')
+      } finally {
         service.unsubscribe()
-        done()
-      })
-
-      service.subscribeToMessages('conv-1', callback)
+        jest.useRealTimers()
+      }
     })
   })
 })
