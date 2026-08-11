@@ -163,8 +163,10 @@ export const formatOrderStatus = (
 // Format payment method
 export const formatPaymentMethod = (method: string): string => {
   const methodMap: Record<string, string> = {
+    // PI-SPI reaches every UEMOA wallet, so it is named for what the buyer
+    // recognises rather than for the rail.
+    pispi: 'Mobile money',
     wave: 'Wave',
-    orange_money: 'Orange Money',
     cash: 'Paiement à la livraison',
   }
 

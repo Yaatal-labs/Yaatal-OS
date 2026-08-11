@@ -21,7 +21,6 @@ module.exports = {
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
-    '^pocketbase$': '<rootDir>/node_modules/pocketbase/dist/pocketbase.cjs.js',
     '^@yaatal/client$': '<rootDir>/__mocks__/yaatal-client.js',
     '^expo-speech$': '<rootDir>/__mocks__/expo-speech.js',
     '^expo-av$': '<rootDir>/__mocks__/expo-av.js',

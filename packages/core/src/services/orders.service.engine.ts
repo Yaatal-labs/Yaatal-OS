@@ -17,6 +17,7 @@ import type { Order, Product } from '../types/models'
 import { analyticsService } from './analytics.service.engine'
 import { engineRequest, getYaatalClient } from './engine.client'
 import { mapEngineProductToProduct } from './products.service.engine'
+import type { BoboPaymentMethod } from '@yaatal/client'
 
 export interface ShippingInfo {
   address: string
@@ -243,7 +244,9 @@ export class OrdersServiceEngine {
     productId: string,
     quantity: number,
     shippingInfo: ShippingInfo,
-    paymentMethod: 'wave' | 'orange_money' | 'cash'
+    paymentMethod: BoboPaymentMethod,
+    /** The buyer's PI-SPI payment address (SHID). Required for 'pispi'. */
+    pispiAlias?: string
   ): Promise<{
     success: boolean
     order?: Order
@@ -257,10 +260,6 @@ export class OrdersServiceEngine {
 
       if (quantity <= 0) {
         return { success: false, error: 'Quantité invalide' }
-      }
-
-      if (paymentMethod === 'orange_money') {
-        return { success: false, error: 'Orange Money sera activé dans une prochaine version' }
       }
 
       const phoneValidation = validatePhoneNumber(shippingInfo.phoneNumber)
@@ -285,6 +284,11 @@ export class OrdersServiceEngine {
         shipping_address: formatShippingAddress(shippingInfo),
         phone_number: shippingInfo.phoneNumber,
         payer_msisdn: shippingInfo.phoneNumber,
+        // The buyer's payment address, when paying by PI-SPI. It is what the
+        // Engine addresses the request-to-pay to, and it is Sovereign data —
+        // forwarded to the rail, never stored on the order. A phone number is
+        // not a substitute, so `payer_msisdn` is not reused for it.
+        ...(paymentMethod === 'pispi' && pispiAlias ? { pispi_alias: pispiAlias } : {}),
       })
       analyticsService.track({
         event: 'checkout_completed',

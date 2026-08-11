@@ -24,7 +24,7 @@ import {
   getAvatarUrl,
   getFileUrl,
   type CatalogProductView,
-} from '@njooba/core'
+} from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
 import { formatCFA } from '../../utils/formatters'
 import { calculateLevel } from '../../constants/gamification'
