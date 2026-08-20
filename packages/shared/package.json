@@ -10,7 +10,7 @@
     "./types": "./src/types/index.ts"
   },
   "dependencies": {
-    "@yaatal/client": "github:Yaatal-labs/Yaatal-SDK#claude/up-to-hit-it-1dap1e"
+    "@yaatal/client": "github:Yaatal-labs/Yaatal-SDK#main"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"

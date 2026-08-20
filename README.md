@@ -42,10 +42,12 @@ widget officiel de la BCEAO.
 **Le vocabulaire vient du moteur** : `PaymentMethod` est ré-exporté depuis
 `@yaatal/client`. C'est le moteur qui décide quels rails existent.
 
-**Le SDK est épinglé sur une branche.** `bobo-app/package.json` et
-`packages/core/package.json` pointent sur
-`github:Yaatal-labs/Yaatal-SDK#claude/up-to-hit-it-1dap1e`. **Remettre `#main`
-dès la fusion du SDK.**
+**Le SDK est épinglé sur `#main`.** Trois manifestes portent la dépendance —
+`bobo-app/package.json`, `packages/core/package.json` et
+`packages/shared/package.json` — tous sur
+`github:Yaatal-labs/Yaatal-SDK#main`. Si vous épinglez une branche pour un
+essai, les trois doivent bouger ensemble, sinon pnpm installe deux copies du
+client.
 
 Référence du rail : `.claude/skills/pispi/SKILL.md` dans Yaatal-Engine.
 
