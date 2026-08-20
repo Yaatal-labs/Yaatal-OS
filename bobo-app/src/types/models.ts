@@ -1,3 +1,5 @@
+import type { BoboPaymentMethod } from '@yaatal/client'
+
 /**
  * TypeScript Type Definitions
  * Based on Engine schema
@@ -79,7 +81,7 @@ export interface Order extends BaseRecord {
     | 'delivered'
     | 'cancelled'
     | 'disputed'
-  payment_method?: 'wave' | 'orange_money' | 'cash'
+  payment_method?: BoboPaymentMethod
   payment_reference?: string
   shipping_address?: string
   phone_number: string

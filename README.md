@@ -16,6 +16,43 @@ Plateforme de commerce en livestream conçue pour les réalités de l'infrastruc
 
 ---
 
+---
+
+## Paiement — tout passe par le moteur
+
+**Une seule voie : BOBO → Yaatal Engine → PI-SPI.** L'application ne parle à
+aucun prestataire de paiement. PI-SPI est la plateforme interopérable de la
+BCEAO : la connexion est obligatoire pour les établissements agréés, donc un
+seul rail atteint Orange Money, Free, Wave, les banques et la microfinance,
+sans intermédiaire qui prélève sa commission par-dessus la nôtre. L'accès exige
+d'ailleurs un certificat mTLS qu'un téléphone ne peut pas détenir en sécurité :
+toute intégration côté application serait soit non conforme, soit via un
+agrégateur.
+
+**Deux méthodes :** mobile money (PI-SPI) et paiement à la livraison. Wave en
+direct a été retiré du checkout — PI-SPI atteint déjà ces portefeuilles.
+
+**Parcours acheteur.** L'acheteur saisit — ou scanne — son adresse de paiement
+PI-SPI. Le moteur lui envoie une demande de paiement ; il la valide dans son
+application bancaire ou mobile money. Le règlement est détecté par le moteur
+(`task settle_payments`), donc l'encaissement ne dépend pas de l'application
+BOBO restant ouverte. **Le marchand n'a rien à faire** — même parcours que le
+widget officiel de la BCEAO.
+
+**Le vocabulaire vient du moteur** : `PaymentMethod` est ré-exporté depuis
+`@yaatal/client`. C'est le moteur qui décide quels rails existent.
+
+**Le SDK est épinglé sur `#main`.** Trois manifestes portent la dépendance —
+`bobo-app/package.json`, `packages/core/package.json` et
+`packages/shared/package.json` — tous sur
+`github:Yaatal-labs/Yaatal-SDK#main`. Si vous épinglez une branche pour un
+essai, les trois doivent bouger ensemble, sinon pnpm installe deux copies du
+client.
+
+Référence du rail : `.claude/skills/pispi/SKILL.md` dans Yaatal-Engine.
+
+---
+
 <details open>
 <summary><b>🇬🇧 English</b> — Click to expand / Cliquez pour ouvrir</summary>
 

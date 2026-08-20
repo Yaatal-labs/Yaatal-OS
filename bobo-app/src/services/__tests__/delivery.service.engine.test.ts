@@ -138,14 +138,78 @@ describe('DeliveryServiceEngine', () => {
     })
   })
 
-  describe('marketplace stubs', () => {
-    it('should throw "pending Engine marketplace" for all marketplace methods', async () => {
-      await expect(service.getMerchantPreferences()).rejects.toThrow('pending Engine marketplace')
-      await expect(service.updateMerchantPreferences()).rejects.toThrow('pending Engine marketplace')
-      await expect(service.getDeliveryQuote()).rejects.toThrow('pending Engine marketplace')
-      await expect(service.getAvailableDeliveryPersons()).rejects.toThrow('pending Engine marketplace')
-      await expect(service.registerDeliveryPerson()).rejects.toThrow('pending Engine marketplace')
-      await expect(service.assignDelivery()).rejects.toThrow('pending Engine marketplace')
+  describe('marketplace', () => {
+    // These used to assert every marketplace method threw "pending Engine
+    // marketplace". The Engine served `/api/delivery/*` the whole time; the
+    // SDK just did not expose it. They now go through the client.
+    it('lists drivers through the Engine, optionally by zone', async () => {
+      const listDrivers = jest.fn().mockResolvedValue({
+        drivers: [
+          {
+            id: 'drv-1',
+            name: 'Awa',
+            phone: '+221770000000',
+            email: null,
+            license_plate: null,
+            id_number: null,
+            zone: 'Dakar',
+            rating: 4.5,
+            active: true,
+            vehicle_type: 'moto',
+            created_at: 'now',
+            updated_at: 'now',
+          },
+        ],
+        total: 1,
+      })
+      ;(getYaatalClient as jest.Mock).mockReturnValue({ delivery: { listDrivers } })
+
+      const persons = await service.getAvailableDeliveryPersons('Dakar')
+      expect(listDrivers).toHaveBeenCalledWith({ zone: 'Dakar' })
+      expect(persons).toHaveLength(1)
+      expect(persons[0].vehicle_type).toBe('moto')
+    })
+
+    it('assigns a driver to a delivery', async () => {
+      const assign = jest.fn().mockResolvedValue({ id: 'del-1' })
+      ;(getYaatalClient as jest.Mock).mockReturnValue({ delivery: { assign } })
+
+      const result = await service.assignDelivery('del-1', 'drv-1')
+      expect(assign).toHaveBeenCalledWith({ delivery_id: 'del-1', driver_id: 'drv-1' })
+      expect(result.success).toBe(true)
+    })
+
+    it('splits comma-joined carriers and zones into arrays', async () => {
+      const preferences = jest.fn().mockResolvedValue({
+        default_method: 'bobo_managed',
+        preferred_carriers: 'yobante, jokko',
+        delivery_zones: 'Dakar,Thies',
+        pickup_available: true,
+        delivery_cost_markup: 0,
+        allow_customer_pickup: true,
+        allow_self_delivery: false,
+        allow_third_party: true,
+        pickup_location: null,
+        pickup_instructions: null,
+      })
+      ;(getYaatalClient as jest.Mock).mockReturnValue({ delivery: { preferences } })
+
+      const prefs = await service.getMerchantPreferences()
+      expect(prefs!.preferred_carriers).toEqual(['yobante', 'jokko'])
+      expect(prefs!.delivery_zones).toEqual(['Dakar', 'Thies'])
+      expect(prefs!.pickup_location).toBeUndefined()
+    })
+
+    it('re-joins arrays when updating preferences', async () => {
+      const updatePreferences = jest.fn().mockResolvedValue({})
+      ;(getYaatalClient as jest.Mock).mockReturnValue({ delivery: { updatePreferences } })
+
+      await service.updateMerchantPreferences({ delivery_zones: ['Dakar', 'Thies'] })
+      expect(updatePreferences).toHaveBeenCalledWith({ delivery_zones: 'Dakar,Thies' })
+    })
+
+    it('still refuses to invent a quote — the Engine has no pricing surface', async () => {
+      await expect(service.getDeliveryQuote()).rejects.toThrow('no Engine pricing surface')
     })
   })
 

@@ -9,7 +9,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@yaatal/client": "workspace:*",
+    "@yaatal/client": "github:Yaatal-labs/Yaatal-SDK#main",
     "dayjs": "^1.11.10",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.4.0"
@@ -25,6 +25,3 @@
     "expo-image-picker": "~17.0.11"
   }
 }
-
-
-

@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { StatusBar } from 'expo-status-bar'
-import { setEngineApiUrl } from '@njooba/core'
+import { setEngineApiUrl } from '@yaatal/core'
 import { RootNavigator } from './src/navigation/RootNavigator'
 import * as serviceWorkerRegistration from './src/serviceWorkerRegistration'
 

@@ -8,11 +8,14 @@
  *   PATCH /api/deliveries/{id}/status — update status
  *   POST /api/deliveries/confirm-by-code — confirm by NFC code
  *
- * Marketplace features that the Engine does not model yet are stubbed:
- *   - merchant delivery preferences
- *   - individual driver pool + signup
- *   - quotes / distance pricing
- *   - driver assignment
+ * The marketplace half runs on the Engine too, at `/api/delivery/*` (singular
+ * — the plural path above is the per-package lifecycle): driver signup, the
+ * driver pool, assignment, and merchant preferences. Those used to throw
+ * "pending Engine marketplace" because the SDK did not expose the endpoints,
+ * not because the Engine lacked them.
+ *
+ * Still not modelled anywhere: quotes / distance pricing. `getDeliveryQuote`
+ * is the one method that still throws, and it says so.
  */
 
 import type {
@@ -23,6 +26,10 @@ import type {
   DeliveryQuote,
   MerchantDeliveryPreferences,
 } from '../types/delivery'
+import type {
+  DeliveryDriver as EngineDeliveryDriver,
+  MerchantDeliveryPreferences as EnginePreferences,
+} from '@yaatal/client'
 import { engineRequest, getYaatalClient } from './engine.client'
 
 // ---------------------------------------------------------------------------
@@ -243,35 +250,122 @@ export class DeliveryServiceEngine {
   }
 
   // -------------------------------------------------------------------------
-  // Marketplace stubs — pending Engine marketplace
+  // Marketplace — Engine-backed via `/api/delivery/*`.
+  //
+  // These were throwing stubs until the Engine grew the marketplace routes and
+  // the SDK exposed them. The one exception is `getDeliveryQuote` below, which
+  // still throws: the Engine has no pricing surface to call.
   // -------------------------------------------------------------------------
 
-  async getMerchantPreferences(): Promise<MerchantDeliveryPreferences> {
-    throw new Error('DeliveryService.getMerchantPreferences: pending Engine marketplace')
+  async getMerchantPreferences(): Promise<MerchantDeliveryPreferences | null> {
+    const p = await getYaatalClient().delivery.preferences()
+    return fromEnginePreferences(p)
   }
 
-  async updateMerchantPreferences(): Promise<boolean> {
-    throw new Error('DeliveryService.updateMerchantPreferences: pending Engine marketplace')
+  async updateMerchantPreferences(
+    preferences: Partial<MerchantDeliveryPreferences>,
+  ): Promise<boolean> {
+    // Lists are comma-joined on the wire: the Engine stores them as TEXT.
+    const body: Record<string, unknown> = { ...preferences }
+    if (preferences.preferred_carriers) {
+      body.preferred_carriers = preferences.preferred_carriers.join(',')
+    }
+    if (preferences.delivery_zones) {
+      body.delivery_zones = preferences.delivery_zones.join(',')
+    }
+    await getYaatalClient().delivery.updatePreferences(body)
+    return true
   }
 
+  /**
+   * Not modelled by the Engine — there is no distance/pricing surface yet, so
+   * there is nothing to call. Throws rather than returning a made-up number:
+   * a quote a merchant quotes to a buyer must not be invented here.
+   */
   async getDeliveryQuote(): Promise<DeliveryQuote | null> {
-    throw new Error('DeliveryService.getDeliveryQuote: pending Engine marketplace')
+    throw new Error('DeliveryService.getDeliveryQuote: no Engine pricing surface yet')
   }
 
-  async getAvailableDeliveryPersons(): Promise<DeliveryPerson[]> {
-    throw new Error('DeliveryService.getAvailableDeliveryPersons: pending Engine marketplace')
+  async getAvailableDeliveryPersons(zone?: string): Promise<DeliveryPerson[]> {
+    const { drivers } = await getYaatalClient().delivery.listDrivers(
+      zone ? { zone } : {},
+    )
+    return drivers.map(toDeliveryPerson)
   }
 
-  async registerDeliveryPerson(): Promise<{
-    success: boolean
-    deliveryPerson?: DeliveryPerson
-    error?: string
-  }> {
-    throw new Error('DeliveryService.registerDeliveryPerson: pending Engine marketplace')
+  async registerDeliveryPerson(
+    person: Omit<DeliveryPerson, 'id' | 'rating' | 'active' | 'created_at' | 'updated_at'>,
+  ): Promise<{ success: boolean; deliveryPerson?: DeliveryPerson; error?: string }> {
+    try {
+      const created = await getYaatalClient().delivery.registerDriver({
+        name: person.name,
+        phone: person.phone,
+        zone: person.zone,
+        vehicle_type: person.vehicle_type,
+        ...(person.email ? { email: person.email } : {}),
+        ...(person.license_plate ? { license_plate: person.license_plate } : {}),
+        ...(person.id_number ? { id_number: person.id_number } : {}),
+      })
+      return { success: true, deliveryPerson: toDeliveryPerson(created) }
+    } catch (error: any) {
+      return { success: false, error: error?.message ?? 'Inscription impossible' }
+    }
   }
 
-  async assignDelivery(): Promise<{ success: boolean; error?: string }> {
-    throw new Error('DeliveryService.assignDelivery: pending Engine marketplace')
+  async assignDelivery(
+    deliveryId: string,
+    driverId: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      await getYaatalClient().delivery.assign({
+        delivery_id: deliveryId,
+        driver_id: driverId,
+      })
+      return { success: true }
+    } catch (error: any) {
+      return { success: false, error: error?.message ?? 'Assignation impossible' }
+    }
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Engine ⇄ BOBO shape mapping
+// ---------------------------------------------------------------------------
+
+/** The Engine's driver row is BOBO's `DeliveryPerson` with looser typing. */
+function toDeliveryPerson(d: EngineDeliveryDriver): DeliveryPerson {
+  return {
+    id: d.id,
+    name: d.name,
+    phone: d.phone,
+    ...(d.email ? { email: d.email } : {}),
+    ...(d.license_plate ? { license_plate: d.license_plate } : {}),
+    ...(d.id_number ? { id_number: d.id_number } : {}),
+    zone: d.zone,
+    rating: d.rating,
+    active: d.active,
+    vehicle_type: d.vehicle_type as DeliveryPerson['vehicle_type'],
+    created_at: d.created_at,
+    updated_at: d.updated_at,
+  }
+}
+
+/** Carriers and zones are comma-joined TEXT on the wire, arrays in the app. */
+function fromEnginePreferences(p: EnginePreferences): MerchantDeliveryPreferences {
+  const split = (v: string) =>
+    v.split(',').map((x) => x.trim()).filter(Boolean)
+  return {
+    default_method: p.default_method as MerchantDeliveryPreferences['default_method'],
+    preferred_carriers: split(p.preferred_carriers),
+    delivery_zones: split(p.delivery_zones),
+    pickup_available: p.pickup_available,
+    delivery_cost_markup: p.delivery_cost_markup,
+    allow_customer_pickup: p.allow_customer_pickup,
+    allow_self_delivery: p.allow_self_delivery,
+    allow_third_party: p.allow_third_party,
+    ...(p.pickup_location ? { pickup_location: p.pickup_location } : {}),
+    ...(p.pickup_instructions ? { pickup_instructions: p.pickup_instructions } : {}),
   }
 }
 

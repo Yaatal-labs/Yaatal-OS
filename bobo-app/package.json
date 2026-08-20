@@ -20,7 +20,7 @@
     "@react-navigation/bottom-tabs": "^6.5.11",
     "@react-navigation/native": "^6.1.9",
     "@react-navigation/native-stack": "^6.9.17",
-    "@yaatal/client": "workspace:*",
+    "@yaatal/client": "github:Yaatal-labs/Yaatal-SDK#main",
     "babel-preset-expo": "~54.0.10",
     "dayjs": "^1.11.10",
     "expo": "~54.0.35",

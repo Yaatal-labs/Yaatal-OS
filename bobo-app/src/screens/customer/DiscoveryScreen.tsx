@@ -20,9 +20,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from 'react-native-vector-icons/Ionicons'
 import { ProductCard } from '../../components/ProductCard'
-import { catalogService } from '@njooba/core'
+import { catalogService } from '@yaatal/core'
 import { colors, theme } from '../../theme'
-import type { Product } from '@njooba/core'
+import type { Product } from '@yaatal/core'
 
 // Public, unauthenticated marketplace browse over the Engine catalog. The catalog
 // endpoint takes page/per_page/category/merchant_id only.

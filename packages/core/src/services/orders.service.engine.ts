@@ -12,11 +12,13 @@ import type {
   OrderList as EngineOrderList,
   OrderStatus as EngineOrderStatus,
 } from '@yaatal/client'
+import { isPiSpiAliasShaped } from '@yaatal/client'
 import { validatePhoneNumber } from '../utils/validation'
 import type { Order, Product } from '../types/models'
 import { analyticsService } from './analytics.service.engine'
 import { engineRequest, getYaatalClient } from './engine.client'
 import { mapEngineProductToProduct } from './products.service.engine'
+import type { BoboPaymentMethod } from '@yaatal/client'
 
 export interface ShippingInfo {
   address: string
@@ -243,7 +245,16 @@ export class OrdersServiceEngine {
     productId: string,
     quantity: number,
     shippingInfo: ShippingInfo,
-    paymentMethod: 'wave' | 'orange_money' | 'cash'
+    paymentMethod: BoboPaymentMethod,
+    /**
+     * The buyer's PI-SPI payment address (SHID) — **optional, and the flow
+     * selector**. Omit it and PI-SPI runs its QR flow: the merchant presents a
+     * QR, the buyer pays from their own bank app, and the Engine settles by
+     * polling. Supply it and the Engine sends a request-to-pay addressed to
+     * that buyer instead. Neither is a fallback for the other, and the QR flow
+     * is the one to use unless the buyer knows their 36-character address.
+     */
+    pispiAlias?: string
   ): Promise<{
     success: boolean
     order?: Order
@@ -259,10 +270,6 @@ export class OrdersServiceEngine {
         return { success: false, error: 'Quantité invalide' }
       }
 
-      if (paymentMethod === 'orange_money') {
-        return { success: false, error: 'Orange Money sera activé dans une prochaine version' }
-      }
-
       const phoneValidation = validatePhoneNumber(shippingInfo.phoneNumber)
       if (!phoneValidation.valid) {
         return { success: false, error: phoneValidation.error }
@@ -270,6 +277,23 @@ export class OrdersServiceEngine {
 
       if (!shippingInfo.address?.trim()) {
         return { success: false, error: 'Adresse requise' }
+      }
+
+      // A supplied alias must be a payment address. The Engine answers 400 for
+      // a malformed one, but a round-trip is a poor way to tell a buyer they
+      // mistyped 36 characters — and an alias on a non-PI-SPI order means the
+      // caller has confused the two flows, which is worth saying out loud
+      // rather than silently dropping.
+      if (pispiAlias) {
+        if (paymentMethod !== 'pispi') {
+          return {
+            success: false,
+            error: "Adresse PI-SPI fournie pour un paiement qui n'est pas PI-SPI",
+          }
+        }
+        if (!isPiSpiAliasShaped(pispiAlias)) {
+          return { success: false, error: 'Adresse de paiement PI-SPI invalide' }
+        }
       }
 
       if (!shippingInfo.city?.trim()) {
@@ -285,6 +309,11 @@ export class OrdersServiceEngine {
         shipping_address: formatShippingAddress(shippingInfo),
         phone_number: shippingInfo.phoneNumber,
         payer_msisdn: shippingInfo.phoneNumber,
+        // The buyer's payment address, when paying by PI-SPI. It is what the
+        // Engine addresses the request-to-pay to, and it is Sovereign data —
+        // forwarded to the rail, never stored on the order. A phone number is
+        // not a substitute, so `payer_msisdn` is not reused for it.
+        ...(paymentMethod === 'pispi' && pispiAlias ? { pispi_alias: pispiAlias } : {}),
       })
       analyticsService.track({
         event: 'checkout_completed',
