@@ -5,7 +5,7 @@ import types
 import unittest
 import uuid
 
-from live.harness_client import HarnessCliClient, HarnessClientError
+from live.harness_client import EdgeTurnResponse, HarnessCliClient, HarnessClientError
 
 
 def allowed_response(run_id):
@@ -41,6 +41,15 @@ class RecordingRunner:
 
 
 class HarnessCliClientTest(unittest.TestCase):
+    def test_http_shape_uses_nested_proposal_contract(self):
+        parsed = EdgeTurnResponse.from_dict(allowed_response(str(uuid.uuid4())))
+
+        self.assertTrue(parsed.allowed)
+        self.assertEqual(parsed.tool, "studio.update_price_overlay")
+        self.assertEqual(parsed.product_id, "product-1")
+        self.assertEqual(parsed.price_fcfa, 12000)
+        self.assertEqual(parsed.audit_event_count, 2)
+
     def test_invokes_argument_array_and_sends_only_edge_turn_request(self):
         runner = RecordingRunner()
         client = HarnessCliClient(binary="edge-turn", run=runner)

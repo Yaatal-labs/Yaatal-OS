@@ -4,7 +4,7 @@ import json
 import unittest
 
 import live.studio_server as server
-from live.harness_client import HarnessClientError
+from live.governed_turn import GovernedTurnError
 
 
 def response(decision="allow"):
@@ -34,14 +34,30 @@ class FakeRequest:
         return self.body
 
 
-class FakeHarness:
+class FakeRuntime:
     def __init__(self, value=None, error=None):
-        self.value = value
+        self.value = value or {
+            "version": "studio-turn.v1",
+            "type": "governed_action",
+            "turn_id": "00000000-0000-0000-0000-000000000001",
+            "transcript_sha256": "a" * 64,
+            "decision": "allow",
+            "reason_code": "policy_allowed",
+            "proposal": {
+                "tool": "studio.update_price_overlay",
+                "product_id": "product-1",
+                "price_fcfa": 12000,
+                "confidence": 0.96,
+            },
+            "audit_event_count": 2,
+            "execution_status": "engine_applied",
+            "deduplicated": False,
+        }
         self.error = error
         self.calls = []
 
-    def propose(self, text, language, confidence):
-        self.calls.append((text, language, confidence))
+    async def process(self, transcript, language, confidence, turn_id):
+        self.calls.append((transcript, language, confidence, turn_id))
         if self.error:
             raise self.error
         return self.value
@@ -53,14 +69,14 @@ async def no_broadcast(message):
 
 class StudioServerEdgeTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        self.old_client = server.HARNESS_CLIENT
+        self.old_runtime = server._governed_runtime
         self.old_broadcast = server.broadcast
         self.old_fallback = server.HARNESS_FALLBACK
         server.broadcast = no_broadcast
         server.HARNESS_FALLBACK = False
 
     def tearDown(self):
-        server.HARNESS_CLIENT = self.old_client
+        server._governed_runtime = self.old_runtime
         server.broadcast = self.old_broadcast
         server.HARNESS_FALLBACK = self.old_fallback
 
@@ -73,8 +89,8 @@ class StudioServerEdgeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["edge_turn"]["audit_event_count"], 2)
 
     async def test_intent_endpoint_prefers_harness(self):
-        harness = FakeHarness(response())
-        server.HARNESS_CLIENT = harness
+        runtime = FakeRuntime()
+        server._governed_runtime = runtime
 
         result = await server.detect_intent(
             FakeRequest(
@@ -82,45 +98,48 @@ class StudioServerEdgeTest(unittest.IsolatedAsyncioTestCase):
                     "text": "Le prix est douze mille",
                     "language": "mixed",
                     "confidence": 0.9,
+                    "turn_id": "00000000-0000-0000-0000-000000000001",
                 }
             )
         )
 
-        self.assertEqual(result["source"], "harness")
-        self.assertEqual(harness.calls, [("Le prix est douze mille", "mixed", 0.9)])
+        self.assertEqual(result["source"], "harness_http")
+        self.assertEqual(
+            runtime.calls,
+            [("Le prix est douze mille", "mixed", 0.9, "00000000-0000-0000-0000-000000000001")],
+        )
 
     async def test_harness_failure_is_502_without_explicit_fallback(self):
-        server.HARNESS_CLIENT = FakeHarness(
-            error=HarnessClientError("Harness unavailable")
+        server._governed_runtime = FakeRuntime(
+            error=GovernedTurnError("harness_unavailable", retryable=True)
         )
 
         result = await server.detect_intent(FakeRequest({"text": "jeex na"}))
 
-        self.assertEqual(result.status_code, 502)
+        self.assertEqual(result.status_code, 503)
         payload = json.loads(result.body)
-        self.assertEqual(payload["error"], "harness_edge_turn_failed")
+        self.assertEqual(payload["error"], "harness_unavailable")
 
     async def test_explicit_fallback_uses_local_rules(self):
-        server.HARNESS_CLIENT = FakeHarness(
-            error=HarnessClientError("Harness unavailable")
-        )
         server.HARNESS_FALLBACK = True
 
         result = await server.detect_intent(
             FakeRequest(
                 {
                     "text": "jeex na",
+                    "use_harness": False,
                     "allow_fallback": True,
                 }
             )
         )
 
         self.assertEqual(result["intent"], "sold_out")
-        self.assertEqual(result["source"], "regex_fallback")
+        self.assertEqual(result["source"], "advisory_fallback")
+        self.assertEqual(result["execution_status"], "advisory_only")
 
     async def test_request_cannot_enable_operator_disabled_fallback(self):
-        server.HARNESS_CLIENT = FakeHarness(
-            error=HarnessClientError("Harness unavailable")
+        server._governed_runtime = FakeRuntime(
+            error=GovernedTurnError("harness_unavailable", retryable=True)
         )
 
         result = await server.detect_intent(
@@ -132,11 +151,11 @@ class StudioServerEdgeTest(unittest.IsolatedAsyncioTestCase):
             )
         )
 
-        self.assertEqual(result.status_code, 502)
+        self.assertEqual(result.status_code, 503)
 
     async def test_non_boolean_fallback_does_not_open_fail_closed_gate(self):
-        server.HARNESS_CLIENT = FakeHarness(
-            error=HarnessClientError("Harness unavailable")
+        server._governed_runtime = FakeRuntime(
+            error=GovernedTurnError("harness_unavailable", retryable=True)
         )
 
         result = await server.detect_intent(
@@ -148,11 +167,11 @@ class StudioServerEdgeTest(unittest.IsolatedAsyncioTestCase):
             )
         )
 
-        self.assertEqual(result.status_code, 502)
+        self.assertEqual(result.status_code, 503)
 
 
     async def test_configured_harness_cannot_be_bypassed_without_explicit_fallback(self):
-        server.HARNESS_CLIENT = FakeHarness(response())
+        server._governed_runtime = FakeRuntime()
         old_key = server.OLLAMA_API_KEY
         server.OLLAMA_API_KEY = "cloud-key"
         try:

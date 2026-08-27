@@ -4,8 +4,7 @@
  * scene switching, product queue + overlay toggle, mock chat.
  */
 
-const ENGINE_API = 'http://yaatal-engine:8080';
-const CATALOG_URL = `${ENGINE_API}/api/catalog`;
+const CATALOG_URL = '/api/studio/product-queue';
 const STUDIO_API = '/api';
 
 // ─── Bilingual labels ─────────────────────────────────────────
@@ -184,14 +183,14 @@ async function fetchProducts() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     // Engine returns array or { products: [...] } — normalize
-    products = Array.isArray(data) ? data : (data.products || data.catalog || []);
+    products = Array.isArray(data) ? data : (data.products || []);
     if (!Array.isArray(products)) products = [];
     toast(`${products.length}${t('toast_products_loaded')}`);
     return products;
   } catch (err) {
-    console.warn('Engine fetch failed:', err);
+    console.warn('Studio product proxy failed:', err);
     toast(t('toast_engine_err'), 3200);
-    products = mockProducts();
+    products = [];
     return products;
   }
 }
@@ -222,12 +221,13 @@ function productImage(p) {
 
 function productCardHTML(p) {
   const img = productImage(p);
-  const price = formatFCFA(p.price);
+  const priceValue = p.price_fcfa ?? p.price_cents ?? p.price;
+  const price = p.price_display || formatFCFA(priceValue);
   const stock = p.stock_status || p.stock || 'in_stock';
   const likes = p.likes || p.like_count || Math.floor(Math.random() * 1500) + 200;
   const stockLabel = stock.replace(/_/g, ' ');
   return `
-    <div class="product-card" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-price="${p.price}">
+    <div class="product-card" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-price="${priceValue ?? ''}">
       <div class="product-img" style="background-image:url('${escapeHtml(img)}')">
         <span class="stock-badge ${stock}">${escapeHtml(stockLabel)}</span>
       </div>
@@ -454,8 +454,9 @@ async function checkEngineHealth() {
   const pill = $('#enginePill');
   if (!pill) return;
   try {
-    const r = await fetch(`${ENGINE_API}/health`, { signal: AbortSignal.timeout(3000) });
-    if (r.ok) pill.classList.add('ok');
+    const r = await fetch('/api/status', { signal: AbortSignal.timeout(3000) });
+    const status = await r.json();
+    if (r.ok && status.engine && status.engine.reachable) pill.classList.add('ok');
     else pill.classList.add('err');
   } catch {
     pill.classList.add('err');

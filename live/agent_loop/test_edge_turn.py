@@ -121,7 +121,7 @@ class EdgeTurnActionTest(unittest.TestCase):
 
         self.assertEqual(controller.actions, [])
 
-    def test_explicit_fallback_uses_existing_rules(self):
+    def test_explicit_rule_fallback_still_cannot_bypass_harness(self):
         controller = FakeController()
 
         def fail(transcript):
@@ -130,10 +130,7 @@ class EdgeTurnActionTest(unittest.TestCase):
         loop = make_loop(controller, fail, fallback=True)
         loop.process_transcript(event("jeex na"))
 
-        self.assertEqual(
-            controller.actions,
-            [("mark_sold_out", "product-1"), ("clip_moment",)],
-        )
+        self.assertEqual(controller.actions, [])
 
     def test_switch_targets_harness_product_id(self):
         controller = FakeController()

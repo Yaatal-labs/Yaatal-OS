@@ -19,7 +19,10 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-from obsws_python import ReqClient
+try:
+    from obsws_python import ReqClient
+except ModuleNotFoundError:  # dashboard/contract tests do not require local OBS
+    ReqClient = None
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +105,10 @@ class LiveController:
     def __init__(self, host: str = "localhost", port: int = 4455,
                  password: str = "", timeout: int = 5,
                  engine_client=None):
+        if ReqClient is None:
+            raise RuntimeError(
+                "OBS control requires obsws-python; install the root requirements.txt"
+            )
         self.client = ReqClient(host=host, port=port,
                                 password=password, timeout=timeout)
         self.session: Optional[LiveSession] = None

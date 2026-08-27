@@ -1,8 +1,9 @@
 """Yaatal Engine API client — shared by agent-loop, obs-controller, and studio_server.
 
-Handles JWT auth (env var or login), catalog fetches, product updates, and
-live-session management. Every method degrades gracefully: on connection error
-it returns None / empty / False so callers can fall back to standalone behavior.
+Handles JWT auth (env var or login), catalog fetches, and governed product
+updates. Every method degrades gracefully: on connection error it returns
+None / empty / False so callers can fail closed or use an explicitly labelled
+read-only fallback.
 
 Env vars:
   ENGINE_API_URL   — base URL (default http://yaatal-engine:8080)
@@ -25,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = os.getenv("ENGINE_API_URL", "http://yaatal-engine:8080")
 _TIMEOUT = httpx.Timeout(5.0, connect=3.0)
+_RETRYABLE_STATUS = {502, 503, 504}
+_RETRY_DELAYS = (0.0, 0.25, 0.75)
 
 
 class EngineClient:
@@ -38,9 +41,11 @@ class EngineClient:
         password: str | None = None,
     ):
         self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
-        self._jwt = jwt or os.getenv("STUDIO_JWT")
-        self._email = email or os.getenv("ENGINE_API_EMAIL", "ops@yaatal.dev")
-        self._password = password or os.getenv("ENGINE_API_PASSWORD", "YaatalOps2026!")
+        configured_jwt = jwt or os.getenv("STUDIO_JWT")
+        self._jwt = configured_jwt
+        self._static_jwt = bool(configured_jwt)
+        self._email = email or os.getenv("ENGINE_API_EMAIL", "")
+        self._password = password or os.getenv("ENGINE_API_PASSWORD", "")
         self._jwt_expires: float = 0.0
         self._client: httpx.AsyncClient | None = None
         self._lock = asyncio.Lock()
@@ -63,6 +68,41 @@ class EngineClient:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
 
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        attempts: int = 3,
+        **kwargs,
+    ) -> httpx.Response:
+        """Issue a bounded retry-safe request.
+
+        Only transport failures and transient gateway statuses are retried.
+        Callers use this for reads and absolute-value PUTs, so replay cannot
+        increment or duplicate commerce state.
+        """
+        client = await self._ensure_client()
+        last_error: Exception | None = None
+        for attempt in range(max(1, min(attempts, len(_RETRY_DELAYS)))):
+            if _RETRY_DELAYS[attempt]:
+                await asyncio.sleep(_RETRY_DELAYS[attempt])
+            try:
+                response = await client.request(method, path, **kwargs)
+            except httpx.TransportError as error:
+                last_error = error
+                continue
+            if response.status_code not in _RETRYABLE_STATUS:
+                return response
+            last_error = httpx.HTTPStatusError(
+                f"transient Engine status {response.status_code}",
+                request=response.request,
+                response=response,
+            )
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Engine request failed without a response")
+
     # ─── auth ───────────────────────────────────────────────────
 
     async def _ensure_jwt(self) -> bool:
@@ -70,11 +110,12 @@ class EngineClient:
 
         Returns True if authed (or if no auth needed), False if auth failed.
         """
+        if self._static_jwt and self._jwt:
+            return True
         if self._jwt and time.time() < self._jwt_expires:
             return True
-        # If a static JWT is provided via env, use it directly (no expiry check)
-        if self._jwt and not self._email:
-            return True
+        if not self._email or not self._password:
+            return False
         # Try login
         try:
             client = await self._ensure_client()
@@ -96,13 +137,18 @@ class EngineClient:
             logger.warning("Engine login failed: %s — continuing without auth", e)
         return False
 
+    async def get_jwt(self) -> Optional[str]:
+        """Return a usable Engine JWT without exposing it to browser code."""
+        if await self._ensure_jwt():
+            return self._jwt
+        return None
+
     # ─── health ─────────────────────────────────────────────────
 
     async def health(self) -> bool:
         """Check if Engine is reachable."""
         try:
-            client = await self._ensure_client()
-            resp = await client.get("/health")
+            resp = await self._request("GET", "/health", attempts=2)
             return resp.status_code == 200
         except Exception:
             return False
@@ -112,8 +158,7 @@ class EngineClient:
     async def get_catalog(self) -> list[dict]:
         """GET /api/catalog — all active products. Returns [] on failure."""
         try:
-            client = await self._ensure_client()
-            resp = await client.get("/api/catalog")
+            resp = await self._request("GET", "/api/catalog")
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, list):
@@ -126,8 +171,7 @@ class EngineClient:
     async def get_product(self, product_id: str | int) -> Optional[dict]:
         """GET /api/catalog/:id — single product. Returns None on failure."""
         try:
-            client = await self._ensure_client()
-            resp = await client.get(f"/api/catalog/{product_id}")
+            resp = await self._request("GET", f"/api/catalog/{product_id}")
             resp.raise_for_status()
             return resp.json()
         except Exception as e:
@@ -149,8 +193,9 @@ class EngineClient:
     async def update_product(
         self, product_id: str | int, price_cents: int | None = None,
         stock: int | None = None, is_active: bool | None = None,
+        turn_id: str | None = None,
     ) -> Optional[dict]:
-        """POST /api/products/:id — update product price/stock/active.
+        """PUT /api/products/:id — update product price/stock/active.
 
         This is the Harness-approved execution path. Only called by
         the agent loop after the Harness edge-turn returns Allow.
@@ -171,8 +216,13 @@ class EngineClient:
         if not payload:
             return None
         try:
-            client = await self._ensure_client()
-            resp = await client.post(f"/api/products/{product_id}", json=payload)
+            headers = {"X-Yaatal-Turn-Id": turn_id} if turn_id else None
+            resp = await self._request(
+                "PUT",
+                f"/api/products/{product_id}",
+                json=payload,
+                headers=headers,
+            )
             resp.raise_for_status()
             result = resp.json()
             logger.info("Product %s updated on Engine: %s", product_id, payload)
@@ -199,8 +249,7 @@ class EngineClient:
             return None
         body = payload or {}
         try:
-            client = await self._ensure_client()
-            resp = await client.post("/api/live-sessions", json=body)
+            resp = await self._request("POST", "/api/live-sessions", json=body, attempts=1)
             resp.raise_for_status()
             result = resp.json()
             logger.info("Live session created on Engine: %s", result.get("id", "?"))
@@ -217,8 +266,9 @@ class EngineClient:
         if not await self._ensure_jwt():
             return None
         try:
-            client = await self._ensure_client()
-            resp = await client.post(f"/api/live-sessions/{session_id}/end", json={})
+            resp = await self._request(
+                "POST", f"/api/live-sessions/{session_id}/end", json={}, attempts=1
+            )
             resp.raise_for_status()
             result = resp.json()
             logger.info("Live session %s ended on Engine", session_id)
@@ -235,8 +285,7 @@ class EngineClient:
         if not await self._ensure_jwt():
             return []
         try:
-            client = await self._ensure_client()
-            resp = await client.get("/api/live-sessions/current/products")
+            resp = await self._request("GET", "/api/live-sessions/current/products")
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, list):
@@ -263,26 +312,26 @@ async def get_engine_client() -> EngineClient:
 # ─── Price helpers ────────────────────────────────────────────────
 
 def parse_price_to_cents(price_str: str) -> Optional[int]:
-    """Parse a price string like '12 000 FCFA' or '12000' to cents.
+    """Parse a display price into Engine's legacy ``price_cents`` field.
 
-    Returns cents (int) or None if unparseable.
+    Despite its name, the current Engine contract stores whole FCFA/XOF in
+    this field. XOF has no fractional subunit; never multiply by 100 here.
     """
     import re
     digits = re.sub(r'[^\d]', '', price_str)
     if not digits:
         return None
     try:
-        return int(digits) * 100  # FCFA has no subdivision, but cents is the Engine format
+        return int(digits)
     except ValueError:
         return None
 
 
 def cents_to_display(cents: int | None) -> str:
-    """Convert price_cents to display string: '12 000 FCFA'."""
+    """Render Engine's whole-FCFA ``price_cents`` field."""
     if cents is None:
         return "— FCFA"
-    fcfa = cents // 100
-    return f"{fcfa:,} FCFA".replace(",", " ")
+    return f"{cents:,} FCFA".replace(",", " ")
 
 
 def engine_product_to_dict(p: dict) -> dict:

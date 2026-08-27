@@ -68,6 +68,9 @@ class EdgeTurnResponse:
     price_fcfa: Optional[int] = None
     confidence: float = 0.0
     audit_event_id: Optional[str] = None
+    audit_event_count: int = 0
+    reason_code: str = ""
+    run_id: Optional[str] = None
     raw: Optional[dict] = None  # full raw response dict (CLI transport)
 
     @property
@@ -76,14 +79,23 @@ class EdgeTurnResponse:
 
     @classmethod
     def from_dict(cls, data: dict) -> "EdgeTurnResponse":
-        """Build from an HTTP JSON response (edge-turn.v1 over HTTP)."""
+        """Build from the authoritative nested ``edge-turn.v1`` response.
+
+        Older Studio code expected flattened HTTP fields even though Harness
+        HTTP returns the same nested ``proposal`` object as its CLI. Accept a
+        legacy flattened response only for backwards compatibility.
+        """
+        proposal = data.get("proposal") or {}
         return cls(
             decision=data.get("decision", "deny"),
-            tool=data.get("tool", "none"),
-            product_id=data.get("product_id"),
-            price_fcfa=data.get("price_fcfa"),
-            confidence=data.get("confidence", 0.0),
+            tool=proposal.get("tool", data.get("tool", "none")),
+            product_id=proposal.get("product_id", data.get("product_id")),
+            price_fcfa=proposal.get("price_fcfa", data.get("price_fcfa")),
+            confidence=proposal.get("confidence", data.get("confidence", 0.0)),
             audit_event_id=data.get("audit_event_id"),
+            audit_event_count=data.get("audit_event_count", 0),
+            reason_code=data.get("reason_code", ""),
+            run_id=data.get("run_id"),
             raw=data,
         )
 
@@ -103,6 +115,9 @@ class EdgeTurnResponse:
             price_fcfa=proposal.get("price_fcfa"),
             confidence=proposal.get("confidence", 0.0),
             audit_event_id=None,
+            audit_event_count=data.get("audit_event_count", 0),
+            reason_code=data.get("reason_code", ""),
+            run_id=data.get("run_id"),
             raw=data,
         )
 
@@ -355,6 +370,7 @@ class HarnessHttpClient:
         language: str = "wo",
         confidence: float = 0.9,
         model_backend: str = "mock",
+        run_id: str | None = None,
     ) -> Optional[EdgeTurnResponse]:
         """Send an EdgeTurnRequest to the Harness.
 
@@ -371,9 +387,19 @@ class HarnessHttpClient:
             None as "deny" — never execute Engine writes without an
             explicit Allow from the Harness.
         """
+        if model_backend not in {"mock", "minimind"}:
+            logger.warning("unsupported Harness model backend: %s", model_backend)
+            return None
+        request_id = run_id or str(uuid.uuid4())
+        try:
+            request_id = str(uuid.UUID(request_id))
+        except (ValueError, TypeError, AttributeError):
+            logger.warning("Harness run_id must be a UUID")
+            return None
+
         payload = {
             "version": CONTRACT_VERSION,
-            "run_id": self.run_id,
+            "run_id": request_id,
             "source": "seller_speech",
             "transcript": {
                 "text": transcript_text,
@@ -397,14 +423,15 @@ class HarnessHttpClient:
                     )
                     return None
                 data = resp.json()
-                response = EdgeTurnResponse.from_dict(data)
+                validated = HarnessCliClient._validate_response(data, request_id)
+                response = EdgeTurnResponse.from_dict(validated)
                 logger.info(
-                    "Harness decision: %s tool=%s product=%s price=%s audit=%s",
+                    "Harness decision: %s tool=%s product=%s price=%s audit_count=%s",
                     response.decision,
                     response.tool,
                     response.product_id,
                     response.price_fcfa,
-                    response.audit_event_id,
+                    response.audit_event_count,
                 )
                 return response
         except httpx.ConnectError as e:
