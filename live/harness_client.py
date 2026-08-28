@@ -33,6 +33,7 @@ import json
 import logging
 import math
 import os
+import re
 import subprocess
 import uuid
 from dataclasses import dataclass
@@ -50,6 +51,7 @@ ALLOWED_TOOLS = {
     "studio.mark_sold_out_overlay",
     "studio.switch_product",
 }
+_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 
 # ─── EdgeTurnResponse (shared wrapper) ─────────────────────────────
 
@@ -221,10 +223,9 @@ class HarnessCliClient:
             raise HarnessClientError(f"Harness process failed: {exc}") from exc
 
         if completed.returncode != 0:
-            detail = (completed.stderr or "").strip()
-            raise HarnessClientError(
-                f"Harness exited {completed.returncode}: {detail or 'no error detail'}"
-            )
+            # Harness stderr may contain model output or a reflected request.
+            # Keep seller speech out of Studio logs and exception surfaces.
+            raise HarnessClientError(f"Harness exited {completed.returncode}")
         try:
             response = json.loads(completed.stdout)
         except (TypeError, json.JSONDecodeError) as exc:
@@ -289,8 +290,10 @@ class HarnessCliClient:
             raise HarnessClientError("Harness response version/run_id mismatch")
         if response["decision"] not in {"allow", "deny", "noop"}:
             raise HarnessClientError("Harness decision is invalid")
-        if not isinstance(response["reason_code"], str):
-            raise HarnessClientError("Harness reason_code must be a string")
+        if not isinstance(response["reason_code"], str) or not _IDENTIFIER.fullmatch(
+            response["reason_code"]
+        ):
+            raise HarnessClientError("Harness reason_code must be a bounded identifier")
         count = response["audit_event_count"]
         if not isinstance(count, int) or isinstance(count, bool) or count < 2:
             raise HarnessClientError("Harness audit_event_count must be at least two")
@@ -313,8 +316,10 @@ class HarnessCliClient:
         tool = proposal["tool"]
         if tool not in ALLOWED_TOOLS:
             raise HarnessClientError("Proposal tool is not allowed")
-        if not isinstance(proposal["product_id"], str) or not proposal["product_id"].strip():
-            raise HarnessClientError("Proposal product_id is required")
+        if not isinstance(proposal["product_id"], str) or not _IDENTIFIER.fullmatch(
+            proposal["product_id"]
+        ):
+            raise HarnessClientError("Proposal product_id must be a bounded identifier")
         confidence = proposal["confidence"]
         if (
             not isinstance(confidence, (int, float))
@@ -417,9 +422,8 @@ class HarnessHttpClient:
                 )
                 if resp.status_code != 200:
                     logger.warning(
-                        "Harness edge-turn returned %d: %s",
+                        "Harness edge-turn returned %d; NOT executing",
                         resp.status_code,
-                        resp.text[:200],
                     )
                     return None
                 data = resp.json()

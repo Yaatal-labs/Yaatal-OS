@@ -1,81 +1,17 @@
 <!DOCTYPE html>
 <html lang="wo">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yaatal Sold Out</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            background: transparent;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        .sold-out {
-            background: #e53935;
-            color: white;
-            padding: 20px 60px;
-            border-radius: 8px;
-            text-align: center;
-            transform: rotate(-8deg);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
-            border: 3px solid white;
-            animation: stampIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        @keyframes stampIn {
-            0% { transform: rotate(-8deg) scale(3); opacity: 0; }
-            60% { transform: rotate(-8deg) scale(0.9); opacity: 1; }
-            100% { transform: rotate(-8deg) scale(1); opacity: 1; }
-        }
-
-        .sold-out .text {
-            font-size: 48px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            line-height: 1;
-        }
-
-        .sold-out .text-fr {
-            font-size: 24px;
-            font-weight: 700;
-            margin-top: 4px;
-            opacity: 0.9;
-        }
-
-        .sold-out .text-wo {
-            font-size: 24px;
-            font-weight: 700;
-            margin-top: 4px;
-            opacity: 0.9;
-        }
-    </style>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Yaatal Sold Out</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:transparent;font-family:"Segoe UI",Arial,sans-serif;overflow:hidden;height:100vh;display:grid;place-items:center}.sold-out{background:#d93131;color:#fff;padding:19px 54px;border:3px solid #fff;border-radius:8px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.5);transform:rotate(-8deg) scale(.8);opacity:0;visibility:hidden;transition:opacity .18s,transform .18s,visibility .18s}.sold-out.visible{visibility:visible;opacity:1;transform:rotate(-8deg) scale(1);animation:stamp .5s cubic-bezier(.175,.885,.32,1.275)}@keyframes stamp{0%{transform:rotate(-8deg) scale(2.2)}65%{transform:rotate(-8deg) scale(.9)}100%{transform:rotate(-8deg) scale(1)}}.text{font-size:46px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;line-height:1}.sub{font-size:19px;font-weight:700;margin-top:5px;opacity:.9}
+  </style>
 </head>
 <body>
-    <div class="sold-out" id="soldOut">
-        <div class="text">Sold Out</div>
-        <div class="text-fr">Vendu</div>
-        <div class="text-wo">Am na ñu</div>
-    </div>
-
-    <script>
-        // The animation plays on load. OBS shows/hides this source
-        // via SetSceneItemEnabled. When shown, the stamp animation plays.
-        // No JS needed — pure CSS animation.
-
-        // Optional: allow custom text via URL params
-        const params = new URLSearchParams(window.location.search);
-        const customText = params.get('text');
-        if (customText) {
-            document.querySelector('.text').textContent = customText;
-        }
-    </script>
+  <div class="sold-out" id="soldOut" aria-live="polite"><div class="text">Sold Out</div><div class="sub">Vendu · Jeex na</div></div>
+  <script>
+    const soldOut=document.getElementById('soldOut');
+    function receipt(message){const result=message.result||message,proposal=result.proposal||{},tool=proposal.tool==='studio.mark_sold_out_overlay'?'mark_sold_out':proposal.tool==='studio.switch_product'?'switch_product':proposal.tool,allowed=result.allowed??result.decision==='allow';if(!allowed)return;if(tool==='mark_sold_out')soldOut.classList.add('visible');if(tool==='switch_product')soldOut.classList.remove('visible')}
+    function connect(){const scheme=location.protocol==='https:'?'wss':'ws',socket=new WebSocket(`${scheme}://${location.host}/ws`);socket.onmessage=(event)=>{try{const message=JSON.parse(event.data);if(message.type==='governed_action')receipt(message)}catch{}};socket.onclose=()=>setTimeout(connect,2000)}connect();
+  </script>
 </body>
 </html>

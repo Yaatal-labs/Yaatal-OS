@@ -8,14 +8,19 @@ production and OBS livestream selling for Wolof/French commerce.
 ## What is this?
 
 Yaatal-Studio is the content-production and livestream layer of the Yaatal
-stack. **What exists in this repo today is the `live/` layer** (OBS livestream
-selling) plus design specs for the rest. The voice and video layers are
-planned vendored forks that have **not been imported yet**.
+stack. **The runnable surface today is the `live/` cockpit**: Engine-backed
+product context, authenticated seller push-to-talk, governed Harness actions,
+and receipt-driven OBS Browser Source overlays. Voice inference stays behind
+Yaatal Engine's WebSocket contract; Studio does not vendor or select the
+serving model. Video-generation layers remain planned.
+
+Deployment and acceptance truth: [`docs/STUDIO-OS-CLOSURE-RUNBOOK.md`](docs/STUDIO-OS-CLOSURE-RUNBOOK.md).
 
 ## Status: built vs planned
 
 | Layer | Status |
 |---|---|
+| `live/studio_server.py`, `live/dashboard` | ✅ Built on `yaatal/studio-os-closure` — short-lived operator session, same-origin Engine voice proxy, 16 kHz push-to-talk, stable-UUID retry, Harness-gated Engine updates, digest-only receipts, and non-mutating OS readiness gates |
 | `live/obs_controller` | ✅ Built — OBS control via obsws-python (verified against obsws-python 1.8.0) |
 | `live/mcp_server` | ✅ Built — 15 OBS tools over MCP (FastMCP, stdio) |
 | `live/agent_loop` | ✅ Built (prototype) — rule-based Wolof/French fallback plus an optional governed `edge-turn.v1` bridge to the Engine-aware Harness; STT input is mock-only (`inject_text`); comment input has a real, platform-generic Engine source (`WhatsAppSource`, polls `/api/social/events` — `platform="whatsapp"` default, `platform="telegram"` works the moment the Engine ingests Telegram) alongside the mock `add_comment()` path |
@@ -23,8 +28,9 @@ planned vendored forks that have **not been imported yet**.
 | `live/nfc_delivery` | ✅ Built — confirm-by-code wired to the live Engine endpoint; status-by-code still stub |
 | `live/qr_overlay` | ✅ Built — QR generation + OBS overlay; the deep-link routes it encodes are not served by the Engine yet |
 | `live/overlays`, `live/scenes`, `live/multistream` | ✅ Built — HTML overlays, scene blueprint (not an importable OBS collection), RTMP configs |
-| `live/data_faucet` | ✅ Built — consent-gated, local-only session recorder (`SessionRecorder`); appends live comments to per-session JSONL for the private Kallaama dataset, out-of-band (never uploaded by this repo); a `record_utterance()` seam exists for voice transcripts but nothing produces transcripts yet (STT is still mock-only) |
-| `voice/` (Voicebox fork) | 🔲 Planned — not yet vendored |
+| `live/data_faucet` | ✅ Built — consent-gated, local-only comment recorder for Kallaama. The governed cockpit deliberately does **not** persist its voice audio or subtitle; dataset capture remains a separate consented path |
+| Engine voice service | ✅ Studio wiring built; live proof requires the stacked Engine `speech-core-livekit-seam-v3` + `qwen25-omni-voice-backend` branches and a configured private Qwen/vLLM-Omni service |
+| `voice/` (legacy Voicebox content fork) | 🔲 Planned — not required by the Engine-owned live voice seam |
 | `video/` (MoneyPrinterTurbo + MotionForge forks) | 🔲 Planned — not yet vendored |
 | `yaatal/` (Wolof models, prompts, detection, commerce, sdk) | 🔲 Specs only — READMEs describe the plan; no models or code yet |
 | `integrations/` (meta-ads / dsers / shopify MCPs) | 🔲 Specs only |
@@ -109,21 +115,25 @@ lane, not merged to `main`) — the third-party HF Wolof models in [`docs/WOLOF-
 
 | Role | Target model | Status in Studio today |
 |---|---|---|
-| Ears (ASR) | `yaatal-wa-ears-granite` | 🔲 Not wired — STT is mock-only (`inject_text`) |
-| Brain (intent / tool-routing) | `yaatal-tool-router-granite-350m-v2` (slot-F1 0.969) | 🔲 Native in-house models not wired; optional edge-turn.v1 Harness path is executable with Mock/MiniMind backends and remains fail-closed before OBS |
-| Mouth (TTS) | `yaatal-wolof-moss-tts-nano` | 🔲 Not wired — no TTS integration yet |
+| Live ears + mouth | Yelly-O / Qwen2.5-Omni | ✅ Studio speaks the authoritative Engine voice WebSocket; runtime qualification/deployment of the private vLLM-Omni backend is still required |
+| Governed action proposal | MiniMind through Harness `edge-turn.v1` | ✅ Contract and execution path built; Harness supports `mock`/`minimind`, fails closed, and must be deployed with real Engine context |
+| Cloud planner | Qwen3.8-27B | 🔲 Serving lane exists outside Studio; it is not yet an `edge-turn.v1` Harness backend and Studio does not pretend otherwise |
 
-Current R&D focus is **MiniMind-O**: one Apache-2.0 omni-model meant to
-hear/speak/tool-call Wolof, eventually consolidating the three organs above.
-Until any of this lands, Studio keeps its rule-based lexicon and mock STT
-(see "built vs planned" above); the HF models in `docs/WOLOF-MODEL-INVENTORY.md` are the
-fallback path if third-party models get wired ahead of the in-house ones.
+The legacy `live/agent_loop` still has mock STT and rule fallback. The primary
+cockpit path no longer depends on it: Engine/Qwen produces the subtitle,
+Harness/MiniMind proposes, policy decides, and Studio executes only an Allow.
+MiniMind-O remains a useful distillation target, not a reason to bypass those
+runtime boundaries.
 
 ## Getting started (live/ layer)
 
 ```bash
 git clone https://github.com/Yaatal-labs/Yaatal-Studio.git
 cd Yaatal-Studio
+
+# Governed Studio cockpit (configure .env.example first)
+python -m pip install -r requirements.txt
+python -m uvicorn live.studio_server:app --host 0.0.0.0 --port 8484
 
 # OBS control + MCP server
 pip install -r live/obs_controller/requirements.txt   # obsws-python, mcp

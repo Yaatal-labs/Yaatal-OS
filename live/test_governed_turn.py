@@ -1,11 +1,12 @@
+import asyncio
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from live.governed_turn import GovernedTurnRuntime
+from live.governed_turn import GovernedTurnError, GovernedTurnRuntime
 from live.harness_client import EdgeTurnResponse
-from live.turn_ledger import TurnLedger
+from live.turn_ledger import TurnLedger, TurnLedgerError
 
 
 TURN_ID = "00000000-0000-0000-0000-000000000123"
@@ -18,6 +19,13 @@ class FakeHarness:
 
     async def propose(self, **kwargs):
         self.calls.append(kwargs)
+        return self.response
+
+
+class SlowHarness(FakeHarness):
+    async def propose(self, **kwargs):
+        self.calls.append(kwargs)
+        await asyncio.sleep(0.02)
         return self.response
 
 
@@ -85,6 +93,27 @@ class GovernedTurnRuntimeTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(second_engine.updates, [])
             self.assertEqual(second_harness.calls, [])
 
+    async def test_reused_turn_id_with_different_transcript_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "turns.jsonl"
+            first = GovernedTurnRuntime(
+                FakeHarness(allowed_price()), FakeEngine(), TurnLedger(path)
+            )
+            await first.process("douze mille", "fr", 0.9, TURN_ID)
+
+            retry_engine = FakeEngine()
+            retry_harness = FakeHarness(allowed_price())
+            retry = GovernedTurnRuntime(
+                retry_harness, retry_engine, TurnLedger(path)
+            )
+            with self.assertRaisesRegex(
+                GovernedTurnError, "turn_id_payload_conflict"
+            ):
+                await retry.process("vingt mille", "fr", 0.9, TURN_ID)
+
+            self.assertEqual(retry_harness.calls, [])
+            self.assertEqual(retry_engine.updates, [])
+
     async def test_denial_never_calls_engine(self):
         with tempfile.TemporaryDirectory() as tmp:
             response = EdgeTurnResponse(
@@ -102,6 +131,51 @@ class GovernedTurnRuntimeTest(unittest.IsolatedAsyncioTestCase):
 
             self.assertEqual(result["execution_status"], "not_executed")
             self.assertEqual(engine.updates, [])
+
+    async def test_concurrent_network_retry_executes_uuid_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            engine = FakeEngine()
+            harness = SlowHarness(allowed_price())
+            runtime = GovernedTurnRuntime(
+                harness, engine, TurnLedger(Path(tmp) / "turns.jsonl")
+            )
+
+            first, retry = await asyncio.gather(
+                runtime.process("douze mille", "fr", 0.9, TURN_ID),
+                runtime.process("douze mille", "fr", 0.9, TURN_ID),
+            )
+
+            self.assertEqual(len(harness.calls), 1)
+            self.assertEqual(len(engine.updates), 1)
+            self.assertFalse(first["deduplicated"])
+            self.assertTrue(retry["deduplicated"])
+
+    async def test_ledger_rejects_nested_raw_seller_content(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = TurnLedger(Path(tmp) / "turns.jsonl")
+            with self.assertRaisesRegex(TurnLedgerError, "forbidden raw content"):
+                ledger.record(
+                    {
+                        "version": "studio-turn.v1",
+                        "turn_id": TURN_ID,
+                        "transcript_sha256": "a" * 64,
+                        "decision": "deny",
+                        "proposal": {"metadata": {"text": "raw seller speech"}},
+                    }
+                )
+
+    async def test_ledger_rejects_non_hex_digest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = TurnLedger(Path(tmp) / "turns.jsonl")
+            with self.assertRaisesRegex(TurnLedgerError, "SHA-256"):
+                ledger.record(
+                    {
+                        "version": "studio-turn.v1",
+                        "turn_id": TURN_ID,
+                        "transcript_sha256": "z" * 64,
+                        "decision": "deny",
+                    }
+                )
 
 
 if __name__ == "__main__":

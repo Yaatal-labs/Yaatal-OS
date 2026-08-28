@@ -40,6 +40,7 @@ try:
     )
     from live.operator_auth import OperatorSessionStore, SESSION_COOKIE
     from live.turn_ledger import TurnLedger, TurnLedgerError
+    from live.voice_gateway import StudioVoiceGateway, build_engine_voice_url
 except ModuleNotFoundError as exc:
     if exc.name != "live":
         raise
@@ -53,6 +54,7 @@ except ModuleNotFoundError as exc:
     )
     from operator_auth import OperatorSessionStore, SESSION_COOKIE
     from turn_ledger import TurnLedger, TurnLedgerError
+    from voice_gateway import StudioVoiceGateway, build_engine_voice_url
 
 # Backward-compat alias — existing code/tests use HarnessClient
 HarnessClient = HarnessHttpClient
@@ -65,6 +67,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "https://api.ollama.com")
 OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
 OLLAMA_INTENT_MODEL = os.getenv("OLLAMA_INTENT_MODEL", "gemma3:4b")
 ENGINE_API_URL = os.getenv("ENGINE_API_URL", "http://yaatal-engine:8080")
+ENGINE_VOICE_WS_URL = os.getenv("ENGINE_VOICE_WS_URL", "")
 HARNESS_URL = os.getenv("HARNESS_URL", "http://yaatal-edge-turn:8090")
 STUDIO_HOST = os.getenv("STUDIO_HOST", "127.0.0.1")
 STUDIO_PORT = int(os.getenv("STUDIO_PORT", "8484"))
@@ -73,6 +76,12 @@ STUDIO_GIT_SHA = os.getenv("STUDIO_GIT_SHA", "unknown")
 STUDIO_COOKIE_SECURE = os.getenv("STUDIO_COOKIE_SECURE", "1") == "1"
 STUDIO_CONTROL_TOKEN = os.getenv("STUDIO_CONTROL_TOKEN", "")
 STUDIO_DEMO_MODE = os.getenv("STUDIO_DEMO_MODE", "0") == "1"
+try:
+    STUDIO_VOICE_TRANSCRIPT_CONFIDENCE = float(
+        os.getenv("STUDIO_VOICE_TRANSCRIPT_CONFIDENCE", "0.85")
+    )
+except ValueError:
+    STUDIO_VOICE_TRANSCRIPT_CONFIDENCE = 0.85
 HARNESS_BIN = os.getenv("YAATAL_HARNESS_BIN", "") or os.getenv("HARNESS_CLI_PATH", "")
 HARNESS_MODEL_BACKEND = os.getenv("YAATAL_EDGE_MODEL_BACKEND", "mock")
 HARNESS_FALLBACK = os.getenv("YAATAL_HARNESS_FALLBACK", "0") == "1"
@@ -346,19 +355,25 @@ async def broadcast(message: dict):
 # ─── E2E Test Sequence ──────────────────────────────────────────
 
 async def run_e2e_tests():
-    """Run the full E2E test sequence."""
+    """Run non-mutating OS readiness gates.
+
+    This suite deliberately does not call an LLM, open a billable voice model
+    session, or mutate commerce state. The operator performs the real
+    voice-to-action acceptance turn separately with a known test product.
+    """
     global _last_results
 
     result = E2EResult(started_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
     steps = [
-        TestStep("ollama_connect", "Ollama Cloud API reachable"),
-        TestStep("ollama_intent_wolof", "Parse Wolof sold-out: 'Amul ñu, jeex na'"),
-        TestStep("ollama_intent_price", "Parse French price: '12 mille francs'"),
-        TestStep("ollama_intent_product", "Parse product switch: 'Produit suivant'"),
-        TestStep("regex_fallback", "Regex intent detection works"),
+        TestStep("control_plane", "Operator auth and durable receipt ledger configured"),
         TestStep("engine_health", "Engine API reachable"),
-        TestStep("overlays_served", "All overlay HTML files present"),
-        TestStep("websocket_live", "WebSocket connection alive"),
+        TestStep("engine_identity", "Studio can acquire its server-side Engine identity"),
+        TestStep("engine_context", "Real Engine product context is available"),
+        TestStep("harness_health", "Harness edge-turn.v1 endpoint reachable"),
+        TestStep("voice_config", "Private Engine voice route and identity are valid"),
+        TestStep("audit_privacy", "Stored action receipts contain digests, not seller speech"),
+        TestStep("overlays_served", "Governed OBS Browser Source files present"),
+        TestStep("websocket_live", "At least one public update subscriber connected"),
     ]
     result.steps = steps
 
@@ -377,91 +392,104 @@ async def run_e2e_tests():
         await broadcast({"type": "step_update", "step": asdict(step)})
         return step.status == "passed"
 
-    # 1. Ollama connect
     all_pass = True
-    async def test_ollama_connect():
-        h = await ollama_health()
-        if h["reachable"]:
-            return f"OK — {h.get('models_available', 0)} models"
-        raise Exception("unreachable")
-    all_pass &= await run_step(steps[0], test_ollama_connect)
 
-    # 2. Wolof sold-out intent
-    async def test_wolof():
-        r = await llm_intent("Amul ñu, jeex na")
-        if r["intent"] not in ("sold_out", "none"):
-            return f"UNEXPECTED intent={r['intent']}"
-        return f"intent={r['intent']} confidence={r.get('confidence', 0)}"
-    if OLLAMA_API_KEY:
-        all_pass &= await run_step(steps[1], test_wolof)
-    else:
-        steps[1].status = "skipped"
-        steps[1].detail = "no OLLAMA_API_KEY"
+    async def test_control_plane():
+        if not OPERATOR_SESSIONS.configured:
+            raise RuntimeError("STUDIO_CONTROL_TOKEN is not configured")
+        if TURN_LEDGER is None:
+            raise RuntimeError(TURN_LEDGER_ERROR or "turn ledger is unavailable")
+        return "operator sessions + durable digest ledger ready"
 
-    # 3. French price intent
-    async def test_price():
-        r = await llm_intent("Le prix est 12 mille francs")
-        if r["intent"] not in ("price_change", "none"):
-            return f"UNEXPECTED intent={r['intent']}"
-        return f"intent={r['intent']} price={r.get('price')}"
-    if OLLAMA_API_KEY:
-        all_pass &= await run_step(steps[2], test_price)
-    else:
-        steps[2].status = "skipped"
-        steps[2].detail = "no OLLAMA_API_KEY"
+    all_pass &= await run_step(steps[0], test_control_plane)
 
-    # 4. Product switch intent
-    async def test_product():
-        r = await llm_intent("On passe au produit suivant")
-        if r["intent"] not in ("product_switch", "none"):
-            return f"UNEXPECTED intent={r['intent']}"
-        return f"intent={r['intent']}"
-    if OLLAMA_API_KEY:
-        all_pass &= await run_step(steps[3], test_product)
-    else:
-        steps[3].status = "skipped"
-        steps[3].detail = "no OLLAMA_API_KEY"
-
-    # 5. Regex fallback
-    async def test_regex():
-        r = regex_intent("12 mille fcfa")
-        assert r["intent"] == "price_change", f"expected price_change, got {r['intent']}"
-        r2 = regex_intent("amul ñu")
-        assert r2["intent"] == "sold_out", f"expected sold_out, got {r2['intent']}"
-        return "price_change + sold_out detected"
-    all_pass &= await run_step(steps[4], test_regex)
-
-    # 6. Engine health
     async def test_engine():
         h = await engine_health()
         if h["reachable"]:
-            return f"OK — {h['url']}"
-        return f"NOT RUNNING — {h['url']} (start with: cargo run -p yaatal-api)"
-    eh = await engine_health()
-    if eh["reachable"]:
-        all_pass &= await run_step(steps[5], test_engine)
-    else:
-        steps[5].status = "failed"
-        steps[5].detail = f"Engine not running at {ENGINE_API_URL}"
-        steps[5].duration_ms = 0
-        all_pass = False
-        await broadcast({"type": "step_update", "step": asdict(steps[5])})
+            return "Engine health OK"
+        raise RuntimeError("Engine is unreachable")
 
-    # 7. Overlays served
+    all_pass &= await run_step(steps[1], test_engine)
+
+    engine = await get_engine_client()
+
+    async def test_engine_identity():
+        if not await engine.get_jwt():
+            raise RuntimeError("STUDIO_JWT or Engine service login is unavailable")
+        return "server-side Engine identity acquired"
+
+    all_pass &= await run_step(steps[2], test_engine_identity)
+
+    async def test_engine_context():
+        products = await engine.get_session_products()
+        source = "active_session"
+        if not products:
+            products = await engine.get_catalog()
+            source = "catalog"
+        if not products:
+            raise RuntimeError("Engine returned no real product context")
+        return f"{len(products)} product(s) from Engine {source}"
+
+    all_pass &= await run_step(steps[3], test_engine_context)
+
+    async def test_harness():
+        harness = HarnessHttpClient(base_url=HARNESS_URL)
+        if not await harness.health():
+            raise RuntimeError("Harness /health is unreachable")
+        return f"edge-turn.v1 ready ({HARNESS_MODEL_BACKEND})"
+
+    all_pass &= await run_step(steps[4], test_harness)
+
+    async def test_voice_config():
+        jwt = await engine.get_jwt()
+        if not jwt:
+            raise RuntimeError("Engine voice identity unavailable")
+        build_engine_voice_url(ENGINE_API_URL, jwt, ENGINE_VOICE_WS_URL)
+        return "private voice URL valid; model session intentionally not opened"
+
+    all_pass &= await run_step(steps[5], test_voice_config)
+
+    async def test_audit_privacy():
+        if TURN_LEDGER is None:
+            raise RuntimeError("turn ledger unavailable")
+        events = TURN_LEDGER.recent(50)
+        forbidden = {"text", "transcript", "audio", "audio_base64", "prompt", "messages"}
+
+        def contains_forbidden(value):
+            if isinstance(value, dict):
+                return any(
+                    key in forbidden or contains_forbidden(nested)
+                    for key, nested in value.items()
+                )
+            if isinstance(value, list):
+                return any(contains_forbidden(item) for item in value)
+            return False
+
+        for event in events:
+            if contains_forbidden(event):
+                raise RuntimeError("raw seller content field found in receipt")
+            digest = event.get("transcript_sha256")
+            if not isinstance(digest, str) or len(digest) != 64:
+                raise RuntimeError("receipt is missing a SHA-256 transcript digest")
+        return f"{len(events)} digest-only receipt(s) verified"
+
+    all_pass &= await run_step(steps[6], test_audit_privacy)
+
     async def test_overlays():
-        expected = ["price_card.html", "sold_out.html", "cta_bar.html", "viewer_comments.html"]
+        expected = ["price_card.html", "sold_out.html", "product_info.html"]
         missing = [f for f in expected if not (OVERLAYS_DIR / f).exists()]
         if missing:
-            raise Exception(f"Missing: {missing}")
-        return f"All {len(expected)} overlays present"
-    all_pass &= await run_step(steps[6], test_overlays)
+            raise RuntimeError(f"missing governed overlays: {missing}")
+        return f"all {len(expected)} governed overlays present"
 
-    # 8. WebSocket
+    all_pass &= await run_step(steps[7], test_overlays)
+
     async def test_ws():
         if _ws_clients:
             return f"{len(_ws_clients)} client(s) connected"
-        return "No clients connected (connect via dashboard to test)"
-    all_pass &= await run_step(steps[7], test_ws)
+        raise RuntimeError("no dashboard or OBS subscriber connected")
+
+    all_pass &= await run_step(steps[8], test_ws)
 
     result.finished_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     result.total_duration_ms = sum(s.duration_ms for s in steps)
@@ -494,6 +522,11 @@ async def health():
         "version": STUDIO_VERSION,
         "git_sha": STUDIO_GIT_SHA,
     }
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
 
 
 @app.post("/api/studio/operator/session")
@@ -541,7 +574,6 @@ async def close_operator_session(request: Request):
 async def status():
     """System status endpoint."""
     engine = await engine_health()
-    ollama = await ollama_health()
     harness = await harness_health()
     return {
         "studio": {
@@ -551,9 +583,25 @@ async def status():
             "operator_auth_configured": OPERATOR_SESSIONS.configured,
             "turn_ledger_available": TURN_LEDGER is not None,
             "demo_mode": STUDIO_DEMO_MODE,
+            "voice_gateway": {
+                "contract": "studio-voice.v1",
+                "auth_configured": bool(
+                    os.getenv("STUDIO_JWT")
+                    or (
+                        os.getenv("ENGINE_API_EMAIL")
+                        and os.getenv("ENGINE_API_PASSWORD")
+                    )
+                ),
+            },
         },
         "engine": engine,
-        "ollama": ollama,
+        # Legacy advisory fallback metadata only. Status polling must never
+        # call an external model provider.
+        "ollama": {
+            "configured": bool(OLLAMA_API_KEY),
+            "model": OLLAMA_INTENT_MODEL,
+            "role": "legacy_advisory_only",
+        },
         "harness": {
             **harness,
             "cli_configured": HARNESS_CLIENT is not None,
@@ -618,7 +666,8 @@ async def detect_intent(request: Request):
         "confidence": proposal.get("confidence", 0.0),
         "source": "harness_http",
     }
-    await broadcast({"type": "governed_action", "result": result})
+    if not result.get("deduplicated", False):
+        await broadcast({"type": "governed_action", "result": result})
     return result
 
 
@@ -713,25 +762,28 @@ async def product_queue():
     """
     engine = await get_engine_client()
 
-    # Try authed endpoint first (products queued for current session)
-    products = await engine.get_session_products()
+    async def load_engine_products():
+        products = await engine.get_session_products()
+        if products:
+            return products, "engine_live_session"
+        catalog = await engine.get_catalog()
+        if catalog:
+            return catalog, "engine_catalog_fallback"
+        return [], "engine_unavailable"
+
+    try:
+        products, source = await asyncio.wait_for(load_engine_products(), timeout=4.0)
+    except asyncio.TimeoutError:
+        products, source = [], "engine_timeout"
     if products:
         return {
             "products": [normalize_studio_product(product) for product in products],
-            "source": "engine_live_session",
-        }
-
-    # Fallback: try unauthed catalog
-    catalog = await engine.get_catalog()
-    if catalog:
-        return {
-            "products": [normalize_studio_product(product) for product in catalog],
-            "source": "engine_catalog_fallback",
+            "source": source,
         }
 
     if not STUDIO_DEMO_MODE:
         return JSONResponse(
-            {"products": [], "source": "engine_unavailable", "retryable": True},
+            {"products": [], "source": source, "retryable": True},
             status_code=503,
         )
 
@@ -805,12 +857,19 @@ async def serve_overlay(name: str):
     # Map friendly names to filenames
     name_map = {
         "price": "price_card.html",
-        "qr": "qr_overlay.html",
+        "price_card.html": "price_card.html",
+        "product": "product_info.html",
+        "product_info.html": "product_info.html",
         "sold-out": "sold_out.html",
+        "sold_out.html": "sold_out.html",
         "cta": "cta_bar.html",
+        "cta_bar.html": "cta_bar.html",
         "comments": "viewer_comments.html",
+        "viewer_comments.html": "viewer_comments.html",
     }
-    filename = name_map.get(name, name)
+    filename = name_map.get(name)
+    if filename is None:
+        return JSONResponse({"error": "overlay not found", "name": name}, status_code=404)
     filepath = OVERLAYS_DIR / filename
     if not filepath.exists() or not filepath.is_file():
         return JSONResponse({"error": "overlay not found", "name": name}, status_code=404)
@@ -819,15 +878,17 @@ async def serve_overlay(name: str):
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
-    """WebSocket for live updates (E2E test progress, intent detections)."""
+    """Read-only public updates for dashboards and OBS browser sources."""
     await ws.accept()
     _ws_clients.append(ws)
     try:
         await ws.send_json({"type": "connected", "message": "Yaatal Studio WebSocket"})
         while True:
             data = await ws.receive_text()
-            # Echo back for testing
-            await ws.send_json({"type": "echo", "data": data})
+            # Never echo arbitrary client data onto an overlay socket. A tiny
+            # ping is the only accepted inbound message.
+            if data == "ping":
+                await ws.send_json({"type": "pong"})
     except WebSocketDisconnect:
         pass
     finally:
@@ -835,153 +896,29 @@ async def websocket_endpoint(ws: WebSocket):
             _ws_clients.remove(ws)
 
 
-# ─── Dashboard HTML ─────────────────────────────────────────────
+@app.websocket("/api/studio/voice")
+async def studio_voice(ws: WebSocket):
+    """Proxy one authenticated seller voice session through Engine.
 
-DASHBOARD_HTML = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Yaatal Studio — Dashboard</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f1a; color: #e0e0e0; padding: 20px; }
-  h1 { color: #d4af37; margin-bottom: 4px; }
-  .subtitle { color: #888; margin-bottom: 24px; font-size: 14px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1200px; }
-  .card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px; padding: 20px; }
-  .card h2 { color: #d4af37; font-size: 18px; margin-bottom: 12px; }
-  .status-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #2a2a4a; }
-  .status-row:last-child { border: none; }
-  .status-label { color: #aaa; }
-  .status-value { font-weight: 600; }
-  .ok { color: #4ade80; }
-  .err { color: #f87171; }
-  .warn { color: #fbbf24; }
-  .btn { background: #d4af37; color: #1a1a1a; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; }
-  .btn:hover { background: #f4d03f; }
-  .btn:disabled { opacity: 0.5; cursor: wait; }
-  .test-list { list-style: none; }
-  .test-item { padding: 10px; margin: 4px 0; background: #12121f; border-radius: 6px; border-left: 3px solid #333; }
-  .test-item.passed { border-left-color: #4ade80; }
-  .test-item.failed { border-left-color: #f87171; }
-  .test-item.running { border-left-color: #d4af37; animation: pulse 1s infinite; }
-  .test-item.skipped { border-left-color: #666; opacity: 0.6; }
-  .test-name { font-weight: 600; }
-  .test-detail { font-size: 12px; color: #888; margin-top: 4px; }
-  .test-time { font-size: 11px; color: #666; float: right; }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
-  .intent-input { width: 100%; padding: 10px; background: #12121f; border: 1px solid #2a2a4a; border-radius: 8px; color: #e0e0e0; font-size: 14px; margin-bottom: 8px; }
-  .intent-result { background: #12121f; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 13px; margin-top: 8px; min-height: 40px; }
-  .overlay-link { display: inline-block; margin: 4px 6px; padding: 6px 12px; background: #2a2a4a; border-radius: 6px; color: #d4af37; text-decoration: none; font-size: 13px; }
-  .overlay-link:hover { background: #3a3a5a; }
-  pre { white-space: pre-wrap; word-wrap: break-word; }
-</style>
-</head>
-<body>
-<h1>Yaatal Studio</h1>
-<p class="subtitle">Livestream selling dashboard — E2E test runner + overlay preview + intent detection</p>
-
-<div class="grid">
-  <!-- System Status -->
-  <div class="card">
-    <h2>System Status</h2>
-    <div id="status">Loading...</div>
-  </div>
-
-  <!-- E2E Tests -->
-  <div class="card">
-    <h2>E2E Test Suite</h2>
-    <button class="btn" id="runTests" onclick="runE2E()">Run E2E Tests</button>
-    <div id="testResults" style="margin-top:12px"></div>
-  </div>
-
-  <!-- Intent Detection -->
-  <div class="card">
-    <h2>Intent Detection (Wolof/French)</h2>
-    <input class="intent-input" id="intentText" placeholder="e.g. '12 mille francs' or 'amul ñu, jeex na'" onkeydown="if(event.key==='Enter')testIntent()">
-    <button class="btn" onclick="testIntent()">Parse Intent</button>
-    <div class="intent-result" id="intentResult">Results will appear here...</div>
-  </div>
-
-  <!-- Overlays -->
-  <div class="card">
-    <h2>OBS Overlays (Browser Sources)</h2>
-    <p style="color:#888;font-size:13px;margin-bottom:8px">Add these as OBS Browser Sources:</p>
-    <div id="overlayLinks">Loading...</div>
-  </div>
-</div>
-
-<script>
-const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
-ws.onmessage = (e) => {
-  const msg = JSON.parse(e.data);
-  if (msg.type === 'step_update') updateStep(msg.step);
-  if (msg.type === 'e2e_complete') updateResults(msg.result);
-  if (msg.type === 'intent') document.getElementById('intentResult').innerHTML = '<pre>' + JSON.stringify(msg.result, null, 2) + '</pre>';
-};
-
-async function refreshStatus() {
-  const r = await fetch('/api/status');
-  const s = await r.json();
-  let html = '';
-  html += statusRow('Studio', `Port ${s.studio.port}`, 'ok');
-  html += statusRow('Engine API', s.engine.reachable ? `${s.engine.url}` : 'NOT RUNNING', s.engine.reachable ? 'ok' : 'err');
-  html += statusRow('Ollama Cloud', s.ollama.reachable ? `${s.ollama.model} (${s.ollama.models_available || '?'} models)` : 'unreachable', s.ollama.reachable ? 'ok' : 'err');
-  html += statusRow('Intent Model', s.intent_model, 'ok');
-  html += statusRow('Overlays', (s.overlays || []).join(', '), 'ok');
-  document.getElementById('status').innerHTML = html;
-
-  let olinks = '';
-  const names = ['price', 'qr', 'sold-out', 'cta', 'comments'];
-  for (const n of names) olinks += `<a class="overlay-link" href="/overlays/${n}" target="_blank">${n}</a>`;
-  document.getElementById('overlayLinks').innerHTML = olinks;
-}
-
-function statusRow(label, value, cls) {
-  return `<div class="status-row"><span class="status-label">${label}</span><span class="status-value ${cls}">${value}</span></div>`;
-}
-
-async function runE2E() {
-  document.getElementById('runTests').disabled = true;
-  document.getElementById('testResults').innerHTML = '<p style="color:#d4af37">Running...</p>';
-  await fetch('/api/test/e2e', { method: 'POST' });
-}
-
-function updateStep(step) {
-  const div = document.getElementById('testResults');
-  let el = document.getElementById('step-' + step.name);
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'step-' + step.name;
-    el.className = 'test-item ' + step.status;
-    div.appendChild(el);
-  }
-  el.className = 'test-item ' + step.status;
-  el.innerHTML = `<span class="test-name">${step.name}</span><span class="test-time">${step.duration_ms}ms</span><div class="test-detail">${step.description} — ${step.status}: ${step.detail}</div>`;
-}
-
-function updateResults(result) {
-  document.getElementById('runTests').disabled = false;
-  const div = document.getElementById('testResults');
-  const color = result.overall === 'passed' ? '#4ade80' : '#f87171';
-  div.innerHTML += `<p style="margin-top:12px;color:${color};font-weight:700">Overall: ${result.overall.toUpperCase()} (${result.total_duration_ms}ms)</p>`;
-}
-
-async function testIntent() {
-  const text = document.getElementById('intentText').value;
-  if (!text) return;
-  document.getElementById('intentResult').innerHTML = 'Parsing...';
-  const r = await fetch('/api/intent', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({text}) });
-  const result = await r.json();
-  document.getElementById('intentResult').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
-}
-
-refreshStatus();
-setInterval(refreshStatus, 5000);
-</script>
-</body>
-</html>"""
+    The operator cookie is checked before upgrade. Studio owns the Engine JWT,
+    the stable turn UUID, Harness governance, and the digest-only action
+    receipt; the public ``/ws`` channel never sees speech or subtitle text.
+    """
+    if not OPERATOR_SESSIONS.configured or not OPERATOR_SESSIONS.valid(
+        ws.cookies.get(SESSION_COOKIE)
+    ):
+        await ws.close(code=4401)
+        return
+    await ws.accept()
+    gateway = StudioVoiceGateway(
+        engine=await get_engine_client(),
+        runtime_provider=get_governed_runtime,
+        broadcast=broadcast,
+        engine_api_url=ENGINE_API_URL,
+        engine_voice_ws_url=ENGINE_VOICE_WS_URL,
+        transcript_confidence=STUDIO_VOICE_TRANSCRIPT_CONFIDENCE,
+    )
+    await gateway.serve(ws)
 
 
 @app.get("/", response_class=HTMLResponse)

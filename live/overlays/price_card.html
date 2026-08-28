@@ -1,114 +1,23 @@
 <!DOCTYPE html>
 <html lang="wo">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yaatal Price Card</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            background: transparent;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            overflow: hidden;
-        }
-
-        .price-card {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
-            color: #1a1a1a;
-            padding: 16px 32px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-            text-align: center;
-            animation: slideIn 0.4s ease-out;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(120%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        .price-card .label {
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            opacity: 0.8;
-            margin-bottom: 4px;
-        }
-
-        .price-card .price {
-            font-size: 36px;
-            font-weight: 800;
-            line-height: 1.1;
-        }
-
-        .price-card .currency {
-            font-size: 18px;
-            font-weight: 600;
-            opacity: 0.9;
-        }
-
-        /* Flash animation when price updates */
-        .price-card.flash {
-            animation: slideIn 0.4s ease-out, flash 0.6s ease-in-out;
-        }
-
-        @keyframes flash {
-            0%, 100% { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
-            50% { box-shadow: 0 0 30px rgba(244, 208, 63, 0.8), 0 4px 20px rgba(0,0,0,0.4); }
-        }
-    </style>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yaatal Price Card</title>
+  <style>
+    *{box-sizing:border-box} body{margin:0;background:transparent;font-family:"Segoe UI",Arial,sans-serif;overflow:hidden}
+    .price-card{position:absolute;top:20px;right:20px;background:linear-gradient(135deg,#d4af37,#f4d03f);color:#19140a;padding:14px 28px;border-radius:10px;box-shadow:0 5px 24px rgba(0,0,0,.42);text-align:center;min-width:190px;transform:translateX(0);transition:opacity .18s,transform .18s}
+    .price-card.empty{opacity:0;transform:translateX(30px)}.label{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;opacity:.75}.price{font-size:36px;font-weight:900;line-height:1.16}.currency{font-size:15px;font-weight:800;letter-spacing:.08em}.flash{animation:flash .65s ease-in-out}@keyframes flash{50%{box-shadow:0 0 34px rgba(244,208,63,.95),0 5px 24px rgba(0,0,0,.42)}}
+  </style>
 </head>
 <body>
-    <div class="price-card" id="priceCard">
-        <div class="label"> prix / njëg</div>
-        <div class="price" id="priceText">12,000</div>
-        <div class="currency" id="priceCurrency">FCFA</div>
-    </div>
-
-    <script>
-        // Yaatal Live — Price Card Browser Source
-        // Listens for price updates via URL parameters or postMessage.
-        // OBS Browser Source can be refreshed with new URL params, or
-        // the MCP server can use postMessage via obs-websocket browser source.
-
-        function updatePrice(price, currency = 'FCFA') {
-            const card = document.getElementById('priceCard');
-            const priceText = document.getElementById('priceText');
-            const priceCurrency = document.getElementById('priceCurrency');
-
-            // Parse price — split number from currency if combined
-            const parts = price.split(' ');
-            if (parts.length > 1) {
-                priceText.textContent = parts[0];
-                priceCurrency.textContent = parts.slice(1).join(' ');
-            } else {
-                priceText.textContent = price;
-                priceCurrency.textContent = currency;
-            }
-
-            // Flash animation
-            card.classList.remove('flash');
-            void card.offsetWidth; // trigger reflow
-            card.classList.add('flash');
-        }
-
-        // Listen for postMessage from OBS browser source custom events
-        window.addEventListener('message', (event) => {
-            if (event.data && event.data.type === 'updatePrice') {
-                updatePrice(event.data.price, event.data.currency);
-            }
-        });
-
-        // Check URL params on load (for initial price)
-        const params = new URLSearchParams(window.location.search);
-        const initialPrice = params.get('price');
-        if (initialPrice) {
-            updatePrice(initialPrice, params.get('currency') || 'FCFA');
-        }
-    </script>
+  <div class="price-card empty" id="priceCard" aria-live="polite"><div class="label">prix / njëg</div><div class="price" id="priceText"></div><div class="currency">FCFA</div></div>
+  <script>
+    const card=document.getElementById('priceCard'), priceText=document.getElementById('priceText');
+    const format=(price)=>Number(price).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g,' ');
+    function updatePrice(price){if(!Number.isFinite(Number(price)))return;priceText.textContent=format(price);card.classList.remove('empty','flash');void card.offsetWidth;card.classList.add('flash')}
+    function receipt(message){const result=message.result||message, proposal=result.proposal||{},tool=proposal.tool==='studio.update_price_overlay'?'update_price':proposal.tool;const allowed=result.allowed??result.decision==='allow';if(allowed&&tool==='update_price')updatePrice(proposal.price_fcfa??proposal.price)}
+    function connect(){const scheme=location.protocol==='https:'?'wss':'ws',socket=new WebSocket(`${scheme}://${location.host}/ws`);socket.onmessage=(event)=>{try{const message=JSON.parse(event.data);if(message.type==='governed_action')receipt(message)}catch{}};socket.onclose=()=>setTimeout(connect,2000)}
+    const params=new URLSearchParams(location.search);if(params.get('price'))updatePrice(params.get('price'));connect();
+  </script>
 </body>
 </html>

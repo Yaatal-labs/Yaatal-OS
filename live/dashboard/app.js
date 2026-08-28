@@ -1,548 +1,76 @@
-/* ─── Yaatal Studio Dashboard ─────────────────────────────────
- * Vanilla JS — no build step.
- * Fetches products from Engine API, handles nav, bilingual EN/FR,
- * scene switching, product queue + overlay toggle, mock chat.
- */
-
+/* Yaatal Studio — browser-only operator console. No transcript or audio is stored. */
 const CATALOG_URL = '/api/studio/product-queue';
-const STUDIO_API = '/api';
+const OPERATOR_SESSION_URL = '/api/studio/operator/session';
+const VOICE_SOCKET_PATH = '/api/studio/voice';
 
-// ─── Bilingual labels ─────────────────────────────────────────
 const I18N = {
-  en: {
-    studio_tagline: 'Live Production Studio',
-    nav_dashboard: 'Dashboard', nav_studio: 'Live Studio',
-    nav_content: 'Content Library', nav_catalog: 'Product Catalog', nav_analytics: 'Analytics',
-    prepare_live: 'Prepare for Live',
-    prepare_live_sub: 'Set up your stream before going live.',
-    go_live: 'Go Live',
-    stream_preview: 'Live Stream Preview',
-    preview_empty: 'Camera offline — press Go Live to begin.',
-    no_product_overlay: 'No product on overlay',
-    stream_title: 'Stream Title',
-    default_stream_title: 'Yaatal Live Commerce',
-    scheduled_at: 'Scheduled',
-    default_scheduled: 'Today, 19:00 GMT',
-    scheduled_streams: 'Scheduled Livestreams',
-    soon: 'Soon', upcoming: 'Upcoming',
-    top_products: 'Top Products',
-    loading_products: 'Loading products…',
-    refresh: 'Refresh',
-    live_studio: 'Live Studio',
-    live_studio_sub: 'Control your stream in real time.',
-    live_preview: 'Live Preview',
-    studio_preview_empty: 'No scene active.',
-    scenes: 'Scenes',
-    add_scene: '+ Add Scene',
-    live_chat: 'Live Chat',
-    product_queue: 'Product Queue',
-    add_to_queue: '+ Add',
-    mic_on: 'Mic On', cam_on: 'Cam On', share: 'Share',
-    health_excellent: 'Stream Health: Excellent',
-    stop_stream: 'Stop Stream',
-    content_library: 'Content Library',
-    product_catalog: 'Product Catalog',
-    catalog_sub: 'Browse all products from the Engine.',
-    analytics: 'Analytics',
-    coming_soon: 'Coming soon.',
-    obs_integration: 'OBS Integration',
-    stream_health: 'Stream Health',
-    language_support: 'Language Support',
-    excellent: 'Excellent',
-    // toasts
-    toast_golive: 'Going live… connect OBS to begin streaming.',
-    toast_stop: 'Stream stopped.',
-    toast_overlay_on: 'Overlay enabled for: ',
-    toast_overlay_off: 'Overlay disabled for: ',
-    toast_scene: 'Scene switched to ',
-    toast_products_loaded: ' products loaded from Engine.',
-    toast_engine_err: 'Engine API unreachable — showing cached/mock products.',
-    toast_queued: 'Added to queue: ',
-  },
-  fr: {
-    studio_tagline: 'Studio de Production Direct',
-    nav_dashboard: 'Tableau de bord', nav_studio: 'Studio Direct',
-    nav_content: 'Bibliothèque', nav_catalog: 'Catalogue Produits', nav_analytics: 'Analytique',
-    prepare_live: 'Préparer le Direct',
-    prepare_live_sub: 'Configurez votre stream avant le direct.',
-    go_live: 'Démarrer le Direct',
-    stream_preview: 'Aperçu du Stream',
-    preview_empty: 'Caméra hors ligne — appuyez sur Démarrer le Direct.',
-    no_product_overlay: 'Aucun produit sur overlay',
-    stream_title: 'Titre du Stream',
-    default_stream_title: 'Yaatal Commerce Direct',
-    scheduled_at: 'Programmé',
-    default_scheduled: "Aujourd'hui, 19:00 GMT",
-    scheduled_streams: 'Streams Programmés',
-    soon: 'Bientôt', upcoming: 'À venir',
-    top_products: 'Top Produits',
-    loading_products: 'Chargement des produits…',
-    refresh: 'Rafraîchir',
-    live_studio: 'Studio Direct',
-    live_studio_sub: 'Contrôlez votre stream en temps réel.',
-    live_preview: 'Aperçu Direct',
-    studio_preview_empty: 'Aucune scène active.',
-    scenes: 'Scènes',
-    add_scene: '+ Ajouter Scène',
-    live_chat: 'Chat Direct',
-    product_queue: 'File de Produits',
-    add_to_queue: '+ Ajouter',
-    mic_on: 'Micro On', cam_on: 'Caméra On', share: 'Partager',
-    health_excellent: 'Santé: Excellent',
-    stop_stream: 'Arrêter le Stream',
-    content_library: 'Bibliothèque de Contenu',
-    product_catalog: 'Catalogue Produits',
-    catalog_sub: 'Parcourez tous les produits depuis Engine.',
-    analytics: 'Analytique',
-    coming_soon: 'Bientôt disponible.',
-    obs_integration: 'Intégration OBS',
-    stream_health: 'Santé du Stream',
-    language_support: 'Support Linguistique',
-    excellent: 'Excellent',
-    toast_golive: 'Mise en direct… connectez OBS pour commencer.',
-    toast_stop: 'Stream arrêté.',
-    toast_overlay_on: 'Overlay activé pour: ',
-    toast_overlay_off: 'Overlay désactivé pour: ',
-    toast_scene: 'Scène changée vers ',
-    toast_products_loaded: ' produits chargés depuis Engine.',
-    toast_engine_err: 'Engine API injoignable — produits mock affichés.',
-    toast_queued: 'Ajouté à la file: ',
-  },
+  en: { studio_tagline: 'Live Production Studio', engine_status: 'Engine', nav_dashboard: 'Dashboard', nav_studio: 'Live Studio', nav_content: 'Content Library', nav_catalog: 'Product Catalog', nav_analytics: 'Analytics', prepare_live: 'Prepare for Live', prepare_live_sub: 'Set up your stream before going live.', go_live: 'Arm Cockpit', stream_preview: 'Live Stream Preview', preview_empty: 'Preview offline — arm the cockpit when local OBS is ready.', no_product_overlay: 'No product on overlay', stream_title: 'Stream Title', default_stream_title: 'Yaatal Live Commerce', scheduled_at: 'Scheduled', default_scheduled: 'Today, 19:00 GMT', scheduled_streams: 'Scheduled Livestreams', soon: 'Soon', upcoming: 'Upcoming', top_products: 'Top Products', loading_products: 'Loading products…', refresh: 'Refresh', live_studio: 'Live Studio', live_studio_sub: 'Control governed actions while OBS remains on the local rig.', live_preview: 'Operator Preview', studio_preview_empty: 'No preview cue active.', scenes: 'Preview Cues', add_scene: '+ Add Cue', live_chat: 'Live Chat', product_queue: 'Product Queue', add_to_queue: '+ Add', cam_on: 'Local OBS', share: 'Local OBS', stop_stream: 'Disarm Cockpit', content_library: 'Content Library', product_catalog: 'Product Catalog', catalog_sub: 'Browse all products from the Engine.', analytics: 'Analytics', coming_soon: 'Coming soon.', obs_integration: 'OBS Browser Source relay', stream_health: 'Broadcast control', language_support: 'Language Support', excellent: 'Excellent' },
+  fr: { studio_tagline: 'Studio de Production Direct', engine_status: 'Engine', nav_dashboard: 'Tableau de bord', nav_studio: 'Studio Direct', nav_content: 'Bibliothèque', nav_catalog: 'Catalogue Produits', nav_analytics: 'Analytique', prepare_live: 'Préparer le Direct', prepare_live_sub: 'Configurez votre stream avant le direct.', go_live: 'Armer le cockpit', stream_preview: 'Aperçu du Stream', preview_empty: "Aperçu hors ligne — armez le cockpit quand l'OBS local est prêt.", no_product_overlay: 'Aucun produit sur overlay', stream_title: 'Titre du Stream', default_stream_title: 'Yaatal Commerce Direct', scheduled_at: 'Programmé', default_scheduled: "Aujourd’hui, 19:00 GMT", scheduled_streams: 'Streams Programmés', soon: 'Bientôt', upcoming: 'À venir', top_products: 'Top Produits', loading_products: 'Chargement des produits…', refresh: 'Rafraîchir', live_studio: 'Studio Direct', live_studio_sub: "Pilotez les actions gouvernées ; OBS reste sur le poste local.", live_preview: 'Aperçu opérateur', studio_preview_empty: "Aucun repère d'aperçu actif.", scenes: "Repères d'aperçu", add_scene: '+ Ajouter', live_chat: 'Chat Direct', product_queue: 'File de Produits', add_to_queue: '+ Ajouter', cam_on: 'OBS local', share: 'OBS local', stop_stream: 'Désarmer le cockpit', content_library: 'Bibliothèque de Contenu', product_catalog: 'Catalogue Produits', catalog_sub: 'Parcourez tous les produits depuis Engine.', analytics: 'Analytique', coming_soon: 'Bientôt disponible.', obs_integration: 'Relais Browser Source OBS', stream_health: 'Contrôle diffusion', language_support: 'Support Linguistique', excellent: 'Excellent' },
 };
 
-let lang = 'en';
-let products = [];
-let queue = [];
-let overlayProductId = null;
-let streamSeconds = 0;
-let timerInterval = null;
-let isLive = false;
+let lang = 'en', products = [], queue = [], overlayProductId = null, isLive = false, streamSeconds = 0, timerInterval;
+let operatorAuthenticated = false, publicSocket, voiceSocket, voiceOpenPromise, mediaStream, audioContext, captureNode, capturedFrames = [], recording = false, recordDeadline, pendingTurn = null, pendingRetry;
+const voiceSessionId = crypto.randomUUID ? crypto.randomUUID() : `studio-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
+const t = (key) => I18N[lang]?.[key] || I18N.en[key] || key;
+const wsUrl = (path) => `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${path}`;
+function formatFCFA(value) { const number = typeof value === 'number' ? value : Number.parseInt(String(value ?? '').replace(/[^\d]/g, ''), 10); return Number.isFinite(number) ? `${number.toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ')} FCFA` : '— FCFA'; }
+function toast(message, ms = 3000) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); clearTimeout(el._timer); el._timer = setTimeout(() => el.classList.remove('show'), ms); }
+function escapeHtml(value) { return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
+function uuid() { if (crypto.randomUUID) return crypto.randomUUID(); const bytes = crypto.getRandomValues(new Uint8Array(16)); bytes[6] = (bytes[6] & 0x0f) | 0x40; bytes[8] = (bytes[8] & 0x3f) | 0x80; const hex = [...bytes].map((value) => value.toString(16).padStart(2, '0')).join(''); return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`; }
+function applyI18n() { document.body.dataset.lang = lang; $$('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); }); $('#langToggle').textContent = lang === 'en' ? 'FR' : 'EN'; }
+function setVoiceStatus(text, kind = '') { const root = $('#voiceStatus'); root.className = `voice-status ${kind}`.trim(); $('#voiceStatusText').textContent = text; $('#agentState').className = `agent-state ${kind}`.trim(); $('#agentState').textContent = kind === 'ready' ? 'READY' : kind === 'busy' ? 'WORKING' : kind === 'allow' ? 'ALLOWED' : kind === 'deny' ? 'DENIED' : kind === 'error' ? 'RETRY' : 'LOCKED'; }
+function setOperatorState(authenticated, configured = true) { operatorAuthenticated = Boolean(authenticated); $('#operatorStatus').classList.toggle('is-unlocked', operatorAuthenticated); $('#operatorStatusText').textContent = operatorAuthenticated ? 'Operator controls unlocked' : configured ? 'Operator locked' : 'Operator token unavailable'; $('#operatorUnlockBtn').classList.toggle('is-hidden', operatorAuthenticated || !configured); $('#operatorLogoutBtn').classList.toggle('is-hidden', !operatorAuthenticated); $('#micToggle').disabled = !operatorAuthenticated; $('#runReadiness').disabled = !operatorAuthenticated; $('#goLiveBtn').disabled = !operatorAuthenticated || isLive; $('#stopStreamBtn').disabled = !operatorAuthenticated || !isLive; if (!operatorAuthenticated) { closeVoiceSocket(); releasePendingTurn(); setVoiceStatus(configured ? 'Operator unlock required' : 'Operator token is not configured'); } else setVoiceStatus('Voice lane ready', 'ready'); }
 
-// ─── Utilities ────────────────────────────────────────────────
-function $(sel) { return document.querySelector(sel); }
-function $$(sel) { return [...document.querySelectorAll(sel)]; }
-function t(key) { return (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key; }
+async function refreshOperatorSession() { try { const response = await fetch(OPERATOR_SESSION_URL, { credentials: 'same-origin', cache: 'no-store' }); const state = await response.json(); setOperatorState(response.ok && state.authenticated, state.configured !== false); } catch { setOperatorState(false, false); } }
+async function unlockOperator(token) { const response = await fetch(OPERATOR_SESSION_URL, { method: 'POST', credentials: 'same-origin', headers: { Authorization: `Bearer ${token}` } }); const data = await response.json().catch(() => ({})); if (!response.ok || !data.authenticated) throw new Error(data.error || `Unlock rejected (${response.status})`); setOperatorState(true, true); }
+async function lockOperator() { stopRecording(); closeVoiceSocket(); await fetch(OPERATOR_SESSION_URL, { method: 'DELETE', credentials: 'same-origin' }).catch(() => {}); setOperatorState(false, true); }
 
-function formatFCFA(price) {
-  // Accept number or string; return "75 000 FCFA"
-  const n = typeof price === 'number' ? price : parseInt(String(price).replace(/[^\d]/g, ''), 10);
-  if (isNaN(n)) return '— FCFA';
-  return n.toLocaleString('fr-FR').replace(/\u202f/g, ' ').replace(/\u00a0/g, ' ') + ' FCFA';
-}
+function switchView(name) { $$('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === name)); $$('.view').forEach((view) => view.classList.toggle('active', view.id === `view-${name}`)); document.body.dataset.view = name; if (name === 'catalog') renderGallery('#catalogGallery'); }
+function safeImageUrl(value) { try { const url = new URL(String(value || ''), location.origin); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } }
+function productImage(product) { return safeImageUrl(product.images?.[0] || product.image_url || product.thumbnail || ''); }
+function applyProductImages(root) { root.querySelectorAll('[data-image]').forEach((node) => { const image = node.dataset.image; if (image) node.style.backgroundImage = `url(${JSON.stringify(image)})`; }); }
+function productPrice(product) { return product.price_fcfa ?? product.price_cents ?? product.price; }
+async function fetchProducts() { try { const response = await fetch(CATALOG_URL, { signal: AbortSignal.timeout(5000), cache: 'no-store' }); if (!response.ok) throw new Error(`HTTP ${response.status}`); const payload = await response.json(); products = Array.isArray(payload) ? payload : (payload.products || []); if (!Array.isArray(products)) products = []; return products; } catch (error) { console.warn('Product proxy unavailable', error); products = []; toast('Engine product context is unavailable.'); return products; } }
+function productCardHTML(product) { const image = productImage(product), price = product.price_display || formatFCFA(productPrice(product)), stock = product.stock_status || product.stock || 'in_stock', imageData = image ? ` data-image="${escapeHtml(image)}"` : ''; return `<button class="product-card" type="button" data-id="${escapeHtml(product.id)}"><div class="product-img"${imageData}><span class="stock-badge ${escapeHtml(stock)}">${escapeHtml(String(stock).replace(/_/g, ' '))}</span></div><div class="product-body"><div class="product-name">${escapeHtml(product.name)}</div><div class="product-price">${escapeHtml(price)}</div></div></button>`; }
+function renderGallery(selector) { const root = $(selector); if (!root) return; root.innerHTML = products.length ? products.slice(0, 12).map(productCardHTML).join('') : '<div class="gallery-loading">No Engine products available.</div>'; applyProductImages(root); root.querySelectorAll('.product-card').forEach((button) => button.addEventListener('click', () => { const product = products.find((item) => String(item.id) === button.dataset.id); if (product) addToQueue(product); })); }
+function addToQueue(product) { if (queue.some((item) => String(item.id) === String(product.id))) return toast(`${product.name} is already queued.`); queue.push({ ...product, overlayOn: false }); renderQueue(); }
+function updatePreview(item) { $('.overlay-name').textContent = item?.name || t('no_product_overlay'); $('#overlayPrice').textContent = item ? (item.price_display || formatFCFA(productPrice(item))) : ''; }
+function toggleOverlay(id) { const item = queue.find((product) => String(product.id) === String(id)); if (!item) return; queue.forEach((product) => { product.overlayOn = false; }); item.overlayOn = overlayProductId !== id; overlayProductId = item.overlayOn ? id : null; updatePreview(item.overlayOn ? item : null); renderQueue(); }
+function renderQueue() { const root = $('#queueList'); if (!queue.length) { root.innerHTML = '<li class="gallery-loading">Queue empty — choose a product.</li>'; return; } root.innerHTML = queue.map((item) => { const image = productImage(item), imageData = image ? ` data-image="${escapeHtml(image)}"` : ''; return `<li class="queue-item"><div class="queue-thumb"${imageData}></div><div class="queue-info"><div class="queue-name">${escapeHtml(item.name)}</div><div class="queue-price">${escapeHtml(item.price_display || formatFCFA(productPrice(item)))}</div></div><div class="queue-actions"><button class="toggle-overlay-btn ${item.overlayOn ? 'active' : ''}" type="button" data-overlay="${escapeHtml(item.id)}">${item.overlayOn ? 'ON AIR' : 'Preview'}</button></div></li>`; }).join(''); applyProductImages(root); root.querySelectorAll('[data-overlay]').forEach((button) => button.addEventListener('click', () => toggleOverlay(button.dataset.overlay))); }
+function switchScene(name) { $$('.scene-item').forEach((scene) => scene.classList.toggle('active', scene.dataset.scene === name)); $('#activeSceneLabel').textContent = name; }
 
-function toast(msg, ms = 2400) {
-  const el = $('#toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), ms);
-}
+function connectPublicSocket() { if (publicSocket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(publicSocket.readyState)) return; publicSocket = new WebSocket(wsUrl('/ws')); publicSocket.onopen = () => { $('#obsPill').classList.add('ok'); $('#obsPill').classList.remove('err'); const state = $('#overlayRelayState'); if (state) { state.textContent = 'Connected'; state.className = 'status-ok'; } }; publicSocket.onmessage = (event) => { try { const message = JSON.parse(event.data); if (message.type === 'governed_action') applyGovernedAction(message.result || message); if (message.type === 'step_update') renderReadinessStep(message.step); if (message.type === 'e2e_complete') finishReadiness(message.result); } catch {} }; publicSocket.onclose = () => { $('#obsPill').classList.remove('ok'); $('#obsPill').classList.add('err'); const state = $('#overlayRelayState'); if (state) { state.textContent = 'Reconnecting'; state.className = ''; } setTimeout(connectPublicSocket, 2000); }; }
+function proposalKind(proposal) { const tool = proposal?.tool || proposal?.kind || proposal?.action || 'none'; return ({ 'studio.update_price_overlay': 'update_price', 'studio.mark_sold_out_overlay': 'mark_sold_out', 'studio.switch_product': 'switch_product' })[tool] || tool; }
+function actionLabel(proposal) { const tool = proposalKind(proposal); if (tool === 'update_price') return `Price set to ${formatFCFA(proposal.price_fcfa ?? proposal.price)}`; if (tool === 'mark_sold_out') return 'Product marked sold out'; if (tool === 'switch_product') return `Product switched${proposal.product_id ? `: ${proposal.product_id}` : ''}`; return 'No state change proposed'; }
+function applyGovernedAction(receipt) { const proposal = receipt?.proposal || receipt?.result?.proposal || {}, allowed = receipt?.allowed ?? receipt?.result?.allowed ?? receipt?.decision === 'allow', kind = proposalKind(proposal); $('#agentAction').textContent = `${allowed ? 'ALLOWED' : 'NOT APPLIED'} · ${actionLabel(proposal)}`; setVoiceStatus(allowed ? 'Governed action applied' : 'Proposal was not applied', allowed ? 'allow' : 'deny'); if (kind === 'update_price' && proposal.price_fcfa != null) $('#overlayPrice').textContent = formatFCFA(proposal.price_fcfa); if (kind === 'switch_product' && proposal.product_id != null) { const product = queue.find((item) => String(item.id) === String(proposal.product_id)); if (product) { overlayProductId = product.id; queue.forEach((item) => item.overlayOn = item === product); updatePreview(product); renderQueue(); } } }
 
-function escapeHtml(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+function releasePendingTurn() { clearTimeout(pendingRetry); if (pendingTurn) pendingTurn.wav = ''; pendingTurn = null; }
+function closeVoiceSocket() { clearTimeout(pendingRetry); voiceOpenPromise = null; if (voiceSocket) { voiceSocket.onclose = null; voiceSocket.close(); } voiceSocket = null; }
+function openVoiceSocket() { if (voiceSocket?.readyState === WebSocket.OPEN) return Promise.resolve(voiceSocket); if (voiceOpenPromise) return voiceOpenPromise; voiceOpenPromise = new Promise((resolve, reject) => { const socket = voiceSocket = new WebSocket(wsUrl(VOICE_SOCKET_PATH)); let done = false; const settle = (fn, value) => { if (!done) { done = true; voiceOpenPromise = null; fn(value); } }; const timeout = setTimeout(() => settle(reject, new Error('Voice connection timed out')), 6000); socket.onopen = () => { clearTimeout(timeout); socket.send(JSON.stringify({ type: 'session_config', session_id: voiceSessionId, lang: 'wo-fr' })); setVoiceStatus('Voice lane connected', 'ready'); settle(resolve, socket); }; socket.onerror = () => settle(reject, new Error('Voice connection failed')); socket.onclose = () => { voiceSocket = null; if (pendingTurn && !pendingTurn.completed) scheduleRetry('Voice link dropped; retrying the same turn.'); }; socket.onmessage = handleVoiceMessage; }); return voiceOpenPromise; }
+function handleVoiceMessage(event) { let message; try { message = JSON.parse(event.data); } catch { return; } if (message.type === 'session_ready') { setVoiceStatus('Voice lane ready', 'ready'); return; } if (message.type === 'subtitle') { $('#agentTranscript').textContent = message.text || message.transcript || 'Voice turn received.'; return; } if (message.type === 'audio_chunk' && (message.audio_base64 || message.audio)) playBase64Audio(message.audio_base64 || message.audio, message.mime_type || 'audio/wav'); if (message.type === 'studio_governed_action') { applyGovernedAction(message.result || message); releasePendingTurn(); return; } if (message.type === 'studio_retryable_error') { scheduleRetry(message.message || message.code || 'Temporary edge error; retrying the same turn.'); return; } if (message.type === 'turn_end') return; if (message.type === 'warning') { toast(message.message || 'Voice lane warning'); return; } if (message.type === 'error' || message.type === 'studio_error') { setVoiceStatus(message.message || message.code || 'Voice lane error', 'error'); if (message.retryable !== false) scheduleRetry(message.message || message.code || 'Voice error; retrying.'); else releasePendingTurn(); } }
+function scheduleRetry(reason) { if (!pendingTurn || pendingTurn.completed) return; if (pendingTurn.attempt >= 3) { setVoiceStatus('Voice turn could not be delivered', 'error'); releasePendingTurn(); return; } clearTimeout(pendingRetry); const delay = [1000, 2000, 4000][pendingTurn.attempt] || 4000; pendingTurn.attempt += 1; setVoiceStatus(`${reason} Retry ${pendingTurn.attempt}/3 in ${delay / 1000}s`, 'busy'); pendingRetry = setTimeout(() => sendPendingTurn(), delay); }
+async function sendPendingTurn() { if (!pendingTurn || pendingTurn.completed) return; try { const socket = await openVoiceSocket(); if (socket.readyState !== WebSocket.OPEN) throw new Error('Voice socket unavailable'); socket.send(JSON.stringify({ type: 'audio_chunk', audio_base64: pendingTurn.wav, turn_id: pendingTurn.id })); setVoiceStatus(`Turn sent · ${pendingTurn.id.slice(0, 8)}`, 'busy'); } catch { scheduleRetry('Connection unavailable; retrying the same turn.'); } }
+function playBase64Audio(payload, mimeType) { try { const audio = new Audio(`data:${mimeType};base64,${payload}`); audio.play().catch(() => toast('Browser blocked returned voice audio.')); } catch {} }
 
-// ─── i18n ─────────────────────────────────────────────────────
-function applyI18n() {
-  document.body.setAttribute('data-lang', lang);
-  $$('[data-i18n]').forEach(el => {
-    const key = el.getAttribute('data-i18n');
-    // For buttons with nested spans (Go Live has i18n-fr span), only set text node
-    if (el.querySelector('.i18n-fr')) {
-      // Go Live button: set the first text node (English label)
-      const firstText = el.firstChild;
-      if (firstText && firstText.nodeType === Node.TEXT_NODE) {
-        firstText.textContent = t(key) + ' ';
-      }
-    } else {
-      el.textContent = t(key);
-    }
-  });
-  $('#langToggle').textContent = lang === 'en' ? 'FR' : 'EN';
-}
+function resample(source, inRate, outRate) { if (inRate === outRate) return source; const length = Math.ceil(source.length * outRate / inRate), target = new Float32Array(length); for (let index = 0; index < length; index += 1) { const position = index * inRate / outRate, left = Math.floor(position), right = Math.min(left + 1, source.length - 1); target[index] = source[left] + (source[right] - source[left]) * (position - left); } return target; }
+function encodeWav(samples, sampleRate = 16000) { const buffer = new ArrayBuffer(44 + samples.length * 2), view = new DataView(buffer), write = (offset, value) => view.setUint8(offset, value.charCodeAt(0)); 'RIFF'.split('').forEach((char, index) => write(index, char)); view.setUint32(4, 36 + samples.length * 2, true); 'WAVEfmt '.split('').forEach((char, index) => write(8 + index, char)); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true); view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true); 'data'.split('').forEach((char, index) => write(36 + index, char)); view.setUint32(40, samples.length * 2, true); samples.forEach((sample, index) => view.setInt16(44 + index * 2, Math.max(-1, Math.min(1, sample)) * 0x7fff, true)); const bytes = new Uint8Array(buffer); let binary = ''; for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000)); return btoa(binary); }
+function mergeFrames(frames) { const length = frames.reduce((sum, frame) => sum + frame.length, 0), output = new Float32Array(length); let offset = 0; frames.forEach((frame) => { output.set(frame, offset); offset += frame.length; }); return output; }
+async function startRecording() { if (!operatorAuthenticated || recording) return; try { await openVoiceSocket(); mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); audioContext = new AudioContext(); const source = audioContext.createMediaStreamSource(mediaStream); captureNode = audioContext.createScriptProcessor(4096, 1, 1); capturedFrames = []; captureNode.onaudioprocess = (event) => capturedFrames.push(new Float32Array(event.inputBuffer.getChannelData(0))); source.connect(captureNode); captureNode.connect(audioContext.destination); recording = true; $('#micToggle').classList.add('recording'); $('#micToggle').setAttribute('aria-pressed', 'true'); $('#micToggle .ctrl-label').textContent = 'Release to send'; setVoiceStatus('Recording a governed turn (20s max)', 'busy'); recordDeadline = setTimeout(stopRecording, 20000); } catch { setVoiceStatus('Microphone permission or voice connection failed', 'error'); toast('Microphone access is required to send a voice turn.'); cleanupCapture(); } }
+function cleanupCapture() { clearTimeout(recordDeadline); captureNode?.disconnect(); captureNode = null; mediaStream?.getTracks().forEach((track) => track.stop()); mediaStream = null; audioContext?.close().catch(() => {}); audioContext = null; }
+function stopRecording() { if (!recording) return; recording = false; const sourceRate = audioContext?.sampleRate || 16000, frames = capturedFrames; cleanupCapture(); $('#micToggle').classList.remove('recording'); $('#micToggle').setAttribute('aria-pressed', 'false'); $('#micToggle .ctrl-label').textContent = 'Hold to talk'; const pcm = resample(mergeFrames(frames), sourceRate, 16000); capturedFrames = []; if (pcm.length < 1600) return setVoiceStatus('Turn too short; hold to talk again', 'error'); pendingTurn = { id: uuid(), wav: encodeWav(pcm), attempt: 0, completed: false }; $('#agentTranscript').textContent = 'Transcribing securely…'; $('#agentAction').textContent = 'No action is applied until the Harness explicitly allows it.'; sendPendingTurn(); }
 
-function toggleLang() {
-  lang = (lang === 'en') ? 'fr' : 'en';
-  applyI18n();
-}
+async function goLive() { if (isLive || !operatorAuthenticated) return; const response = await fetch('/api/studio/go-live', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'Yaatal Live Commerce' }) }); if (!response.ok) return toast('Unable to arm the Studio cockpit.'); isLive = true; $('#goLiveBtn').disabled = true; $('#stopStreamBtn').disabled = false; $('#previewModeBadge').textContent = 'ARMED'; streamSeconds = 0; timerInterval = setInterval(() => { streamSeconds += 1; $('#streamTimer').textContent = new Date(streamSeconds * 1000).toISOString().slice(11, 19); }, 1000); switchView('studio'); }
+async function stopStream() { if (!isLive) return; await fetch('/api/studio/stop-stream', { method: 'POST', credentials: 'same-origin' }).catch(() => {}); isLive = false; $('#goLiveBtn').disabled = !operatorAuthenticated; $('#stopStreamBtn').disabled = true; $('#previewModeBadge').textContent = 'PREVIEW'; clearInterval(timerInterval); $('#streamTimer').textContent = '00:00:00'; toast('Studio cockpit disarmed.'); }
+async function checkEngineHealth() { try { const response = await fetch('/api/status', { signal: AbortSignal.timeout(3000) }); const status = await response.json(); $('#enginePill').classList.toggle('ok', response.ok && status.engine?.reachable); $('#enginePill').classList.toggle('err', !response.ok || !status.engine?.reachable); } catch { $('#enginePill').classList.add('err'); } }
 
-// ─── Navigation ───────────────────────────────────────────────
-function switchView(viewName) {
-  $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === viewName));
-  $$('.view').forEach(v => v.classList.toggle('active', v.id === `view-${viewName}`));
-  document.body.setAttribute('data-view', viewName);
-  if (viewName === 'catalog') renderCatalog();
-}
+function renderReadinessStep(step) { if (!step?.name) return; const root = $('#readinessSteps'); let item = document.getElementById(`readiness-${step.name}`); if (!item) { item = document.createElement('div'); item.id = `readiness-${step.name}`; root.appendChild(item); } item.className = `readiness-step ${step.status || 'pending'}`; item.textContent = `${step.name.replace(/_/g, ' ')} · ${step.status || 'pending'}${step.detail ? ` — ${step.detail}` : ''}`; }
+function finishReadiness(result) { const passed = result?.overall === 'passed'; $('#readinessSummary').textContent = passed ? `READY · ${result.total_duration_ms} ms · real voice acceptance remains manual` : `NOT READY · inspect the failed gate before opening a model session`; $('#readinessSummary').className = passed ? 'status-ok' : 'status-error'; $('#runReadiness').disabled = !operatorAuthenticated; }
+async function runReadiness() { const button = $('#runReadiness'); button.disabled = true; $('#readinessSteps').replaceChildren(); $('#readinessSummary').textContent = 'Running non-mutating OS gates…'; try { const response = await fetch('/api/test/e2e', { method: 'POST', credentials: 'same-origin' }); if (!response.ok) throw new Error(`Readiness rejected (${response.status})`); } catch (error) { $('#readinessSummary').textContent = error.message; $('#readinessSummary').className = 'status-error'; button.disabled = !operatorAuthenticated; } }
 
-// ─── Products ─────────────────────────────────────────────────
-async function fetchProducts() {
-  try {
-    const res = await fetch(CATALOG_URL, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    // Engine returns array or { products: [...] } — normalize
-    products = Array.isArray(data) ? data : (data.products || []);
-    if (!Array.isArray(products)) products = [];
-    toast(`${products.length}${t('toast_products_loaded')}`);
-    return products;
-  } catch (err) {
-    console.warn('Studio product proxy failed:', err);
-    toast(t('toast_engine_err'), 3200);
-    products = [];
-    return products;
-  }
-}
-
-function mockProducts() {
-  return [
-    { id: 1, name: 'Robe Bazin Moderne', price: 75000, stock_status: 'in_stock',
-      images: ['https://picsum.photos/seed/robe/400/400'], likes: 1200, category: 'Fashion' },
-    { id: 2, name: 'Sac en Cuir Sénégal', price: 45000, stock_status: 'in_stock',
-      images: ['https://picsum.photos/seed/sac/400/400'], likes: 980, category: 'Leather' },
-    { id: 3, name: 'Tissu Wax Hollandais', price: 12000, stock_status: 'low_stock',
-      images: ['https://picsum.photos/seed/wax/400/400'], likes: 850, category: 'Textile' },
-    { id: 4, name: 'Collier Perles Artisanale', price: 18000, stock_status: 'in_stock',
-      images: ['https://picsum.photos/seed/collier/400/400'], likes: 670, category: 'Jewelry' },
-    { id: 5, name: 'Chapeau Artisanale', price: 8500, stock_status: 'out_of_stock',
-      images: ['https://picsum.photos/seed/chapeau/400/400'], likes: 430, category: 'Accessory' },
-    { id: 6, name: 'Boubou Brodé', price: 38000, stock_status: 'in_stock',
-      images: ['https://picsum.photos/seed/boubou/400/400'], likes: 1100, category: 'Fashion' },
-  ];
-}
-
-function productImage(p) {
-  if (p.images && p.images.length) return p.images[0];
-  if (p.image_url) return p.image_url;
-  if (p.thumbnail) return p.thumbnail;
-  return `https://picsum.photos/seed/p${p.id || Math.random()}/400/400`;
-}
-
-function productCardHTML(p) {
-  const img = productImage(p);
-  const priceValue = p.price_fcfa ?? p.price_cents ?? p.price;
-  const price = p.price_display || formatFCFA(priceValue);
-  const stock = p.stock_status || p.stock || 'in_stock';
-  const likes = p.likes || p.like_count || Math.floor(Math.random() * 1500) + 200;
-  const stockLabel = stock.replace(/_/g, ' ');
-  return `
-    <div class="product-card" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-price="${priceValue ?? ''}">
-      <div class="product-img" style="background-image:url('${escapeHtml(img)}')">
-        <span class="stock-badge ${stock}">${escapeHtml(stockLabel)}</span>
-      </div>
-      <div class="product-body">
-        <div class="product-name">${escapeHtml(p.name)}</div>
-        <div class="product-price">${price.replace(' FCFA','')}<span class="product-currency">FCFA</span></div>
-        <div class="product-likes">❤ ${likes.toLocaleString('en-US')} likes</div>
-      </div>
-    </div>`;
-}
-
-function renderGallery(targetSel) {
-  const el = $(targetSel);
-  if (!el) return;
-  if (!products.length) {
-    el.innerHTML = `<div class="gallery-loading">${t('loading_products')}</div>`;
-    return;
-  }
-  el.innerHTML = products.slice(0, 12).map(productCardHTML).join('');
-  // Click → add to queue
-  el.querySelectorAll('.product-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const p = products.find(x => String(x.id) === card.dataset.id);
-      if (p) addToQueue(p);
-    });
-  });
-}
-
-function renderDashboardGallery() { renderGallery('#productGallery'); }
-function renderCatalog() { renderGallery('#catalogGallery'); }
-
-// ─── Queue ────────────────────────────────────────────────────
-function addToQueue(p) {
-  if (queue.find(q => q.id === p.id)) {
-    toast(`${escapeHtml(p.name)} already in queue`);
-    return;
-  }
-  queue.push({ ...p, overlayOn: false });
-  renderQueue();
-  toast(t('toast_queued') + p.name);
-}
-
-function toggleOverlay(productId) {
-  const item = queue.find(q => q.id === productId);
-  if (!item) return;
-  // Only one overlay at a time
-  if (!item.overlayOn) {
-    queue.forEach(q => q.overlayOn = false);
-    item.overlayOn = true;
-    overlayProductId = productId;
-    updateOverlay(item);
-    toast(t('toast_overlay_on') + item.name);
-  } else {
-    item.overlayOn = false;
-    overlayProductId = null;
-    updateOverlay(null);
-    toast(t('toast_overlay_off') + item.name);
-  }
-  renderQueue();
-}
-
-function updateOverlay(item) {
-  const nameEl = $('.overlay-name');
-  const priceEl = $('#overlayPrice');
-  if (!nameEl || !priceEl) return;
-  if (item) {
-    nameEl.textContent = item.name;
-    priceEl.textContent = formatFCFA(item.price);
-  } else {
-    nameEl.textContent = t('no_product_overlay');
-    priceEl.textContent = '';
-  }
-}
-
-function removeFromQueue(productId) {
-  queue = queue.filter(q => q.id !== productId);
-  if (overlayProductId === productId) { overlayProductId = null; updateOverlay(null); }
-  renderQueue();
-}
-
-function renderQueue() {
-  const el = $('#queueList');
-  if (!el) return;
-  if (!queue.length) {
-    el.innerHTML = `<li class="gallery-loading">${lang === 'fr' ? 'File vide — cliquez un produit.' : 'Queue empty — click a product.'}</li>`;
-    return;
-  }
-  el.innerHTML = queue.map(item => `
-    <li class="queue-item">
-      <div class="queue-thumb" style="background-image:url('${escapeHtml(productImage(item))}')"></div>
-      <div class="queue-info">
-        <div class="queue-name">${escapeHtml(item.name)}</div>
-        <div class="queue-price">${formatFCFA(item.price)}</div>
-      </div>
-      <div class="queue-actions">
-        <button class="toggle-overlay-btn ${item.overlayOn ? 'active' : ''}" data-overlay="${item.id}">
-          ${item.overlayOn ? (lang==='fr'?'Overlay On':'Overlay On') : (lang==='fr'?'Afficher':'Toggle')}
-        </button>
-        <button class="toggle-overlay-btn" data-remove="${item.id}" style="background:transparent;color:var(--danger)">✕</button>
-      </div>
-    </li>`).join('');
-  el.querySelectorAll('[data-overlay]').forEach(b => {
-    b.addEventListener('click', () => toggleOverlay(parseInt(b.dataset.overlay, 10)));
-  });
-  el.querySelectorAll('[data-remove]').forEach(b => {
-    b.addEventListener('click', () => removeFromQueue(parseInt(b.dataset.remove, 10)));
-  });
-}
-
-// ─── Scenes ────────────────────────────────────────────────────
-function switchScene(sceneName) {
-  $$('.scene-item').forEach(s => s.classList.toggle('active', s.dataset.scene === sceneName));
-  const label = $('#activeSceneLabel');
-  if (label) label.textContent = sceneName;
-  toast(t('toast_scene') + sceneName);
-}
-
-// ─── Chat (mock) ───────────────────────────────────────────────
-const MOCK_CHAT = [
-  { user: 'Awa_Dkr', text: 'Combien le bazin ? 😍' },
-  { user: 'Modou_92', text: 'Le sac est dispo en quelle couleur ?' },
-  { user: 'Fatou_S', text: 'J\'adore la collection, bravo !' },
-  { user: 'Cheikh', text: 'Livraison à Thiès possible ?' },
-  { user: 'Aïssa', text: 'Le prix du wax 12 mille ?' },
-  { user: 'Mamadou', text: 'Sama boubou bi lañu ? 😄' },
-  { user: 'Ndeye', text: 'Très belle robe 👗' },
-  { user: 'Ousmane', text: 'Payement à la livraison ?' },
-];
-let chatIdx = 0;
-
-function addChatMsg(msg) {
-  const feed = $('#chatFeed');
-  if (!feed) return;
-  const div = document.createElement('div');
-  div.className = 'chat-msg';
-  div.innerHTML = `<div class="chat-user">${escapeHtml(msg.user)}</div><div class="chat-text">${escapeHtml(msg.text)}</div>`;
-  feed.appendChild(div);
-  feed.scrollTop = feed.scrollHeight;
-  const count = $('#chatCount');
-  if (count) count.textContent = String(feed.children.length);
-}
-
-function startMockChat() {
-  // Seed a few
-  for (let i = 0; i < 3; i++) {
-    addChatMsg(MOCK_CHAT[chatIdx % MOCK_CHAT.length]);
-    chatIdx++;
-  }
-  setInterval(() => {
-    addChatMsg(MOCK_CHAT[chatIdx % MOCK_CHAT.length]);
-    chatIdx++;
-  }, 6000);
-}
-
-// ─── Stream controls ──────────────────────────────────────────
-async function goLive() {
-  if (isLive) return;
-  isLive = true;
-  toast(t('toast_golive'));
-  streamSeconds = 0;
-  timerInterval = setInterval(() => {
-    streamSeconds++;
-    const h = String(Math.floor(streamSeconds / 3600)).padStart(2, '0');
-    const m = String(Math.floor((streamSeconds % 3600) / 60)).padStart(2, '0');
-    const s = String(streamSeconds % 60).padStart(2, '0');
-    const timer = $('#streamTimer');
-    if (timer) timer.textContent = `${h}:${m}:${s}`;
-  }, 1000);
-  // POST to Studio → Engine live session
-  try {
-    const res = await fetch('/api/studio/go-live', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Yaatal Live Commerce' }),
-    });
-    const data = await res.json();
-    if (data.fallback) {
-      toast(lang === 'fr' ? 'Mode autonome — Engine non connecté' : 'Standalone mode — Engine not connected', 3200);
-    }
-    // Fetch product queue from Engine
-    fetchProductQueue();
-  } catch (err) {
-    console.warn('go-live API failed:', err);
-  }
-}
-
-async function stopStream() {
-  if (!isLive) return;
-  isLive = false;
-  clearInterval(timerInterval);
-  toast(t('toast_stop'));
-  const timer = $('#streamTimer');
-  if (timer) timer.textContent = '00:00:00';
-  // POST to Studio → end Engine live session
-  try {
-    await fetch('/api/studio/stop-stream', { method: 'POST' });
-  } catch (err) {
-    console.warn('stop-stream API failed:', err);
-  }
-}
-
-// ─── Product queue from Engine ─────────────────────────────────
-async function fetchProductQueue() {
-  try {
-    const res = await fetch('/api/studio/product-queue', { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return;
-    const data = await res.json();
-    const engineProducts = data.products || [];
-    if (engineProducts.length && !queue.length) {
-      // Auto-populate queue from Engine products
-      engineProducts.slice(0, 6).forEach(p => {
-        queue.push({ ...p, overlayOn: false });
-      });
-      renderQueue();
-      toast(`${engineProducts.length} ${lang === 'fr' ? 'produits chargés' : 'products loaded'} (${data.source})`);
-    }
-  } catch (err) {
-    console.warn('Product queue fetch failed:', err);
-  }
-}
-
-// ─── Engine health ─────────────────────────────────────────────
-async function checkEngineHealth() {
-  const pill = $('#enginePill');
-  if (!pill) return;
-  try {
-    const r = await fetch('/api/status', { signal: AbortSignal.timeout(3000) });
-    const status = await r.json();
-    if (r.ok && status.engine && status.engine.reachable) pill.classList.add('ok');
-    else pill.classList.add('err');
-  } catch {
-    pill.classList.add('err');
-  }
-}
-
-// ─── Theme toggle ─────────────────────────────────────────────
-function toggleTheme() {
-  const current = document.body.getAttribute('data-theme') || 'dark';
-  const next = current === 'dark' ? 'light' : 'dark';
-  document.body.setAttribute('data-theme', next);
-  $('#themeToggle').textContent = next === 'dark' ? '🌙' : '☀️';
-  try { localStorage.setItem('yaatal-theme', next); } catch {}
-}
-
-function initTheme() {
-  let saved;
-  try { saved = localStorage.getItem('yaatal-theme'); } catch {}
-  if (saved === 'light') {
-    document.body.setAttribute('data-theme', 'light');
-    $('#themeToggle').textContent = '☀️';
-  }
-}
-
-// ─── Wire up ──────────────────────────────────────────────────
-function wireEvents() {
-  $('#langToggle').addEventListener('click', toggleLang);
-  $('#themeToggle').addEventListener('click', toggleTheme);
-
-  $$('.nav-item').forEach(b => {
-    b.addEventListener('click', () => switchView(b.dataset.view));
-  });
-
-  $('#goLiveBtn').addEventListener('click', () => {
-    switchView('studio');
-    goLive();
-  });
-
-  $('#refreshProducts').addEventListener('click', async () => {
-    $('#productGallery').innerHTML = `<div class="gallery-loading">${t('loading_products')}</div>`;
-    await fetchProducts();
-    renderDashboardGallery();
-  });
-
-  $('#stopStreamBtn').addEventListener('click', stopStream);
-
-  $('#addSceneBtn').addEventListener('click', () => {
-    const name = prompt(lang === 'fr' ? 'Nom de la scène:' : 'Scene name:');
-    if (!name) return;
-    const li = document.createElement('li');
-    li.className = 'scene-item';
-    li.dataset.scene = name.toUpperCase();
-    li.textContent = name.toUpperCase();
-    li.addEventListener('click', () => switchScene(li.dataset.scene));
-    $('#sceneList').appendChild(li);
-  });
-
-  $$('.scene-item').forEach(s => {
-    s.addEventListener('click', () => switchScene(s.dataset.scene));
-  });
-
-  $('#micToggle').addEventListener('click', e => e.currentTarget.classList.toggle('off'));
-  $('#camToggle').addEventListener('click', e => e.currentTarget.classList.toggle('off'));
-  $('#shareToggle').addEventListener('click', e => e.currentTarget.classList.toggle('off'));
-
-  $('#addQueueProduct').addEventListener('click', () => {
-    // Switch to catalog to pick
-    switchView('catalog');
-  });
-
-  // Platform links (placeholders)
-  $$('.platform-link').forEach(a => {
-    a.addEventListener('click', e => { e.preventDefault(); toast(`${a.dataset.platform} — ${lang==='fr'?'configuration requise':'setup required'}`); });
-  });
-}
-
-// ─── Init ─────────────────────────────────────────────────────
-async function init() {
-  initTheme();
-  applyI18n();
-  wireEvents();
-  renderQueue();
-  startMockChat();
-  checkEngineHealth();
-  await fetchProducts();
-  renderDashboardGallery();
-}
-
+function wireEvents() { $('#langToggle').addEventListener('click', () => { lang = lang === 'en' ? 'fr' : 'en'; applyI18n(); }); $('#themeToggle').addEventListener('click', () => { const light = document.body.dataset.theme !== 'light'; document.body.dataset.theme = light ? 'light' : 'dark'; $('#themeToggle').textContent = light ? '☀️' : '🌙'; }); $$('.nav-item').forEach((button) => button.addEventListener('click', () => switchView(button.dataset.view))); $('#goLiveBtn').addEventListener('click', goLive); $('#stopStreamBtn').addEventListener('click', stopStream); $('#refreshProducts').addEventListener('click', async () => { await fetchProducts(); renderGallery('#productGallery'); }); $('#addQueueProduct').addEventListener('click', () => switchView('catalog')); $$('.scene-item').forEach((scene) => scene.addEventListener('click', () => switchScene(scene.dataset.scene))); $('#camToggle').addEventListener('click', (event) => event.currentTarget.classList.toggle('off')); $('#shareToggle').addEventListener('click', (event) => event.currentTarget.classList.toggle('off'));
+  const mic = $('#micToggle'); mic.addEventListener('pointerdown', (event) => { event.preventDefault(); mic.setPointerCapture?.(event.pointerId); startRecording(); }); mic.addEventListener('pointerup', stopRecording); mic.addEventListener('pointercancel', stopRecording); mic.addEventListener('lostpointercapture', stopRecording); mic.addEventListener('keydown', (event) => { if ((event.code === 'Space' || event.code === 'Enter') && !event.repeat) { event.preventDefault(); startRecording(); } }); mic.addEventListener('keyup', (event) => { if (event.code === 'Space' || event.code === 'Enter') { event.preventDefault(); stopRecording(); } });
+  $('#operatorUnlockBtn').addEventListener('click', () => { $('#operatorError').textContent = ''; $('#operatorToken').value = ''; $('#operatorDialog').showModal(); $('#operatorToken').focus(); }); $('#operatorCancel').addEventListener('click', () => $('#operatorDialog').close()); $('#operatorForm').addEventListener('submit', async (event) => { event.preventDefault(); const input = $('#operatorToken'), error = $('#operatorError'), submit = $('#operatorSubmit'); submit.disabled = true; error.textContent = ''; try { await unlockOperator(input.value); input.value = ''; $('#operatorDialog').close(); toast('Governed controls unlocked.'); } catch (failure) { error.textContent = failure.message; } finally { submit.disabled = false; } }); $('#operatorLogoutBtn').addEventListener('click', lockOperator); $('#runReadiness').addEventListener('click', runReadiness); window.addEventListener('blur', stopRecording); }
+async function init() { applyI18n(); wireEvents(); renderQueue(); connectPublicSocket(); await refreshOperatorSession(); await fetchProducts(); renderGallery('#productGallery'); checkEngineHealth(); }
 document.addEventListener('DOMContentLoaded', init);

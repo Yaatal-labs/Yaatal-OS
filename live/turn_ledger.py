@@ -1,9 +1,11 @@
 """Digest-only idempotency ledger for governed Studio turns.
 
 The ledger is deliberately small and append-only. It never stores seller
-speech, audio, model prompts, credentials, or model output. A committed turn
-receipt lets Studio safely acknowledge a retried browser turn after a network
-drop or process restart without repeating the Engine mutation.
+speech, audio, model prompts, credentials, or model output. Once a turn
+receipt is committed, Studio can acknowledge a retry after a network drop or
+process restart without executing the action again. Before that commit,
+Engine writes are absolute values so an ambiguous transport retry cannot
+compound commerce state.
 """
 
 from __future__ import annotations
@@ -27,6 +29,17 @@ _FORBIDDEN_KEYS = {
     "text",
     "transcript",
 }
+
+
+def _contains_forbidden_content(value: object) -> bool:
+    if isinstance(value, dict):
+        return any(
+            key in _FORBIDDEN_KEYS or _contains_forbidden_content(nested)
+            for key, nested in value.items()
+        )
+    if isinstance(value, list):
+        return any(_contains_forbidden_content(item) for item in value)
+    return False
 
 
 class TurnLedgerError(RuntimeError):
@@ -115,8 +128,11 @@ class TurnLedger:
         except (ValueError, TypeError, AttributeError) as error:
             raise TurnLedgerError("turn receipt id must be a UUID") from error
         digest = receipt.get("transcript_sha256")
-        if not isinstance(digest, str) or len(digest) != 64:
+        if (
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
             raise TurnLedgerError("turn receipt requires a SHA-256 transcript digest")
-        if any(key in receipt for key in _FORBIDDEN_KEYS):
+        if _contains_forbidden_content(receipt):
             raise TurnLedgerError("turn receipt contains forbidden raw content")
-

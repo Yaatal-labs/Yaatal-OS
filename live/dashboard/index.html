@@ -17,6 +17,12 @@
       <span class="topbar-sub" data-i18n="studio_tagline">Live Production Studio</span>
     </div>
     <div class="topbar-right">
+      <div class="operator-status" id="operatorStatus" aria-live="polite">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="operatorStatusText">Operator locked</span>
+      </div>
+      <button class="btn btn-operator" id="operatorUnlockBtn" type="button">Unlock controls</button>
+      <button class="btn btn-ghost btn-sm is-hidden" id="operatorLogoutBtn" type="button">Lock</button>
       <a class="platform-link yt" title="YouTube" data-platform="youtube">▶</a>
       <a class="platform-link ig" title="Instagram" data-platform="instagram">◎</a>
       <a class="platform-link fb" title="Facebook" data-platform="facebook">f</a>
@@ -53,6 +59,7 @@
         </div>
         <div class="status-pill" id="obsPill">
           <span class="dot"></span> OBS
+          <span class="sr-only"> Browser Source relay</span>
         </div>
       </div>
     </aside>
@@ -68,7 +75,7 @@
             <p class="view-sub" data-i18n="prepare_live_sub">Set up your stream before going live.</p>
           </div>
           <div class="view-header-actions">
-            <button class="btn btn-primary btn-go-live" id="goLiveBtn">
+            <button class="btn btn-primary btn-go-live" id="goLiveBtn" disabled>
               <span class="live-dot"></span>
               <span data-i18n="go_live">Go Live</span>
               <span class="i18n-fr">Démarrer le Direct</span>
@@ -81,7 +88,7 @@
           <div class="card live-preview-card">
             <div class="card-header">
               <h2 data-i18n="stream_preview">Live Stream Preview</h2>
-              <span class="badge badge-live">LIVE</span>
+              <span class="badge badge-upcoming">PREVIEW</span>
             </div>
             <div class="preview-stage">
               <div class="preview-placeholder">
@@ -101,8 +108,8 @@
                 <span class="meta-value" data-i18n="default_stream_title">Yaatal Live Commerce</span>
               </div>
               <div class="meta-item">
-                <span class="meta-label" data-i18n="scheduled_at">Scheduled</span>
-                <span class="meta-value" data-i18n="default_scheduled">Today, 19:00 GMT</span>
+                <span class="meta-label">Broadcast control</span>
+                <span class="meta-value">Local OBS</span>
               </div>
             </div>
           </div>
@@ -114,20 +121,12 @@
             </div>
             <ul class="schedule-list" id="scheduleList">
               <li class="schedule-item">
-                <div class="schedule-time">19:00</div>
+                <div class="schedule-time">—</div>
                 <div class="schedule-info">
-                  <div class="schedule-title">Robe Bazin — Collection Soirée</div>
-                  <div class="schedule-sub" data-i18n="default_scheduled_sub">Dakar • Fashion</div>
+                  <div class="schedule-title">Platform scheduling stays external</div>
+                  <div class="schedule-sub">No Engine scheduling contract is exposed yet.</div>
                 </div>
-                <span class="badge badge-soon" data-i18n="soon">Soon</span>
-              </li>
-              <li class="schedule-item">
-                <div class="schedule-time">21:30</div>
-                <div class="schedule-info">
-                  <div class="schedule-title">Cuir Sénégalais — Sac & Accessoires</div>
-                  <div class="schedule-sub">Dakar • Leather</div>
-                </div>
-                <span class="badge badge-upcoming" data-i18n="upcoming">Upcoming</span>
+                <span class="badge badge-upcoming">EXTERNAL</span>
               </li>
             </ul>
           </div>
@@ -162,7 +161,7 @@
           <div class="card scenes-card">
             <div class="card-header">
               <h2 data-i18n="scenes">Scenes</h2>
-              <button class="btn btn-ghost btn-sm" id="addSceneBtn" data-i18n="add_scene">+ Add Scene</button>
+              <button class="btn btn-ghost btn-sm" id="addSceneBtn" data-i18n="add_scene" title="Preview cue creation is not wired to local OBS" disabled>+ Add Scene</button>
             </div>
             <ul class="scene-list" id="sceneList">
               <li class="scene-item active" data-scene="INTRO">INTRO</li>
@@ -176,7 +175,7 @@
           <div class="card studio-preview-card">
             <div class="card-header">
               <h2 data-i18n="live_preview">Live Preview</h2>
-              <span class="badge badge-onair">ON AIR</span>
+              <span class="badge badge-upcoming" id="previewModeBadge">PREVIEW</span>
             </div>
             <div class="studio-stage">
               <div class="studio-placeholder">
@@ -210,29 +209,55 @@
         <!-- Bottom toolbar -->
         <div class="toolbar">
           <div class="toolbar-left">
-            <button class="ctrl-btn" id="micToggle" title="Microphone">
+            <button class="ctrl-btn ptt-button" id="micToggle" title="Hold to talk" aria-describedby="voiceStatus" aria-pressed="false" disabled>
               <span class="ctrl-icon">🎙</span>
-              <span class="ctrl-label" data-i18n="mic_on">Mic On</span>
+              <span class="ctrl-label">Hold to talk</span>
             </button>
-            <button class="ctrl-btn" id="camToggle" title="Camera">
+            <button class="ctrl-btn" id="camToggle" title="Camera remains controlled in local OBS" disabled>
               <span class="ctrl-icon">📹</span>
               <span class="ctrl-label" data-i18n="cam_on">Cam On</span>
             </button>
-            <button class="ctrl-btn" id="shareToggle" title="Screen Share">
+            <button class="ctrl-btn" id="shareToggle" title="Screen share remains controlled in local OBS" disabled>
               <span class="ctrl-icon">🖥</span>
               <span class="ctrl-label" data-i18n="share">Share</span>
             </button>
           </div>
           <div class="toolbar-center">
-            <div class="health-indicator">
-              <span class="dot dot-good"></span>
-              <span data-i18n="health_excellent">Santé: Excellent</span>
+            <div class="voice-status" id="voiceStatus" role="status" aria-live="polite">
+              <span class="dot"></span>
+              <span id="voiceStatusText">Operator unlock required</span>
             </div>
           </div>
           <div class="toolbar-right">
-            <button class="btn btn-danger btn-stop" id="stopStreamBtn" data-i18n="stop_stream">Stop Stream</button>
+            <button class="btn btn-danger btn-stop" id="stopStreamBtn" data-i18n="stop_stream" disabled>Stop Stream</button>
           </div>
         </div>
+
+        <section class="agent-console" aria-label="Governed voice agent">
+          <div class="agent-console-head">
+            <div>
+              <p class="eyebrow">GOVERNED VOICE LANE</p>
+              <h2>Voice action console</h2>
+            </div>
+            <span class="agent-state" id="agentState">LOCKED</span>
+          </div>
+          <p class="agent-hint">Hold the microphone to send one short turn. The recording stays in this browser until the turn completes; only an allowed proposal can update the live state.</p>
+          <div class="agent-output" id="agentOutput" aria-live="polite">
+            <div class="agent-output-label">LAST TURN</div>
+            <p id="agentTranscript">No voice turn yet.</p>
+            <div class="agent-action" id="agentAction">No governed action issued.</div>
+          </div>
+          <div class="readiness-console">
+            <div class="readiness-head">
+              <div>
+                <div class="agent-output-label">OS READINESS</div>
+                <p id="readinessSummary">Not run — no model call or commerce write is made by this check.</p>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="runReadiness" type="button" disabled>Run readiness</button>
+            </div>
+            <div class="readiness-steps" id="readinessSteps"></div>
+          </div>
+        </section>
       </section>
 
       <!-- ── Content Library (placeholder) ───────────────────── -->
@@ -268,11 +293,11 @@
   <footer class="statusbar">
     <div class="statusbar-item">
       <span class="dot dot-good"></span>
-      <span data-i18n="obs_integration">OBS Integration</span>: <span class="status-ok">Connected</span>
+      <span data-i18n="obs_integration">OBS Browser Source relay</span>: <span id="overlayRelayState">Connecting</span>
     </div>
     <div class="statusbar-item">
       <span class="dot dot-good"></span>
-      <span data-i18n="stream_health">Stream Health</span>: <span class="status-ok" data-i18n="excellent">Excellent</span>
+      <span data-i18n="stream_health">Broadcast control</span>: <span>Local OBS operator</span>
     </div>
     <div class="statusbar-item">
       <span class="dot dot-good"></span>
@@ -282,6 +307,19 @@
 
   <!-- ─── Toast ───────────────────────────────────────────────── -->
   <div class="toast" id="toast"></div>
+
+  <dialog class="operator-dialog" id="operatorDialog" aria-labelledby="operatorDialogTitle">
+    <form method="dialog" id="operatorForm">
+      <button class="dialog-close" type="button" id="operatorCancel" aria-label="Close operator unlock">×</button>
+      <p class="eyebrow">SINGLE-SELLER CONSOLE</p>
+      <h2 id="operatorDialogTitle">Unlock governed controls</h2>
+      <p>Enter the local operator control token. It is exchanged for a short-lived HttpOnly session and is never kept by the browser.</p>
+      <label for="operatorToken">Operator control token</label>
+      <input id="operatorToken" name="operatorToken" type="password" autocomplete="off" required>
+      <p class="form-error" id="operatorError" role="alert"></p>
+      <button class="btn btn-primary" id="operatorSubmit" type="submit">Unlock Studio</button>
+    </form>
+  </dialog>
 
   <script src="/dashboard/app.js"></script>
 </body>

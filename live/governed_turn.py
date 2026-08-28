@@ -7,6 +7,7 @@ explicit ``allow`` and records a digest-only durable receipt.
 
 from __future__ import annotations
 
+import asyncio
 import math
 import uuid
 from dataclasses import dataclass
@@ -49,6 +50,9 @@ class GovernedTurnRuntime:
         self.engine = engine
         self.ledger = ledger
         self.model_backend = model_backend
+        self._turn_locks: dict[str, asyncio.Lock] = {}
+        self._turn_lock_users: dict[str, int] = {}
+        self._turn_locks_guard = asyncio.Lock()
 
     async def process(
         self,
@@ -58,31 +62,57 @@ class GovernedTurnRuntime:
         turn_id: str,
     ) -> dict[str, Any]:
         normalized_turn_id = self._validate_input(transcript, language, confidence, turn_id)
-        cached = self.ledger.get(normalized_turn_id)
-        if cached is not None:
-            cached["deduplicated"] = True
-            return cached
-
-        response = await self.harness.propose(
-            transcript_text=transcript,
-            language=language,
-            confidence=confidence,
-            model_backend=self.model_backend,
-            run_id=normalized_turn_id,
-        )
-        if response is None:
-            raise GovernedTurnError("harness_unavailable", retryable=True)
-
-        receipt = self._base_receipt(response, transcript, normalized_turn_id)
-        if response.decision == "allow":
-            receipt["execution_status"] = await self._execute(response, normalized_turn_id)
-        else:
-            receipt["execution_status"] = "not_executed"
-
+        lock = await self._turn_lock(normalized_turn_id)
         try:
-            return self.ledger.record(receipt)
-        except TurnLedgerError as error:
-            raise GovernedTurnError("turn_receipt_failed", retryable=True) from error
+            async with lock:
+                # Recheck inside the per-turn lock. Two reconnecting browser
+                # sessions may submit the same UUID before the first response
+                # reaches the operator, but only one may cross into execution.
+                cached = self.ledger.get(normalized_turn_id)
+                if cached is not None:
+                    if cached.get("transcript_sha256") != transcript_digest(transcript):
+                        raise GovernedTurnError(
+                            "turn_id_payload_conflict", retryable=False
+                        )
+                    cached["deduplicated"] = True
+                    return cached
+
+                response = await self.harness.propose(
+                    transcript_text=transcript,
+                    language=language,
+                    confidence=confidence,
+                    model_backend=self.model_backend,
+                    run_id=normalized_turn_id,
+                )
+                if response is None:
+                    raise GovernedTurnError("harness_unavailable", retryable=True)
+
+                receipt = self._base_receipt(response, transcript, normalized_turn_id)
+                if response.decision == "allow":
+                    receipt["execution_status"] = await self._execute(
+                        response, normalized_turn_id
+                    )
+                else:
+                    receipt["execution_status"] = "not_executed"
+
+                try:
+                    return self.ledger.record(receipt)
+                except TurnLedgerError as error:
+                    raise GovernedTurnError("turn_receipt_failed", retryable=True) from error
+        finally:
+            async with self._turn_locks_guard:
+                users = self._turn_lock_users.get(normalized_turn_id, 1) - 1
+                if users <= 0:
+                    self._turn_locks.pop(normalized_turn_id, None)
+                    self._turn_lock_users.pop(normalized_turn_id, None)
+                else:
+                    self._turn_lock_users[normalized_turn_id] = users
+
+    async def _turn_lock(self, turn_id: str) -> asyncio.Lock:
+        async with self._turn_locks_guard:
+            lock = self._turn_locks.setdefault(turn_id, asyncio.Lock())
+            self._turn_lock_users[turn_id] = self._turn_lock_users.get(turn_id, 0) + 1
+            return lock
 
     async def _execute(self, response: EdgeTurnResponse, turn_id: str) -> str:
         product_id = response.product_id

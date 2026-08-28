@@ -237,45 +237,9 @@ class EngineClient:
     # update_product() as part of Harness-approved execution in the
     # agent loop's _execute_* methods.
 
-    # ─── live sessions (authed) ─────────────────────────────────
-
-    async def create_live_session(self, payload: dict | None = None) -> Optional[dict]:
-        """POST /api/live-sessions — create a live session on Engine.
-
-        Returns session dict on success, None on failure.
-        """
-        if not await self._ensure_jwt():
-            logger.warning("create_live_session: no JWT, skipping")
-            return None
-        body = payload or {}
-        try:
-            resp = await self._request("POST", "/api/live-sessions", json=body, attempts=1)
-            resp.raise_for_status()
-            result = resp.json()
-            logger.info("Live session created on Engine: %s", result.get("id", "?"))
-            return result
-        except Exception as e:
-            logger.warning("create_live_session failed: %s", e)
-            return None
-
-    async def end_live_session(self, session_id: str | int) -> Optional[dict]:
-        """POST /api/live-sessions/:id/end — end a live session.
-
-        Returns response dict on success, None on failure.
-        """
-        if not await self._ensure_jwt():
-            return None
-        try:
-            resp = await self._request(
-                "POST", f"/api/live-sessions/{session_id}/end", json={}, attempts=1
-            )
-            resp.raise_for_status()
-            result = resp.json()
-            logger.info("Live session %s ended on Engine", session_id)
-            return result
-        except Exception as e:
-            logger.warning("end_live_session(%s) failed: %s", session_id, e)
-            return None
+    # Engine currently exposes live-session product context but no public
+    # create/end mutation contract. Studio keeps its broadcast session state
+    # locally and must not fabricate those endpoints.
 
     async def get_session_products(self) -> list[dict]:
         """GET /api/live-sessions/current/products — products queued for current session.

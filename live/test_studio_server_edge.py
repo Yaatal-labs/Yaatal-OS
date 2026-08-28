@@ -4,7 +4,10 @@ import json
 import unittest
 
 import live.studio_server as server
+from fastapi.testclient import TestClient
 from live.governed_turn import GovernedTurnError
+from live.operator_auth import OperatorSessionStore
+from starlette.websockets import WebSocketDisconnect
 
 
 def response(decision="allow"):
@@ -169,6 +172,32 @@ class StudioServerEdgeTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result.status_code, 503)
 
+    async def test_status_does_not_contact_legacy_cloud_model(self):
+        old_engine_health = server.engine_health
+        old_harness_health = server.harness_health
+        old_ollama_health = server.ollama_health
+
+        async def engine_ok():
+            return {"reachable": True, "status": 200}
+
+        async def harness_ok():
+            return {"reachable": True}
+
+        async def forbidden_cloud_probe():
+            raise AssertionError("status polling contacted Ollama")
+
+        server.engine_health = engine_ok
+        server.harness_health = harness_ok
+        server.ollama_health = forbidden_cloud_probe
+        try:
+            result = await server.status()
+        finally:
+            server.engine_health = old_engine_health
+            server.harness_health = old_harness_health
+            server.ollama_health = old_ollama_health
+
+        self.assertEqual(result["ollama"]["role"], "legacy_advisory_only")
+
 
     async def test_configured_harness_cannot_be_bypassed_without_explicit_fallback(self):
         server._governed_runtime = FakeRuntime()
@@ -210,6 +239,59 @@ class StudioServerEdgeTest(unittest.IsolatedAsyncioTestCase):
             check=False,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
+
+
+class StudioControlPlaneTest(unittest.TestCase):
+    def setUp(self):
+        self.old_sessions = server.OPERATOR_SESSIONS
+        self.old_cookie_secure = server.STUDIO_COOKIE_SECURE
+        server.OPERATOR_SESSIONS = OperatorSessionStore("local-test-secret")
+        server.STUDIO_COOKIE_SECURE = False
+        self.client = TestClient(server.app)
+
+    def tearDown(self):
+        self.client.close()
+        server.OPERATOR_SESSIONS = self.old_sessions
+        server.STUDIO_COOKIE_SECURE = self.old_cookie_secure
+
+    def test_operator_token_becomes_httponly_same_site_session(self):
+        response = self.client.post(
+            "/api/studio/operator/session",
+            headers={"Authorization": "Bearer local-test-secret"},
+        )
+        self.assertEqual(response.status_code, 200)
+        cookie = response.headers["set-cookie"].lower()
+        self.assertIn("httponly", cookie)
+        self.assertIn("samesite=strict", cookie)
+        self.assertTrue(
+            self.client.get("/api/studio/operator/session").json()["authenticated"]
+        )
+
+        self.client.delete("/api/studio/operator/session")
+        self.assertFalse(
+            self.client.get("/api/studio/operator/session").json()["authenticated"]
+        )
+
+    def test_voice_socket_rejects_missing_operator_session(self):
+        with self.assertRaises(WebSocketDisconnect) as error:
+            with self.client.websocket_connect("/api/studio/voice"):
+                pass
+        self.assertEqual(error.exception.code, 4401)
+
+    def test_public_update_socket_accepts_only_ping(self):
+        with self.client.websocket_connect("/ws") as socket:
+            self.assertEqual(socket.receive_json()["type"], "connected")
+            socket.send_text("ping")
+            self.assertEqual(socket.receive_json(), {"type": "pong"})
+
+    def test_overlay_route_serves_only_allowlisted_files(self):
+        self.assertEqual(self.client.get("/overlays/price").status_code, 200)
+        self.assertEqual(
+            self.client.get("/overlays/product_info.html").status_code, 200
+        )
+        self.assertEqual(
+            self.client.get("/overlays/studio_server.py").status_code, 404
+        )
 
 
 if __name__ == "__main__":
