@@ -78,6 +78,7 @@ class CommercePocStoreTest(unittest.TestCase):
         self.assertIn("PI-SPI", sheet)
         self.assertIn("No real charge", sheet)
         self.assertIn("source telegram", sheet)
+        self.assertIn("idempotency_key:checkoutIdempotencyKey", sheet)
 
     def test_rejects_unsafe_media_and_invalid_checkout_transition(self):
         with self.assertRaisesRegex(CommercePocError, "public HTTP"):
