@@ -1,0 +1,15 @@
+{
+  "name": "yaatal-os",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.18.2",
+  "scripts": {
+    "build": "pnpm --filter @yaatal/os-shell build",
+    "check": "pnpm --filter @yaatal/os-shell check && pnpm --filter @yaatal/os-protocol check",
+    "dev": "pnpm --filter @yaatal/os-shell dev",
+    "test": "pnpm --filter @yaatal/os-shell test && pnpm --filter @yaatal/os-protocol test"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
