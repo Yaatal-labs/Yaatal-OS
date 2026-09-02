@@ -293,6 +293,23 @@ class StudioControlPlaneTest(unittest.TestCase):
             self.client.get("/overlays/studio_server.py").status_code, 404
         )
 
+    def test_os_sidecar_routes_are_sanitized_and_dashboard_assets_load(self):
+        status = self.client.get("/api/os/status")
+        self.assertEqual(status.status_code, 200)
+        payload = status.json()
+        self.assertEqual(payload["version"], "yaatal.studio.os.v1")
+        self.assertEqual(payload["service"], "studio")
+        self.assertNotIn("url", str(payload).lower())
+        self.assertNotIn("jwt", str(payload).lower())
+
+        events = self.client.get("/api/os/events")
+        self.assertEqual(events.status_code, 200)
+        self.assertEqual(events.json()["version"], "yaatal.studio.os.v1")
+
+        self.assertEqual(self.client.get("/").status_code, 200)
+        self.assertEqual(self.client.get("/dashboard/app.js").status_code, 200)
+        self.assertEqual(self.client.get("/dashboard/styles.css").status_code, 200)
+
 
 if __name__ == "__main__":
     unittest.main()

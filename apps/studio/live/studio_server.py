@@ -39,6 +39,7 @@ try:
         get_harness_client,
     )
     from live.operator_auth import OperatorSessionStore, SESSION_COOKIE
+    from live.os_contract import build_events as build_os_events, build_status as build_os_status
     from live.turn_ledger import TurnLedger, TurnLedgerError
     from live.voice_gateway import StudioVoiceGateway, build_engine_voice_url
 except ModuleNotFoundError as exc:
@@ -53,6 +54,7 @@ except ModuleNotFoundError as exc:
         get_harness_client,
     )
     from operator_auth import OperatorSessionStore, SESSION_COOKIE
+    from os_contract import build_events as build_os_events, build_status as build_os_status
     from turn_ledger import TurnLedger, TurnLedgerError
     from voice_gateway import StudioVoiceGateway, build_engine_voice_url
 
@@ -610,6 +612,27 @@ async def status():
         "intent_model": OLLAMA_INTENT_MODEL,
         "overlays": [f.name for f in OVERLAYS_DIR.glob("*.html")] if OVERLAYS_DIR.exists() else [],
     }
+
+
+@app.get("/api/os/status")
+async def os_status():
+    """Return the versioned, sanitized contract used by the local OS host.
+
+    This intentionally avoids Engine/Harness/voice addresses, credentials,
+    readiness details, seller state, and any data that could identify speech.
+    The sidecar launcher binds loopback-only for the desktop POC.
+    """
+    return build_os_status(
+        ledger_available=TURN_LEDGER is not None,
+        readiness=_last_results,
+    )
+
+
+@app.get("/api/os/events")
+async def os_events():
+    """Return redacted governed-turn metadata for the local OS event poller."""
+    receipts = TURN_LEDGER.recent(50) if TURN_LEDGER is not None else []
+    return build_os_events(receipts)
 
 
 @app.post("/api/intent", dependencies=[Depends(require_operator)])
