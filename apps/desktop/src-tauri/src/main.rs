@@ -137,6 +137,8 @@ impl SidecarConfig {
             "HARNESS_URL",
             "STUDIO_CONTROL_TOKEN",
             "STUDIO_DEMO_MODE",
+            "YAATAL_COMMERCE_POC",
+            "YAATAL_COMMERCE_PUBLIC_BASE_URL",
             "STUDIO_COOKIE_SECURE",
             "STUDIO_VERSION",
             "STUDIO_GIT_SHA",

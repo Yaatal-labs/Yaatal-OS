@@ -11,6 +11,13 @@ without moving business authority out of Yaatal Engine or policy authority out o
 - **Tauri host:** window lifecycle, capability-scoped IPC, sidecar supervision, deep links, and local secrets.
 - **Remote services:** Engine owns identity and commerce; Harness owns policy and audit; the voice service owns inference.
 
-The first product acceptance flow is a seller product-switch request that is approved by Harness,
-applied through Engine, and reflected in the Shop window.
+The first product acceptance flows are:
+
+1. a seller product-switch request approved by Harness and reflected through the OS shell; and
+2. an on-air product shared through a portable social link, opened as a mobile Commerce Sheet,
+   paid through an explicit sandbox provider, and recorded as a livestream-attributed conversion.
+
+The second flow is executable behind `YAATAL_COMMERCE_POC=1`. Its in-memory adapter is deliberately
+temporary: the production CommerceIntent, inventory transaction, payment, and order remain Engine
+responsibilities. See [the social-commerce POC runbook](docs/SOCIAL-COMMERCE-POC.md).
 

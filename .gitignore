@@ -14,4 +14,7 @@ Thumbs.db
 apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/icons/*
 !apps/desktop/src-tauri/icons/icon.ico
+.playwright-cli/
+__pycache__/
+*.py[cod]
 
