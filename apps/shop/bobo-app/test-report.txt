@@ -1,0 +1,1497 @@
+
+> bobo-app@1.0.0 test
+> jest --coverage
+
+FAIL src/store/__tests__/authStore.test.ts
+  ● Test suite failed to run
+
+    Cannot find module 'expo-speech' from 'jest.setup.js'
+
+      2 |
+      3 | // Mock expo modules
+    > 4 | jest.mock('expo-speech', () => ({
+        |      ^
+      5 |   speak: jest.fn(),
+      6 | }));
+      7 |
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.<anonymous> (jest.setup.js:4:6)
+
+FAIL src/services/__tests__/ai.service.test.ts
+  ● Test suite failed to run
+
+    Cannot find module 'expo-speech' from 'jest.setup.js'
+
+      2 |
+      3 | // Mock expo modules
+    > 4 | jest.mock('expo-speech', () => ({
+        |      ^
+      5 |   speak: jest.fn(),
+      6 | }));
+      7 |
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.<anonymous> (jest.setup.js:4:6)
+
+FAIL src/services/__tests__/products.service.test.ts
+  ● Test suite failed to run
+
+    Cannot find module 'expo-speech' from 'jest.setup.js'
+
+      2 |
+      3 | // Mock expo modules
+    > 4 | jest.mock('expo-speech', () => ({
+        |      ^
+      5 |   speak: jest.fn(),
+      6 | }));
+      7 |
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.<anonymous> (jest.setup.js:4:6)
+
+FAIL src/services/__tests__/auth.service.test.ts
+  ● Test suite failed to run
+
+    Cannot find module 'expo-speech' from 'jest.setup.js'
+
+      2 |
+      3 | // Mock expo modules
+    > 4 | jest.mock('expo-speech', () => ({
+        |      ^
+      5 |   speak: jest.fn(),
+      6 | }));
+      7 |
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.<anonymous> (jest.setup.js:4:6)
+
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/navigation/MerchantNavigator.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/navigation/MerchantNavigator.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (22:43):
+
+  20 | const OrderDetailScreen_1 = require("../screens/merchant/OrderDetailScreen");
+  21 | // Placeholder screens
+> 22 | const PlaceholderScreen = ({ title }) => (<react_native_1.View style={styles.placeholder}>
+     |                                           ^
+  23 |     <react_native_1.Text style={styles.placeholderText}>{title}</react_native_1.Text>
+  24 |     <react_native_1.Text style={styles.placeholderSubtext}>Coming soon...</react_native_1.Text>
+  25 |   </react_native_1.View>);
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/navigation/MerchantNavigator.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/navigation/MerchantNavigator.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (22:43):
+
+  20 | const OrderDetailScreen_1 = require("../screens/merchant/OrderDetailScreen");
+  21 | // Placeholder screens
+> 22 | const PlaceholderScreen = ({ title }) => (<react_native_1.View style={styles.placeholder}>
+     |                                           ^
+  23 |     <react_native_1.Text style={styles.placeholderText}>{title}</react_native_1.Text>
+  24 |     <react_native_1.Text style={styles.placeholderSubtext}>Coming soon...</react_native_1.Text>
+  25 |   </react_native_1.View>);
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/navigation/MerchantNavigator.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12167:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseVar (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13460:91)
+    at Parser.parseVarStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13306:10)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12927:23)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseModuleItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12820:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:36)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseProgram (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12698:10)
+    at Parser.parseTopLevel (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12688:25)
+    at Parser.parse (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:14568:25)
+    at parse (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:14602:38)
+    at parser (/home/user/NJOOBA/bobo-app/node_modules/@babel/core/lib/parser/index.js:41:34)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/navigation/RootNavigator.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/navigation/RootNavigator.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (58:13):
+
+  56 |         initialize();
+  57 |     }, []);
+> 58 |     return (<native_1.NavigationContainer>
+     |             ^
+  59 |       {!isAuthenticated ? (
+  60 |         // Auth Stack
+  61 |         <Stack.Navigator screenOptions={{ headerShown: false }}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/navigation/RootNavigator.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/navigation/RootNavigator.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (58:13):
+
+  56 |         initialize();
+  57 |     }, []);
+> 58 |     return (<native_1.NavigationContainer>
+     |             ^
+  59 |       {!isAuthenticated ? (
+  60 |         // Auth Stack
+  61 |         <Stack.Navigator screenOptions={{ headerShown: false }}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/navigation/RootNavigator.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseVar (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13460:91)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/navigation/CustomerNavigator.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/navigation/CustomerNavigator.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (24:43):
+
+  22 | // Placeholder screens (Day 3+)
+  23 | const react_native_1 = require("react-native");
+> 24 | const PlaceholderScreen = ({ title }) => (<react_native_1.View style={styles.placeholder}>
+     |                                           ^
+  25 |     <react_native_1.Text style={styles.placeholderText}>{title}</react_native_1.Text>
+  26 |     <react_native_1.Text style={styles.placeholderSubtext}>Coming soon...</react_native_1.Text>
+  27 |   </react_native_1.View>);
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/navigation/CustomerNavigator.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/navigation/CustomerNavigator.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (24:43):
+
+  22 | // Placeholder screens (Day 3+)
+  23 | const react_native_1 = require("react-native");
+> 24 | const PlaceholderScreen = ({ title }) => (<react_native_1.View style={styles.placeholder}>
+     |                                           ^
+  25 |     <react_native_1.Text style={styles.placeholderText}>{title}</react_native_1.Text>
+  26 |     <react_native_1.Text style={styles.placeholderSubtext}>Coming soon...</react_native_1.Text>
+  27 |   </react_native_1.View>);
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/navigation/CustomerNavigator.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12167:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseVar (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13460:91)
+    at Parser.parseVarStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13306:10)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12927:23)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseModuleItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12820:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:36)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseProgram (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12698:10)
+    at Parser.parseTopLevel (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12688:25)
+    at Parser.parse (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:14568:25)
+    at parse (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:14602:38)
+    at parser (/home/user/NJOOBA/bobo-app/node_modules/@babel/core/lib/parser/index.js:41:34)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/components/ProductCard.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/components/ProductCard.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (22:13):
+
+  20 |     const hasDiscount = product.discount_price && product.discount_price < product.price;
+  21 |     const displayPrice = hasDiscount ? product.discount_price : product.price;
+> 22 |     return (<react_native_1.TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
+     |             ^
+  23 |       {/* Image Container */}
+  24 |       <react_native_1.View style={styles.imageContainer}>
+  25 |         <react_native_1.Image source={{ uri: imageUrl }} style={styles.image}/>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/components/ProductCard.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/components/ProductCard.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (22:13):
+
+  20 |     const hasDiscount = product.discount_price && product.discount_price < product.price;
+  21 |     const displayPrice = hasDiscount ? product.discount_price : product.price;
+> 22 |     return (<react_native_1.TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
+     |             ^
+  23 |       {/* Image Container */}
+  24 |       <react_native_1.View style={styles.imageContainer}>
+  25 |         <react_native_1.Image source={{ uri: imageUrl }} style={styles.image}/>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/components/ProductCard.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseVar (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13460:91)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/auth/LoginScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/auth/LoginScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (59:13):
+
+  57 |         // Success handled by navigation (RootNavigator checks auth state)
+  58 |     };
+> 59 |     return (<react_native_1.KeyboardAvoidingView behavior={react_native_1.Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+     |             ^
+  60 |       <react_native_1.ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+  61 |         {/* Header */}
+  62 |         <react_native_1.View style={styles.header}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/auth/LoginScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/auth/LoginScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (59:13):
+
+  57 |         // Success handled by navigation (RootNavigator checks auth state)
+  58 |     };
+> 59 |     return (<react_native_1.KeyboardAvoidingView behavior={react_native_1.Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+     |             ^
+  60 |       <react_native_1.ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+  61 |         {/* Header */}
+  62 |         <react_native_1.View style={styles.header}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/auth/LoginScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseVar (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13460:91)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/auth/SignupScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/auth/SignupScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (62:13):
+
+  60 |         // Success handled by navigation
+  61 |     };
+> 62 |     return (<react_native_1.KeyboardAvoidingView behavior={react_native_1.Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+     |             ^
+  63 |       <react_native_1.ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+  64 |         {/* Header */}
+  65 |         <react_native_1.View style={styles.header}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/auth/SignupScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/auth/SignupScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (62:13):
+
+  60 |         // Success handled by navigation
+  61 |     };
+> 62 |     return (<react_native_1.KeyboardAvoidingView behavior={react_native_1.Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+     |             ^
+  63 |       <react_native_1.ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+  64 |         {/* Header */}
+  65 |         <react_native_1.View style={styles.header}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/auth/SignupScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseVar (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13460:91)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/customer/OrdersScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/customer/OrdersScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (65:17):
+
+  63 |     };
+  64 |     if (isLoading) {
+> 65 |         return (<react_native_1.View style={styles.loading}>
+     |                 ^
+  66 |         <react_native_1.ActivityIndicator size="large" color={theme_1.colors.terracotta.primary}/>
+  67 |       </react_native_1.View>);
+  68 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/OrdersScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/customer/OrdersScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (65:17):
+
+  63 |     };
+  64 |     if (isLoading) {
+> 65 |         return (<react_native_1.View style={styles.loading}>
+     |                 ^
+  66 |         <react_native_1.ActivityIndicator size="large" color={theme_1.colors.terracotta.primary}/>
+  67 |       </react_native_1.View>);
+  68 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/OrdersScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12934:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementOrSloppyAnnexBFunctionDeclaration (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12833:17)
+    at Parser.parseIfStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13206:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12872:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/customer/DiscoveryScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/customer/DiscoveryScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (168:33):
+
+  166 |         navigation.navigate('ProductDetail', { productId: product.id });
+  167 |     };
+> 168 |     const renderHeader = () => (<react_native_1.View>
+      |                                 ^
+  169 |       {/* Search Bar with AI Features */}
+  170 |       <react_native_1.View style={styles.searchContainer}>
+  171 |         <react_native_1.View style={styles.searchBar}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/DiscoveryScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/customer/DiscoveryScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (168:33):
+
+  166 |         navigation.navigate('ProductDetail', { productId: product.id });
+  167 |     };
+> 168 |     const renderHeader = () => (<react_native_1.View>
+      |                                 ^
+  169 |       {/* Search Bar with AI Features */}
+  170 |       <react_native_1.View style={styles.searchContainer}>
+  171 |         <react_native_1.View style={styles.searchBar}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/DiscoveryScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12167:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseVar (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13460:91)
+    at Parser.parseVarStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13306:10)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12927:23)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/customer/OrderDetailScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/customer/OrderDetailScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (61:17):
+
+  59 |     };
+  60 |     if (isLoading) {
+> 61 |         return (<react_native_1.View style={styles.loading}>
+     |                 ^
+  62 |         <react_native_1.ActivityIndicator size="large" color={theme_1.colors.terracotta.primary}/>
+  63 |       </react_native_1.View>);
+  64 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/OrderDetailScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/customer/OrderDetailScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (61:17):
+
+  59 |     };
+  60 |     if (isLoading) {
+> 61 |         return (<react_native_1.View style={styles.loading}>
+     |                 ^
+  62 |         <react_native_1.ActivityIndicator size="large" color={theme_1.colors.terracotta.primary}/>
+  63 |       </react_native_1.View>);
+  64 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/OrderDetailScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12934:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementOrSloppyAnnexBFunctionDeclaration (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12833:17)
+    at Parser.parseIfStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13206:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12872:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/merchant/OrderDetailScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/merchant/OrderDetailScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (136:17):
+
+  134 |     };
+  135 |     if (isLoading) {
+> 136 |         return (<react_native_1.View style={styles.loadingContainer}>
+      |                 ^
+  137 |         <react_native_1.ActivityIndicator size="large" color={theme_1.colors.terracotta.primary}/>
+  138 |       </react_native_1.View>);
+  139 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/merchant/OrderDetailScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/merchant/OrderDetailScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (136:17):
+
+  134 |     };
+  135 |     if (isLoading) {
+> 136 |         return (<react_native_1.View style={styles.loadingContainer}>
+      |                 ^
+  137 |         <react_native_1.ActivityIndicator size="large" color={theme_1.colors.terracotta.primary}/>
+  138 |       </react_native_1.View>);
+  139 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/merchant/OrderDetailScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12934:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementOrSloppyAnnexBFunctionDeclaration (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12833:17)
+    at Parser.parseIfStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13206:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12872:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/customer/QRScannerScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/customer/QRScannerScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (102:17):
+
+  100 |     };
+  101 |     if (hasPermission === null) {
+> 102 |         return (<react_native_1.View style={styles.container}>
+      |                 ^
+  103 |         <react_native_1.Text style={styles.message}>Demande d'accès à la caméra...</react_native_1.Text>
+  104 |       </react_native_1.View>);
+  105 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/QRScannerScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/customer/QRScannerScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (102:17):
+
+  100 |     };
+  101 |     if (hasPermission === null) {
+> 102 |         return (<react_native_1.View style={styles.container}>
+      |                 ^
+  103 |         <react_native_1.Text style={styles.message}>Demande d'accès à la caméra...</react_native_1.Text>
+  104 |       </react_native_1.View>);
+  105 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/QRScannerScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12934:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementOrSloppyAnnexBFunctionDeclaration (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12833:17)
+    at Parser.parseIfStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13206:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12872:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/customer/ProductDetailScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/customer/ProductDetailScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (119:17):
+
+  117 |     };
+  118 |     if (isLoading) {
+> 119 |         return (<react_native_1.View style={styles.loading}>
+      |                 ^
+  120 |         <react_native_1.ActivityIndicator size="large" color={theme_1.colors.terracotta.primary}/>
+  121 |       </react_native_1.View>);
+  122 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/ProductDetailScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/customer/ProductDetailScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (119:17):
+
+  117 |     };
+  118 |     if (isLoading) {
+> 119 |         return (<react_native_1.View style={styles.loading}>
+      |                 ^
+  120 |         <react_native_1.ActivityIndicator size="large" color={theme_1.colors.terracotta.primary}/>
+  121 |       </react_native_1.View>);
+  122 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/ProductDetailScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12934:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementOrSloppyAnnexBFunctionDeclaration (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12833:17)
+    at Parser.parseIfStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13206:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12872:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/merchant/AddProductScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/merchant/AddProductScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (146:13):
+
+  144 |         }
+  145 |     };
+> 146 |     return (<react_native_1.KeyboardAvoidingView behavior={react_native_1.Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+      |             ^
+  147 |       <react_native_1.ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+  148 |         {/* Image Picker */}
+  149 |         <react_native_1.TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/merchant/AddProductScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/merchant/AddProductScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (146:13):
+
+  144 |         }
+  145 |     };
+> 146 |     return (<react_native_1.KeyboardAvoidingView behavior={react_native_1.Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+      |             ^
+  147 |       <react_native_1.ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+  148 |         {/* Image Picker */}
+  149 |         <react_native_1.TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/merchant/AddProductScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseVar (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13460:91)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/customer/CheckoutScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/customer/CheckoutScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (161:17):
+
+  159 |     };
+  160 |     if (!product || !profile) {
+> 161 |         return (<react_native_1.View style={styles.loading}>
+      |                 ^
+  162 |         <react_native_1.ActivityIndicator size="large" color={theme_1.colors.terracotta.primary}/>
+  163 |       </react_native_1.View>);
+  164 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/CheckoutScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/customer/CheckoutScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (161:17):
+
+  159 |     };
+  160 |     if (!product || !profile) {
+> 161 |         return (<react_native_1.View style={styles.loading}>
+      |                 ^
+  162 |         <react_native_1.ActivityIndicator size="large" color={theme_1.colors.terracotta.primary}/>
+  163 |       </react_native_1.View>);
+  164 |     }
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/customer/CheckoutScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12934:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementOrSloppyAnnexBFunctionDeclaration (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12833:17)
+    at Parser.parseIfStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13206:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12872:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/merchant/ProductsListScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/merchant/ProductsListScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (94:17):
+
+  92 |         const imageUrl = pocketbase_1.pb.getFileUrl(item, item.image_url);
+  93 |         const deepLink = `bobo://product/${item.id}`;
+> 94 |         return (<react_native_1.View style={styles.productCard}>
+     |                 ^
+  95 |         <react_native_1.View style={styles.productHeader}>
+  96 |           <react_native_1.Image source={{ uri: imageUrl }} style={styles.productImage}/>
+  97 |
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/merchant/ProductsListScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/merchant/ProductsListScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (94:17):
+
+  92 |         const imageUrl = pocketbase_1.pb.getFileUrl(item, item.image_url);
+  93 |         const deepLink = `bobo://product/${item.id}`;
+> 94 |         return (<react_native_1.View style={styles.productCard}>
+     |                 ^
+  95 |         <react_native_1.View style={styles.productHeader}>
+  96 |           <react_native_1.Image source={{ uri: imageUrl }} style={styles.productImage}/>
+  97 |
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/merchant/ProductsListScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseVar (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13460:91)
+Failed to collect coverage from /home/user/NJOOBA/bobo-app/src/screens/merchant/OrdersScreen.tsx
+ERROR: /home/user/NJOOBA/bobo-app/src/screens/merchant/OrdersScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (140:17):
+
+  138 |         const buyerName = order.expand?.buyer_id?.username || 'Client inconnu';
+  139 |         const productTitle = order.expand?.product_id?.title || 'Produit inconnu';
+> 140 |         return (<react_native_1.TouchableOpacity style={styles.orderCard} onPress={() => handleOrderPress(order)} activeOpacity={0.7}>
+      |                 ^
+  141 |         {/* Header with Status Badge */}
+  142 |         <react_native_1.View style={styles.orderHeader}>
+  143 |           <react_native_1.View style={styles.orderInfo}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/merchant/OrdersScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+STACK: SyntaxError: /home/user/NJOOBA/bobo-app/src/screens/merchant/OrdersScreen.tsx: Support for the experimental syntax 'jsx' isn't currently enabled (140:17):
+
+  138 |         const buyerName = order.expand?.buyer_id?.username || 'Client inconnu';
+  139 |         const productTitle = order.expand?.product_id?.title || 'Produit inconnu';
+> 140 |         return (<react_native_1.TouchableOpacity style={styles.orderCard} onPress={() => handleOrderPress(order)} activeOpacity={0.7}>
+      |                 ^
+  141 |         {/* Header with Status Badge */}
+  142 |         <react_native_1.View style={styles.orderHeader}>
+  143 |           <react_native_1.View style={styles.orderInfo}>
+
+Add @babel/preset-react (https://github.com/babel/babel/tree/main/packages/babel-preset-react) to the 'presets' section of your Babel config to enable transformation.
+If you want to leave it as-is, add @babel/plugin-syntax-jsx (https://github.com/babel/babel/tree/main/packages/babel-plugin-syntax-jsx) to the 'plugins' section to enable parsing.
+
+If you already added the plugin for this syntax to your config, it's possible that your config isn't being loaded.
+You can re-run Babel with the BABEL_SHOW_CONFIG_FOR environment variable to show the loaded configuration:
+	npx cross-env BABEL_SHOW_CONFIG_FOR=/home/user/NJOOBA/bobo-app/src/screens/merchant/OrdersScreen.tsx <your build command>
+See https://babeljs.io/docs/configuration#print-effective-configs for more info.
+
+    at constructor (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:367:19)
+    at Parser.raise (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6624:19)
+    at Parser.expectOnePlugin (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:6658:18)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11462:24)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12500:12)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseMaybeAssignAllowInOrVoidPattern (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12567:17)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11747:28)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at Parser.parseExpressionBase (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10848:23)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10844:17)
+    at Parser.parseReturnStatement (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13218:28)
+    at Parser.parseStatementContent (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12874:21)
+    at Parser.parseStatementLike (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12843:17)
+    at Parser.parseStatementListItem (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12823:17)
+    at Parser.parseBlockOrModuleBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13392:61)
+    at Parser.parseBlockBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13385:10)
+    at Parser.parseBlock (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13373:10)
+    at Parser.parseFunctionBody (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12174:24)
+    at Parser.parseArrowExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12149:10)
+    at Parser.parseParenAndDistinguishExpression (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11759:12)
+    at Parser.parseExprAtom (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11395:23)
+    at Parser.parseExprSubscripts (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11145:23)
+    at Parser.parseUpdate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11130:21)
+    at Parser.parseMaybeUnary (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:11110:23)
+    at Parser.parseMaybeUnaryOrPrivate (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10963:61)
+    at Parser.parseExprOps (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10968:23)
+    at Parser.parseMaybeConditional (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10945:23)
+    at Parser.parseMaybeAssign (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10895:21)
+    at /home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:39
+    at Parser.allowInAnd (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:12495:16)
+    at Parser.parseMaybeAssignAllowIn (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:10864:17)
+    at Parser.parseVar (/home/user/NJOOBA/bobo-app/node_modules/@babel/parser/lib/index.js:13460:91)
+------------------------|---------|----------|---------|---------|-------------------
+File                    | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+------------------------|---------|----------|---------|---------|-------------------
+All files               |       0 |        0 |       0 |       0 |                   
+ constants              |       0 |        0 |       0 |       0 |                   
+  gamification.ts       |       0 |        0 |       0 |       0 | 6-195             
+ services               |       0 |        0 |       0 |       0 |                   
+  ai.service.ts         |       0 |        0 |       0 |       0 | 7-616             
+  auth.service.ts       |       0 |        0 |       0 |       0 | 6-312             
+  orders.service.ts     |       0 |        0 |       0 |       0 | 6-359             
+  products.service.ts   |       0 |        0 |       0 |       0 | 6-343             
+ store                  |       0 |        0 |       0 |       0 |                   
+  authStore.ts          |       0 |        0 |       0 |       0 | 6-188             
+  cartStore.ts          |       0 |        0 |       0 |       0 | 6-149             
+ theme                  |       0 |      100 |       0 |       0 |                   
+  adinkra.ts            |       0 |      100 |     100 |       0 | 6-93              
+  colors.ts             |       0 |      100 |     100 |       0 | 7-90              
+  spacing.ts            |       0 |      100 |     100 |       0 | 6-62              
+  typography.ts         |       0 |      100 |       0 |       0 | 7-151             
+ utils                  |       0 |        0 |       0 |       0 |                   
+  formatters.ts         |       0 |        0 |       0 |       0 | 6-171             
+  validation.ts         |       0 |        0 |       0 |       0 | 12-202            
+ utils/platform         |       0 |        0 |       0 |       0 |                   
+  imagePicker.native.ts |       0 |        0 |       0 |       0 | 6-102             
+  imagePicker.web.ts    |       0 |        0 |       0 |       0 | 18-266            
+  scanner.web.ts        |       0 |        0 |       0 |       0 | 6-182             
+  storage.web.ts        |       0 |        0 |       0 |       0 | 21-252            
+------------------------|---------|----------|---------|---------|-------------------
+Jest: "global" coverage threshold for statements (50%) not met: 0%
+Jest: "global" coverage threshold for branches (50%) not met: 0%
+Jest: "global" coverage threshold for lines (50%) not met: 0%
+Jest: "global" coverage threshold for functions (50%) not met: 0%
+Test Suites: 4 failed, 4 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        6.608 s
+Ran all test suites.
