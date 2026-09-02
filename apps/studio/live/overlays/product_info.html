@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="wo">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Yaatal Product Info</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:transparent;font-family:"Segoe UI",Arial,sans-serif;overflow:hidden}.product-info{position:absolute;top:20px;left:20px;max-width:420px;padding:15px 21px;background:rgba(8,10,16,.83);color:#fff;border-left:4px solid #d4af37;border-radius:0 10px 10px 0;box-shadow:0 5px 24px rgba(0,0,0,.42);opacity:0;transform:translateX(-28px);transition:opacity .18s,transform .18s}.product-info.visible{opacity:1;transform:translateX(0)}.name{font-size:24px;font-weight:800}.description{margin-top:4px;color:rgba(255,255,255,.78);font-size:13px;line-height:1.42}.stock{margin-top:8px;color:#73d692;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.stock.out{color:#ff8b85}
+  </style>
+</head>
+<body>
+  <div class="product-info" id="productInfo" aria-live="polite"><div class="name" id="productName"></div><div class="description" id="productDescription"></div><div class="stock" id="stock"></div></div>
+  <script>
+    const root=document.getElementById('productInfo'),name=document.getElementById('productName'),description=document.getElementById('productDescription'),stock=document.getElementById('stock');
+    function show(product,soldOut=false){const title=product.product_name||product.name||product.display_name;if(!title)return;name.textContent=title;description.textContent=product.description||'';const quantity=product.stock??product.stock_remaining;stock.textContent=soldOut?'Sold out':Number.isFinite(Number(quantity))?`Stock: ${quantity}`:'';stock.classList.toggle('out',soldOut||Number(quantity)===0);root.classList.add('visible')}
+    async function showProduct(productId,soldOut=false){try{const response=await fetch('/api/studio/product-queue',{cache:'no-store'});if(!response.ok)return;const payload=await response.json(),products=Array.isArray(payload)?payload:(payload.products||[]),product=products.find((item)=>String(item.id)===String(productId));if(product)show(product,soldOut)}catch{}}
+    function receipt(message){const result=message.result||message,proposal=result.proposal||{},tool=proposal.tool==='studio.mark_sold_out_overlay'?'mark_sold_out':proposal.tool==='studio.switch_product'?'switch_product':proposal.tool,allowed=result.allowed??result.decision==='allow';if(!allowed||proposal.product_id==null)return;if(tool==='switch_product')showProduct(proposal.product_id);if(tool==='mark_sold_out')showProduct(proposal.product_id,true)}
+    function connect(){const scheme=location.protocol==='https:'?'wss':'ws',socket=new WebSocket(`${scheme}://${location.host}/ws`);socket.onmessage=(event)=>{try{const message=JSON.parse(event.data);if(message.type==='governed_action')receipt(message)}catch{}};socket.onclose=()=>setTimeout(connect,2000)}connect();
+  </script>
+</body>
+</html>
