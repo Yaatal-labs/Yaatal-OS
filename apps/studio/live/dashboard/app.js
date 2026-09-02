@@ -9,6 +9,7 @@ const I18N = {
 };
 
 let lang = 'en', products = [], queue = [], overlayProductId = null, isLive = false, streamSeconds = 0, timerInterval;
+let currentCommerceIntent = null, commerceConversionCount = 0;
 let operatorAuthenticated = false, publicSocket, voiceSocket, voiceOpenPromise, mediaStream, audioContext, captureNode, capturedFrames = [], recording = false, recordDeadline, pendingTurn = null, pendingRetry;
 const voiceSessionId = crypto.randomUUID ? crypto.randomUUID() : `studio-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const $ = (selector) => document.querySelector(selector);
@@ -25,7 +26,7 @@ function setOperatorState(authenticated, configured = true) { operatorAuthentica
 
 async function refreshOperatorSession() { try { const response = await fetch(OPERATOR_SESSION_URL, { credentials: 'same-origin', cache: 'no-store' }); const state = await response.json(); setOperatorState(response.ok && state.authenticated, state.configured !== false); } catch { setOperatorState(false, false); } }
 async function unlockOperator(token) { const response = await fetch(OPERATOR_SESSION_URL, { method: 'POST', credentials: 'same-origin', headers: { Authorization: `Bearer ${token}` } }); const data = await response.json().catch(() => ({})); if (!response.ok || !data.authenticated) throw new Error(data.error || `Unlock rejected (${response.status})`); setOperatorState(true, true); }
-async function lockOperator() { stopRecording(); closeVoiceSocket(); await fetch(OPERATOR_SESSION_URL, { method: 'DELETE', credentials: 'same-origin' }).catch(() => {}); setOperatorState(false, true); }
+async function lockOperator() { stopRecording(); closeVoiceSocket(); await fetch(OPERATOR_SESSION_URL, { method: 'DELETE', credentials: 'same-origin' }).catch(() => {}); setOperatorState(false, true); renderQueue(); }
 
 function switchView(name) { $$('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === name)); $$('.view').forEach((view) => view.classList.toggle('active', view.id === `view-${name}`)); document.body.dataset.view = name; if (name === 'catalog') renderGallery('#catalogGallery'); }
 function safeImageUrl(value) { try { const url = new URL(String(value || ''), location.origin); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } }
@@ -38,10 +39,61 @@ function renderGallery(selector) { const root = $(selector); if (!root) return; 
 function addToQueue(product) { if (queue.some((item) => String(item.id) === String(product.id))) return toast(`${product.name} is already queued.`); queue.push({ ...product, overlayOn: false }); renderQueue(); }
 function updatePreview(item) { $('.overlay-name').textContent = item?.name || t('no_product_overlay'); $('#overlayPrice').textContent = item ? (item.price_display || formatFCFA(productPrice(item))) : ''; }
 function toggleOverlay(id) { const item = queue.find((product) => String(product.id) === String(id)); if (!item) return; queue.forEach((product) => { product.overlayOn = false; }); item.overlayOn = overlayProductId !== id; overlayProductId = item.overlayOn ? id : null; updatePreview(item.overlayOn ? item : null); renderQueue(); }
-function renderQueue() { const root = $('#queueList'); if (!queue.length) { root.innerHTML = '<li class="gallery-loading">Queue empty — choose a product.</li>'; return; } root.innerHTML = queue.map((item) => { const image = productImage(item), imageData = image ? ` data-image="${escapeHtml(image)}"` : ''; return `<li class="queue-item"><div class="queue-thumb"${imageData}></div><div class="queue-info"><div class="queue-name">${escapeHtml(item.name)}</div><div class="queue-price">${escapeHtml(item.price_display || formatFCFA(productPrice(item)))}</div></div><div class="queue-actions"><button class="toggle-overlay-btn ${item.overlayOn ? 'active' : ''}" type="button" data-overlay="${escapeHtml(item.id)}">${item.overlayOn ? 'ON AIR' : 'Preview'}</button></div></li>`; }).join(''); applyProductImages(root); root.querySelectorAll('[data-overlay]').forEach((button) => button.addEventListener('click', () => toggleOverlay(button.dataset.overlay))); }
+function renderQueue() {
+  const root = $('#queueList');
+  if (!queue.length) { root.innerHTML = '<li class="gallery-loading">Queue empty — choose a product.</li>'; return; }
+  root.innerHTML = queue.map((item) => {
+    const image = productImage(item), imageData = image ? ` data-image="${escapeHtml(image)}"` : '';
+    const shareDisabled = !item.overlayOn || !isLive || !operatorAuthenticated;
+    return `<li class="queue-item"><div class="queue-thumb"${imageData}></div><div class="queue-info"><div class="queue-name">${escapeHtml(item.name)}</div><div class="queue-price">${escapeHtml(item.price_display || formatFCFA(productPrice(item)))}</div></div><div class="queue-actions"><button class="toggle-overlay-btn ${item.overlayOn ? 'active' : ''}" type="button" data-overlay="${escapeHtml(item.id)}">${item.overlayOn ? 'ON AIR' : 'Preview'}</button><button class="share-checkout-btn" type="button" data-commerce="${escapeHtml(item.id)}" ${shareDisabled ? 'disabled' : ''}>Share checkout</button></div></li>`;
+  }).join('');
+  applyProductImages(root);
+  root.querySelectorAll('[data-overlay]').forEach((button) => button.addEventListener('click', () => toggleOverlay(button.dataset.overlay)));
+  root.querySelectorAll('[data-commerce]').forEach((button) => button.addEventListener('click', () => createCommerceIntent(button.dataset.commerce)));
+}
+
+async function copyCommerceLink(value, label = 'Checkout link copied.') {
+  try { await navigator.clipboard.writeText(value); toast(label); }
+  catch { window.prompt('Copy this checkout link:', value); }
+}
+function renderCommerceIntent(intent) {
+  currentCommerceIntent = intent;
+  $('#commerceLinks').classList.remove('is-hidden');
+  $('#commerceState').innerHTML = `<strong>${escapeHtml(intent.product.name)}</strong><br>${escapeHtml(intent.public_url)}`;
+  $('#commerceOpen').href = intent.public_url;
+  $('#commerceWhatsApp').href = intent.share.whatsapp;
+  $('#commerceTelegram').href = intent.share.telegram;
+}
+async function refreshCommerceConversions() {
+  if (!operatorAuthenticated) return;
+  try {
+    const response = await fetch('/api/studio/poc/conversions', { credentials: 'same-origin', cache: 'no-store' });
+    if (!response.ok) return;
+    const result = await response.json();
+    commerceConversionCount = result.count || 0;
+    $('#commerceConversionCount').textContent = `${commerceConversionCount} ${commerceConversionCount === 1 ? 'sale' : 'sales'}`;
+  } catch {}
+}
+async function createCommerceIntent(productId) {
+  if (!operatorAuthenticated) return toast('Unlock operator controls first.');
+  if (!isLive) return toast('Arm the Studio session before sharing checkout.');
+  const product = queue.find((item) => String(item.id) === String(productId));
+  if (!product) return toast('Product is no longer in the live queue.');
+  $('#commerceState').textContent = 'Creating a portable, attributed checkout…';
+  try {
+    const response = await fetch('/api/studio/poc/commerce-intents', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || result.detail || `Commerce link rejected (${response.status})`);
+    renderCommerceIntent(result);
+    await refreshCommerceConversions();
+    toast('Commerce Sheet ready for social sharing.');
+  } catch (error) { $('#commerceState').textContent = error.message; toast(error.message); }
+}
 function switchScene(name) { $$('.scene-item').forEach((scene) => scene.classList.toggle('active', scene.dataset.scene === name)); $('#activeSceneLabel').textContent = name; }
 
-function connectPublicSocket() { if (publicSocket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(publicSocket.readyState)) return; publicSocket = new WebSocket(wsUrl('/ws')); publicSocket.onopen = () => { $('#obsPill').classList.add('ok'); $('#obsPill').classList.remove('err'); const state = $('#overlayRelayState'); if (state) { state.textContent = 'Connected'; state.className = 'status-ok'; } }; publicSocket.onmessage = (event) => { try { const message = JSON.parse(event.data); if (message.type === 'governed_action') applyGovernedAction(message.result || message); if (message.type === 'step_update') renderReadinessStep(message.step); if (message.type === 'e2e_complete') finishReadiness(message.result); } catch {} }; publicSocket.onclose = () => { $('#obsPill').classList.remove('ok'); $('#obsPill').classList.add('err'); const state = $('#overlayRelayState'); if (state) { state.textContent = 'Reconnecting'; state.className = ''; } setTimeout(connectPublicSocket, 2000); }; }
+function connectPublicSocket() { if (publicSocket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(publicSocket.readyState)) return; publicSocket = new WebSocket(wsUrl('/ws')); publicSocket.onopen = () => { $('#obsPill').classList.add('ok'); $('#obsPill').classList.remove('err'); const state = $('#overlayRelayState'); if (state) { state.textContent = 'Connected'; state.className = 'status-ok'; } }; publicSocket.onmessage = (event) => { try { const message = JSON.parse(event.data); if (message.type === 'governed_action') applyGovernedAction(message.result || message); if (message.type === 'step_update') renderReadinessStep(message.step); if (message.type === 'e2e_complete') finishReadiness(message.result); if (message.type === 'commerce_conversion') { refreshCommerceConversions(); toast(`${message.source_channel || 'Social'} checkout confirmed.`); } } catch {} }; publicSocket.onclose = () => { $('#obsPill').classList.remove('ok'); $('#obsPill').classList.add('err'); const state = $('#overlayRelayState'); if (state) { state.textContent = 'Reconnecting'; state.className = ''; } setTimeout(connectPublicSocket, 2000); }; }
 function proposalKind(proposal) { const tool = proposal?.tool || proposal?.kind || proposal?.action || 'none'; return ({ 'studio.update_price_overlay': 'update_price', 'studio.mark_sold_out_overlay': 'mark_sold_out', 'studio.switch_product': 'switch_product' })[tool] || tool; }
 function actionLabel(proposal) { const tool = proposalKind(proposal); if (tool === 'update_price') return `Price set to ${formatFCFA(proposal.price_fcfa ?? proposal.price)}`; if (tool === 'mark_sold_out') return 'Product marked sold out'; if (tool === 'switch_product') return `Product switched${proposal.product_id ? `: ${proposal.product_id}` : ''}`; return 'No state change proposed'; }
 function applyGovernedAction(receipt) { const proposal = receipt?.proposal || receipt?.result?.proposal || {}, allowed = receipt?.allowed ?? receipt?.result?.allowed ?? receipt?.decision === 'allow', kind = proposalKind(proposal); $('#agentAction').textContent = `${allowed ? 'ALLOWED' : 'NOT APPLIED'} · ${actionLabel(proposal)}`; setVoiceStatus(allowed ? 'Governed action applied' : 'Proposal was not applied', allowed ? 'allow' : 'deny'); if (kind === 'update_price' && proposal.price_fcfa != null) $('#overlayPrice').textContent = formatFCFA(proposal.price_fcfa); if (kind === 'switch_product' && proposal.product_id != null) { const product = queue.find((item) => String(item.id) === String(proposal.product_id)); if (product) { overlayProductId = product.id; queue.forEach((item) => item.overlayOn = item === product); updatePreview(product); renderQueue(); } } }
@@ -61,8 +113,8 @@ async function startRecording() { if (!operatorAuthenticated || recording) retur
 function cleanupCapture() { clearTimeout(recordDeadline); captureNode?.disconnect(); captureNode = null; mediaStream?.getTracks().forEach((track) => track.stop()); mediaStream = null; audioContext?.close().catch(() => {}); audioContext = null; }
 function stopRecording() { if (!recording) return; recording = false; const sourceRate = audioContext?.sampleRate || 16000, frames = capturedFrames; cleanupCapture(); $('#micToggle').classList.remove('recording'); $('#micToggle').setAttribute('aria-pressed', 'false'); $('#micToggle .ctrl-label').textContent = 'Hold to talk'; const pcm = resample(mergeFrames(frames), sourceRate, 16000); capturedFrames = []; if (pcm.length < 1600) return setVoiceStatus('Turn too short; hold to talk again', 'error'); pendingTurn = { id: uuid(), wav: encodeWav(pcm), attempt: 0, completed: false }; $('#agentTranscript').textContent = 'Transcribing securely…'; $('#agentAction').textContent = 'No action is applied until the Harness explicitly allows it.'; sendPendingTurn(); }
 
-async function goLive() { if (isLive || !operatorAuthenticated) return; const response = await fetch('/api/studio/go-live', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'Yaatal Live Commerce' }) }); if (!response.ok) return toast('Unable to arm the Studio cockpit.'); isLive = true; $('#goLiveBtn').disabled = true; $('#stopStreamBtn').disabled = false; $('#previewModeBadge').textContent = 'ARMED'; streamSeconds = 0; timerInterval = setInterval(() => { streamSeconds += 1; $('#streamTimer').textContent = new Date(streamSeconds * 1000).toISOString().slice(11, 19); }, 1000); switchView('studio'); }
-async function stopStream() { if (!isLive) return; await fetch('/api/studio/stop-stream', { method: 'POST', credentials: 'same-origin' }).catch(() => {}); isLive = false; $('#goLiveBtn').disabled = !operatorAuthenticated; $('#stopStreamBtn').disabled = true; $('#previewModeBadge').textContent = 'PREVIEW'; clearInterval(timerInterval); $('#streamTimer').textContent = '00:00:00'; toast('Studio cockpit disarmed.'); }
+async function goLive() { if (isLive || !operatorAuthenticated) return; const response = await fetch('/api/studio/go-live', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'Yaatal Live Commerce' }) }); if (!response.ok) return toast('Unable to arm the Studio cockpit.'); isLive = true; $('#goLiveBtn').disabled = true; $('#stopStreamBtn').disabled = false; $('#previewModeBadge').textContent = 'ARMED'; streamSeconds = 0; timerInterval = setInterval(() => { streamSeconds += 1; $('#streamTimer').textContent = new Date(streamSeconds * 1000).toISOString().slice(11, 19); }, 1000); renderQueue(); switchView('studio'); }
+async function stopStream() { if (!isLive) return; await fetch('/api/studio/stop-stream', { method: 'POST', credentials: 'same-origin' }).catch(() => {}); isLive = false; $('#goLiveBtn').disabled = !operatorAuthenticated; $('#stopStreamBtn').disabled = true; $('#previewModeBadge').textContent = 'PREVIEW'; clearInterval(timerInterval); $('#streamTimer').textContent = '00:00:00'; renderQueue(); toast('Studio cockpit disarmed.'); }
 async function checkEngineHealth() { try { const response = await fetch('/api/status', { signal: AbortSignal.timeout(3000) }); const status = await response.json(); $('#enginePill').classList.toggle('ok', response.ok && status.engine?.reachable); $('#enginePill').classList.toggle('err', !response.ok || !status.engine?.reachable); } catch { $('#enginePill').classList.add('err'); } }
 
 function renderReadinessStep(step) { if (!step?.name) return; const root = $('#readinessSteps'); let item = document.getElementById(`readiness-${step.name}`); if (!item) { item = document.createElement('div'); item.id = `readiness-${step.name}`; root.appendChild(item); } item.className = `readiness-step ${step.status || 'pending'}`; item.textContent = `${step.name.replace(/_/g, ' ')} · ${step.status || 'pending'}${step.detail ? ` — ${step.detail}` : ''}`; }
@@ -71,6 +123,6 @@ async function runReadiness() { const button = $('#runReadiness'); button.disabl
 
 function wireEvents() { $('#langToggle').addEventListener('click', () => { lang = lang === 'en' ? 'fr' : 'en'; applyI18n(); }); $('#themeToggle').addEventListener('click', () => { const light = document.body.dataset.theme !== 'light'; document.body.dataset.theme = light ? 'light' : 'dark'; $('#themeToggle').textContent = light ? '☀️' : '🌙'; }); $$('.nav-item').forEach((button) => button.addEventListener('click', () => switchView(button.dataset.view))); $('#goLiveBtn').addEventListener('click', goLive); $('#stopStreamBtn').addEventListener('click', stopStream); $('#refreshProducts').addEventListener('click', async () => { await fetchProducts(); renderGallery('#productGallery'); }); $('#addQueueProduct').addEventListener('click', () => switchView('catalog')); $$('.scene-item').forEach((scene) => scene.addEventListener('click', () => switchScene(scene.dataset.scene))); $('#camToggle').addEventListener('click', (event) => event.currentTarget.classList.toggle('off')); $('#shareToggle').addEventListener('click', (event) => event.currentTarget.classList.toggle('off'));
   const mic = $('#micToggle'); mic.addEventListener('pointerdown', (event) => { event.preventDefault(); mic.setPointerCapture?.(event.pointerId); startRecording(); }); mic.addEventListener('pointerup', stopRecording); mic.addEventListener('pointercancel', stopRecording); mic.addEventListener('lostpointercapture', stopRecording); mic.addEventListener('keydown', (event) => { if ((event.code === 'Space' || event.code === 'Enter') && !event.repeat) { event.preventDefault(); startRecording(); } }); mic.addEventListener('keyup', (event) => { if (event.code === 'Space' || event.code === 'Enter') { event.preventDefault(); stopRecording(); } });
-  $('#operatorUnlockBtn').addEventListener('click', () => { $('#operatorError').textContent = ''; $('#operatorToken').value = ''; $('#operatorDialog').showModal(); $('#operatorToken').focus(); }); $('#operatorCancel').addEventListener('click', () => $('#operatorDialog').close()); $('#operatorForm').addEventListener('submit', async (event) => { event.preventDefault(); const input = $('#operatorToken'), error = $('#operatorError'), submit = $('#operatorSubmit'); submit.disabled = true; error.textContent = ''; try { await unlockOperator(input.value); input.value = ''; $('#operatorDialog').close(); toast('Governed controls unlocked.'); } catch (failure) { error.textContent = failure.message; } finally { submit.disabled = false; } }); $('#operatorLogoutBtn').addEventListener('click', lockOperator); $('#runReadiness').addEventListener('click', runReadiness); window.addEventListener('blur', stopRecording); }
+  $('#operatorUnlockBtn').addEventListener('click', () => { $('#operatorError').textContent = ''; $('#operatorToken').value = ''; $('#operatorDialog').showModal(); $('#operatorToken').focus(); }); $('#operatorCancel').addEventListener('click', () => $('#operatorDialog').close()); $('#operatorForm').addEventListener('submit', async (event) => { event.preventDefault(); const input = $('#operatorToken'), error = $('#operatorError'), submit = $('#operatorSubmit'); submit.disabled = true; error.textContent = ''; try { await unlockOperator(input.value); input.value = ''; $('#operatorDialog').close(); renderQueue(); toast('Governed controls unlocked.'); } catch (failure) { error.textContent = failure.message; } finally { submit.disabled = false; } }); $('#operatorLogoutBtn').addEventListener('click', lockOperator); $('#runReadiness').addEventListener('click', runReadiness); $('#commerceCopy').addEventListener('click', () => currentCommerceIntent && copyCommerceLink(currentCommerceIntent.public_url)); $('#commerceLivestream').addEventListener('click', () => currentCommerceIntent && copyCommerceLink(currentCommerceIntent.livestream_url, 'Livestream checkout link copied.')); window.addEventListener('blur', stopRecording); }
 async function init() { applyI18n(); wireEvents(); renderQueue(); connectPublicSocket(); await refreshOperatorSession(); await fetchProducts(); renderGallery('#productGallery'); checkEngineHealth(); }
 document.addEventListener('DOMContentLoaded', init);

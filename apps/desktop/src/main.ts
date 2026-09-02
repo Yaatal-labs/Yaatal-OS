@@ -46,6 +46,22 @@ function createStatusCard(status: SidecarStatus): HTMLElement {
   return card;
 }
 
+function createCockpit(status: SidecarStatus): HTMLElement {
+  const region = document.createElement("section");
+  region.className = "cockpit-region";
+  if (status.state !== "ready") {
+    region.innerHTML = "<p>Start Studio to load the governed seller cockpit in this window.</p>";
+    return region;
+  }
+  const frame = document.createElement("iframe");
+  frame.title = "Yaatal Studio seller cockpit";
+  frame.src = `http://127.0.0.1:${status.port}/`;
+  frame.allow = "microphone";
+  frame.referrerPolicy = "no-referrer";
+  region.replaceChildren(frame);
+  return region;
+}
+
 function button(label: string, action: () => Promise<void>): HTMLButtonElement {
   const element = document.createElement("button");
   element.type = "button";
@@ -68,16 +84,20 @@ async function renderSell(app: HTMLElement): Promise<void> {
       <div class="status-slot"></div>
       <div class="actions"></div>
       <p class="message" data-shell-message aria-live="polite"></p>
+      <div class="cockpit-slot"></div>
     </div>
   `;
   const slot = app.querySelector<HTMLElement>(".status-slot");
   const actions = app.querySelector<HTMLElement>(".actions");
-  if (!slot || !actions) return;
+  const cockpit = app.querySelector<HTMLElement>(".cockpit-slot");
+  if (!slot || !actions || !cockpit) return;
   const refresh = async () => {
     status = await sidecarStatus();
     slot.replaceChildren(createStatusCard(status));
+    cockpit.replaceChildren(createCockpit(status));
   };
   slot.replaceChildren(createStatusCard(status));
+  cockpit.replaceChildren(createCockpit(status));
   actions.append(
     button("Check status", refresh),
     button("Start Studio", async () => {

@@ -30,6 +30,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 try:
+    from live.commerce_poc import CommercePocError, CommercePocStore
     from live.engine_client import EngineClient, get_engine_client
     from live.governed_turn import GovernedTurnError, GovernedTurnRuntime
     from live.harness_client import (
@@ -45,6 +46,7 @@ try:
 except ModuleNotFoundError as exc:
     if exc.name != "live":
         raise
+    from commerce_poc import CommercePocError, CommercePocStore
     from engine_client import EngineClient, get_engine_client
     from governed_turn import GovernedTurnError, GovernedTurnRuntime
     from harness_client import (
@@ -78,6 +80,11 @@ STUDIO_GIT_SHA = os.getenv("STUDIO_GIT_SHA", "unknown")
 STUDIO_COOKIE_SECURE = os.getenv("STUDIO_COOKIE_SECURE", "1") == "1"
 STUDIO_CONTROL_TOKEN = os.getenv("STUDIO_CONTROL_TOKEN", "")
 STUDIO_DEMO_MODE = os.getenv("STUDIO_DEMO_MODE", "0") == "1"
+YAATAL_COMMERCE_POC = os.getenv("YAATAL_COMMERCE_POC", "0") == "1"
+YAATAL_COMMERCE_PUBLIC_BASE_URL = os.getenv(
+    "YAATAL_COMMERCE_PUBLIC_BASE_URL",
+    f"http://{STUDIO_HOST}:{STUDIO_PORT}",
+)
 try:
     STUDIO_VOICE_TRANSCRIPT_CONFIDENCE = float(
         os.getenv("STUDIO_VOICE_TRANSCRIPT_CONFIDENCE", "0.85")
@@ -116,6 +123,7 @@ except TurnLedgerError as exc:
     logger.error("Studio governed actions disabled: %s", TURN_LEDGER_ERROR)
 
 _governed_runtime: GovernedTurnRuntime | None = None
+COMMERCE_POC_STORE = CommercePocStore(YAATAL_COMMERCE_PUBLIC_BASE_URL)
 
 # ─── Live session state ─────────────────────────────────────────
 @dataclass
@@ -176,6 +184,19 @@ async def get_governed_runtime() -> GovernedTurnRuntime:
             model_backend=HARNESS_MODEL_BACKEND,
         )
     return _governed_runtime
+
+
+def require_commerce_poc() -> None:
+    """Fail closed unless the disposable CommerceIntent adapter is explicit."""
+    if not YAATAL_COMMERCE_POC:
+        raise HTTPException(status_code=503, detail="commerce_poc_disabled")
+
+
+def commerce_error(exc: CommercePocError) -> JSONResponse:
+    return JSONResponse(
+        {"error": exc.code, "message": exc.message},
+        status_code=exc.status_code,
+    )
 
 # ─── Intent Detection ───────────────────────────────────────────
 
@@ -585,6 +606,11 @@ async def status():
             "operator_auth_configured": OPERATOR_SESSIONS.configured,
             "turn_ledger_available": TURN_LEDGER is not None,
             "demo_mode": STUDIO_DEMO_MODE,
+            "commerce_poc": {
+                "enabled": YAATAL_COMMERCE_POC,
+                "contract": "yaatal.commerce-intent.v1",
+                "authority": "ephemeral_demo_only",
+            },
             "voice_gateway": {
                 "contract": "studio-voice.v1",
                 "auth_configured": bool(
@@ -633,6 +659,118 @@ async def os_events():
     """Return redacted governed-turn metadata for the local OS event poller."""
     receipts = TURN_LEDGER.recent(50) if TURN_LEDGER is not None else []
     return build_os_events(receipts)
+
+
+@app.post(
+    "/api/studio/poc/commerce-intents",
+    dependencies=[Depends(require_operator)],
+)
+async def create_commerce_intent(request: Request):
+    """Mint a portable product link for the current Studio session.
+
+    This endpoint is deliberately limited to the feature-gated POC adapter.
+    Engine will own the production mutation and will resolve ``product_id``
+    from its catalog instead of accepting a browser product snapshot.
+    """
+    require_commerce_poc()
+    if not _session_state.is_live or not _session_state.session_id:
+        return JSONResponse(
+            {"error": "live_session_required", "message": "start the Studio session first"},
+            status_code=409,
+        )
+    try:
+        body = await request.json()
+        product = body.get("product") if isinstance(body, dict) else None
+        if not isinstance(product, dict):
+            raise CommercePocError("invalid_request", "product is required")
+        result = COMMERCE_POC_STORE.create(
+            product,
+            _session_state.session_id,
+            _session_state.seller_name or "Yaatal seller",
+        )
+    except CommercePocError as exc:
+        return commerce_error(exc)
+    await broadcast(
+        {
+            "type": "commerce_intent_created",
+            "intent_id": result["intent_id"],
+            "product_id": result["product"]["id"],
+            "live_session_id": result["live_session_id"],
+        }
+    )
+    return result
+
+
+@app.get(
+    "/api/studio/poc/conversions",
+    dependencies=[Depends(require_operator)],
+)
+async def commerce_conversions(live_session_id: str | None = None):
+    """Return POC receipts without buyer PII or model/speech content."""
+    require_commerce_poc()
+    session_id = live_session_id or _session_state.session_id
+    values = COMMERCE_POC_STORE.conversions(session_id)
+    return {
+        "version": "yaatal.commerce-receipt.v1",
+        "live_session_id": session_id,
+        "count": len(values),
+        "conversions": values,
+    }
+
+
+@app.get("/b/{token}", response_class=HTMLResponse)
+async def commerce_sheet(token: str, src: str = "unknown"):
+    """Public mobile Commerce Sheet used by every social share path."""
+    require_commerce_poc()
+    try:
+        content = COMMERCE_POC_STORE.render_sheet(token, src)
+    except CommercePocError as exc:
+        return commerce_error(exc)
+    return HTMLResponse(
+        content,
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Security-Policy": (
+                "default-src 'none'; img-src https: http: data:; "
+                "style-src 'unsafe-inline'; script-src 'unsafe-inline'; "
+                "connect-src 'self'; form-action 'self'; base-uri 'none'; "
+                "frame-ancestors 'self'"
+            ),
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@app.post("/b/{token}/checkout")
+async def commerce_sheet_checkout(token: str, request: Request):
+    """Complete a labelled sandbox payment and retain channel attribution."""
+    require_commerce_poc()
+    try:
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise CommercePocError("invalid_request", "JSON body is required")
+        receipt = COMMERCE_POC_STORE.checkout(token, body)
+    except CommercePocError as exc:
+        return commerce_error(exc)
+    except json.JSONDecodeError:
+        return JSONResponse(
+            {"error": "invalid_request", "message": "JSON body is required"},
+            status_code=400,
+        )
+    if not receipt["deduplicated"]:
+        await broadcast(
+            {
+                "type": "commerce_conversion",
+                "order_id": receipt["order_id"],
+                "product_id": receipt["product_id"],
+                "live_session_id": receipt["live_session_id"],
+                "source_channel": receipt["source_channel"],
+                "total_fcfa": receipt["total_fcfa"],
+                "payment_status": receipt["payment_status"],
+            }
+        )
+    return receipt
 
 
 @app.post("/api/intent", dependencies=[Depends(require_operator)])
