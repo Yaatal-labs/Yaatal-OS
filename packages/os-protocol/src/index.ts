@@ -26,7 +26,15 @@ export interface ProductNavigationRequest {
   version: typeof OS_PROTOCOL_VERSION;
   kind: "product-navigation";
   productId: string;
+  /**
+   * Originator of the navigation. Only "studio" is valid today: the operator
+   * (or a governed agent action) put a product on air in the Studio cockpit.
+   * The Shop window never originates product navigation.
+   */
+  source: ProductNavigationSource;
 }
+
+export type ProductNavigationSource = "studio";
 
 export interface ShopRefreshRequest {
   version: typeof OS_PROTOCOL_VERSION;
@@ -52,6 +60,10 @@ export function sanitizeProductNavigation(value: unknown): ProductNavigationRequ
     return null;
   }
 
+  if (value.source !== "studio") {
+    return null;
+  }
+
   const productId = typeof value.productId === "string" ? value.productId.trim() : "";
   if (!productIdPattern.test(productId)) {
     return null;
@@ -61,6 +73,7 @@ export function sanitizeProductNavigation(value: unknown): ProductNavigationRequ
     version: OS_PROTOCOL_VERSION,
     kind: "product-navigation",
     productId,
+    source: "studio",
   };
 }
 

@@ -12,7 +12,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, State, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
 const PROTOCOL_VERSION: &str = "yaatal-os.v1";
 const STUDIO_WINDOW: &str = "sell";
@@ -35,7 +35,8 @@ fn authorize_window(label: &str, action: WindowAction) -> Result<(), String> {
         WindowAction::SidecarStart | WindowAction::SidecarStop | WindowAction::SidecarStatus => {
             label == STUDIO_WINDOW
         }
-        WindowAction::ShopNavigation | WindowAction::ShopRefresh => label == SHOP_WINDOW,
+        WindowAction::ShopNavigation => label == STUDIO_WINDOW,
+        WindowAction::ShopRefresh => label == SHOP_WINDOW,
     };
     if allowed {
         Ok(())
@@ -77,6 +78,7 @@ struct SanitizedSidecarStatus {
 #[serde(rename_all = "camelCase")]
 struct ProductNavigationRequest {
     product_id: String,
+    source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -85,6 +87,7 @@ struct ProductNavigationEvent {
     version: &'static str,
     kind: &'static str,
     product_id: String,
+    source: &'static str,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -326,6 +329,14 @@ fn emit_status(app: &AppHandle, status: &SanitizedSidecarStatus) {
     let _ = app.emit_to(STUDIO_WINDOW, "yaatal://sidecar-status", status);
 }
 
+/// Bring the Shop window to the foreground when a product navigation event is
+/// delivered so the buyer surface actually shows the selected product.
+fn focus_shop_window(app: &AppHandle) {
+    if let Some(shop) = app.get_webview_window(SHOP_WINDOW) {
+        let _: Result<(), tauri::Error> = shop.set_focus();
+    }
+}
+
 #[tauri::command]
 fn sidecar_status(
     window: WebviewWindow,
@@ -368,13 +379,19 @@ fn request_product_navigation(
     authorize_window(window.label(), WindowAction::ShopNavigation)?;
     let product_id = sanitize_product_id(&request.product_id)
         .ok_or_else(|| "invalid product identifier".to_string())?;
+    if request.source.as_deref() != Some("studio") {
+        return Err("invalid product navigation source".to_string());
+    }
     let event = ProductNavigationEvent {
         version: PROTOCOL_VERSION,
         kind: "product-navigation",
         product_id,
+        source: "studio",
     };
-    app.emit_to(STUDIO_WINDOW, "yaatal://product-navigation", event)
-        .map_err(|_| "could not deliver navigation request".to_string())
+    app.emit_to(SHOP_WINDOW, "yaatal://product-navigation", event)
+        .map_err(|_| "could not deliver navigation request".to_string())?;
+    focus_shop_window(&app);
+    Ok(())
 }
 
 #[tauri::command]
@@ -437,10 +454,13 @@ mod tests {
     fn authority_is_deny_by_default_and_window_bound() {
         assert!(authorize_window("sell", WindowAction::SidecarStart).is_ok());
         assert!(authorize_window("sell", WindowAction::SidecarStatus).is_ok());
-        assert!(authorize_window("shop", WindowAction::ShopNavigation).is_ok());
+        // Product navigation originates in the Studio cockpit (Sell window)
+        // and is delivered to the Shop window only.
+        assert!(authorize_window("sell", WindowAction::ShopNavigation).is_ok());
         assert!(authorize_window("shop", WindowAction::ShopRefresh).is_ok());
         assert!(authorize_window("shop", WindowAction::SidecarStart).is_err());
-        assert!(authorize_window("sell", WindowAction::ShopNavigation).is_err());
+        // The Shop window is a receiver, never a navigation originator.
+        assert!(authorize_window("shop", WindowAction::ShopNavigation).is_err());
         assert!(authorize_window("unknown", WindowAction::SidecarStatus).is_err());
     }
 
