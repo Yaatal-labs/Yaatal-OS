@@ -15,7 +15,17 @@ let socket = null;
 
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
-const safeImage = (value) => { try { const url = new URL(String(value || ''), location.origin); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
+const safeImage = (value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw, location.origin);
+    return ['http:', 'https:'].includes(url.protocol) && url.pathname !== '/' ? url.href : '';
+  } catch { return ''; }
+};
+// CSS url() inside a double-quoted HTML attribute: JSON.stringify's double
+// quotes terminate the attribute. Use single quotes around the URL instead.
+const cssUrl = (image) => image ? `url('${image.replace(/'/g, '%27')}')` : '';
 const price = (product) => product?.price_display || `${Number(product?.price_fcfa ?? product?.price_cents ?? 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ')} FCFA`;
 
 function applyTheme(next) {
@@ -48,7 +58,7 @@ function postProduct(product) {
 function selectProduct(product, announce = true) {
   selected = product;
   const image = safeImage(product?.images?.[0] || product?.image_url || product?.thumbnail);
-  $('#preview').style.backgroundImage = image ? `url(${JSON.stringify(image)})` : '';
+  $('#preview').style.backgroundImage = cssUrl(image);
   $('#previewName').textContent = product?.name || 'Choose a product below';
   $('#previewPrice').textContent = product ? price(product) : '— FCFA';
   $('#previewCategory').textContent = product?.category || 'Product preview';
@@ -64,7 +74,7 @@ function renderProducts() {
   root.innerHTML = products.slice(0, 3).map((product) => {
     const image = safeImage(product.images?.[0] || product.image_url || product.thumbnail);
     return `<button class="product" type="button" data-id="${escapeHtml(product.id)}">
-      <span class="product-image" style="background-image:url(${JSON.stringify(image)})"></span>
+      <span class="product-image" style="background-image:${cssUrl(image)}"></span>
       <span class="product-copy"><em>${product.stock_status === 'low_stock' ? 'Low stock' : 'Available'}</em><strong>${escapeHtml(product.name)}</strong><span>${escapeHtml(price(product))}</span></span>
     </button>`;
   }).join('');
@@ -99,8 +109,10 @@ function renderCatalogGrid() {
   root.innerHTML = products.map((product) => {
     const image = safeImage(product.images?.[0] || product.image_url || product.thumbnail);
     const stock = product.stock_status === 'low_stock' ? '<em class="low">Low stock</em>' : '<em>Available</em>';
-    return `<button class="catalog-card" type="button" data-id="${escapeHtml(product.id)}">
-      <span class="catalog-image" style="background-image:url(${JSON.stringify(image)})"></span>
+    // UXR-05: fallback demo visuals are labeled, never passed off as real photos.
+    const demoBadge = product.demo_visual ? '<em class="demo-badge">Demo visual</em>' : '';
+    return `<button class="catalog-card" type="button" data-id="${escapeHtml(product.id)}" title="${escapeHtml(product.image_alt || product.name)}">
+      <span class="catalog-image${product.demo_visual ? ' is-demo' : ''}" style="background-image:${cssUrl(image)}">${demoBadge}</span>
       <span class="catalog-copy">${stock}<strong>${escapeHtml(product.name)}</strong>
         <span>${escapeHtml(product.category || '')}</span><span class="catalog-price">${escapeHtml(price(product))}</span></span>
     </button>`;
@@ -115,12 +127,12 @@ function renderCatalogGrid() {
 }
 
 const MEDIA_LIBRARY = [
-  { src: '/dashboard/img/bazin_robe.png', title: 'Robe Bazin — editorial', tag: 'Fashion' },
-  { src: '/dashboard/img/leather_bag.png', title: 'Sac en cuir — atelier', tag: 'Leather' },
-  { src: '/dashboard/img/gold_earrings.png', title: 'Sablé gold — macro', tag: 'Jewelry' },
-  { src: '/dashboard/img/bissap.png', title: 'Bissap — bouteille', tag: 'Drinks' },
-  { src: '/dashboard/img/thiote_mat.png', title: 'Tapis thiote — texture', tag: 'Decor' },
-  { src: '/dashboard/img/smartphone.png', title: 'Smartphone — studio', tag: 'Tech' },
+  { src: '/dashboard/img/bazin_robe.webp', title: 'Robe Bazin — editorial', tag: 'Fashion' },
+  { src: '/dashboard/img/leather_bag.webp', title: 'Sac en cuir — atelier', tag: 'Leather' },
+  { src: '/dashboard/img/gold_earrings.webp', title: 'Sablé gold — macro', tag: 'Jewelry' },
+  { src: '/dashboard/img/bissap.webp', title: 'Bissap — bouteille', tag: 'Drinks' },
+  { src: '/dashboard/img/thiote_mat.webp', title: 'Tapis thiote — texture', tag: 'Decor' },
+  { src: '/dashboard/img/smartphone.webp', title: 'Smartphone — studio', tag: 'Tech' },
 ];
 
 function renderMediaGrid() {
