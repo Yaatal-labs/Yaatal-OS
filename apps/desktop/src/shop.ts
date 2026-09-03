@@ -62,6 +62,43 @@ function focusProduct(productId: string): boolean {
   }
 }
 
+/**
+ * Constrain the embedded Shop surface.
+ *
+ * React Native Web lays inputs and buttons out full-width, which is right on a phone
+ * and wrong in a 1900px desktop pane: the login form rendered as a single email field
+ * more than a thousand pixels wide with a primary button to match. Reading order
+ * collapses at that measure and the surface stops looking like part of the shell.
+ *
+ * This is a shell-side mitigation, not the real fix. The real fix is BOBO honouring
+ * `embedded=1` itself, as Studio does. Kept deliberately narrow - measure and centring
+ * only - so it cannot fight BOBO's own visual decisions.
+ */
+function applyShopChrome(target: HTMLIFrameElement | null): void {
+  const doc = target?.contentDocument;
+  if (!doc) return;
+  doc.documentElement.dataset.yaatalEmbedded = "true";
+  let style = doc.querySelector<HTMLStyleElement>("#yaatal-os-embed");
+  if (!style) {
+    style = doc.createElement("style");
+    style.id = "yaatal-os-embed";
+    doc.head.append(style);
+  }
+  style.textContent = `
+    /* A readable measure, centred, instead of the full pane width. */
+    input, textarea, select { max-width: 420px; }
+    input[type="email"], input[type="password"], input[type="text"] {
+      width: 100% !important;
+      max-width: 420px;
+      margin-inline: auto;
+    }
+    /* Any full-bleed primary action shrinks to the same measure. */
+    [role="button"], button { max-width: 420px; margin-inline: auto; }
+    /* Centre the column the form sits in without assuming BOBO's class names. */
+    #root > div { align-items: center; }
+  `;
+}
+
 function applyShopTheme(target: HTMLIFrameElement | null, theme: Theme): void {
   const document = target?.contentDocument;
   if (!document) return;
@@ -106,13 +143,20 @@ export async function renderShop(app: HTMLElement, options: ShopRenderOptions): 
 
   frame = document.createElement("iframe");
   frame.title = "BOBO Shop buyer surface";
-  frame.src = SHOP_BUNDLE_URL;
+  // Studio is handed `?embedded=1&theme=` and honours it by hiding its own topbar
+  // and sidebar. Shop was handed nothing, so BOBO rendered as a standalone app
+  // inside the shell: its own branding, its own account surface, and a login form
+  // stretched to the full width of the window. The flag is passed now so BOBO can
+  // honour it once implemented; until then applyShopChrome below constrains the
+  // layout from this side.
+  frame.src = `${SHOP_BUNDLE_URL}?embedded=1&theme=${options.theme}`;
   frame.referrerPolicy = "no-referrer";
   main.replaceChildren(frame);
 
   const onFrameLoad = () => {
     if (disposed) return;
     applyShopTheme(frame, options.theme);
+    applyShopChrome(frame);
     if (options.initialProductId) focusProduct(options.initialProductId);
   };
   frame.addEventListener("load", onFrameLoad);
