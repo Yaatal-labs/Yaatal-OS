@@ -14,6 +14,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 
+mod session;
+
 const PROTOCOL_VERSION: &str = "yaatal-os.v1";
 const MAIN_WINDOW: &str = "main";
 
@@ -24,6 +26,7 @@ enum PaneAction {
     SidecarStatus,
     ShopNavigation,
     ShopRefresh,
+    SessionManagement,
 }
 
 /// Authority stays deny-by-default. The unified app has a single webview, so
@@ -365,8 +368,8 @@ fn probe_health(host: IpAddr, port: u16, timeout: Duration) -> bool {
 
 struct AppState {
     supervisor: Mutex<SidecarSupervisor>,
+    session: Mutex<session::SessionState>,
 }
-
 fn with_supervisor<T>(
     state: &State<'_, AppState>,
     operation: impl FnOnce(&mut SidecarSupervisor) -> T,
@@ -446,6 +449,55 @@ fn request_shop_refresh(app: AppHandle, scope: String) -> Result<(), String> {
         .map_err(|_| "could not deliver shop refresh request".to_string())
 }
 
+// ── UXR-04: OS session broker ─────────────────────────────────────────
+
+#[tauri::command]
+fn os_login(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    email: String,
+    password: String,
+) -> Result<session::SanitizedSession, String> {
+    authorize_action(PaneAction::SessionManagement)?;
+    if email.trim().is_empty() || password.is_empty() || email.len() > 254 {
+        return Err("invalid credentials shape".to_string());
+    }
+    let engine_url =
+        env::var("ENGINE_API_URL").unwrap_or_else(|_| "https://engine.njooba.com".to_string());
+    let body = session::engine_login(&app, &engine_url, email.trim(), &password)?;
+    let mut session_state = state
+        .session
+        .lock()
+        .map_err(|_| "session state is unavailable".to_string())?;
+    let sanitized = session::apply_login(&mut session_state, &body)?;
+    let _ = session::emit_session(&app, &session_state);
+    Ok(sanitized)
+}
+
+#[tauri::command]
+fn os_logout(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<session::SanitizedSession, String> {
+    authorize_action(PaneAction::SessionManagement)?;
+    let mut session_state = state
+        .session
+        .lock()
+        .map_err(|_| "session state is unavailable".to_string())?;
+    *session_state = session::SessionState::logged_out();
+    let _ = session::emit_session(&app, &session_state);
+    Ok(session_state.sanitized())
+}
+
+#[tauri::command]
+fn os_session_status(state: State<'_, AppState>) -> Result<session::SanitizedSession, String> {
+    let session_state = state
+        .session
+        .lock()
+        .map_err(|_| "session state is unavailable".to_string())?;
+    Ok(session_state.sanitized())
+}
+
 fn sanitize_product_id(value: &str) -> Option<String> {
     let value = value.trim();
     if value.is_empty()
@@ -469,8 +521,10 @@ fn main() {
         Err(error) => panic!("invalid Yaatal OS configuration: {error}"),
     };
     tauri::Builder::default()
+        .plugin(tauri_plugin_http::init())
         .manage(AppState {
             supervisor: Mutex::new(SidecarSupervisor::new(config)),
+            session: Mutex::new(session::SessionState::logged_out()),
         })
         .invoke_handler(tauri::generate_handler![
             sidecar_status,
@@ -478,6 +532,9 @@ fn main() {
             stop_sidecar,
             request_product_navigation,
             request_shop_refresh,
+            os_login,
+            os_logout,
+            os_session_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Yaatal OS");

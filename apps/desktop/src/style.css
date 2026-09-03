@@ -168,6 +168,23 @@ button:disabled { cursor: default; }
 .os-profile > span:last-child { display: flex; min-width: 0; flex-direction: column; }
 .os-profile strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .os-profile small { color: var(--muted); font-size: 10px; }
+.os-profile[data-session="active"] .os-avatar { background: var(--accent); color: #141613; }
+
+/* ── UXR-04: OS login dialog ─────────────────────────────── */
+#os-login-dialog { width: min(380px, calc(100vw - 48px)); border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 22px; }
+#os-login-dialog::backdrop { background: rgba(8,10,8,.62); }
+#os-login-dialog form { display: grid; gap: 10px; }
+#os-login-dialog h2 { margin: 0; font-family: "Newsreader", Georgia, serif; font-size: 21px; font-weight: 650; }
+#os-login-dialog p { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+#os-login-dialog label { font-size: 11px; font-weight: 700; }
+#os-login-dialog input { width: 100%; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--raised); color: var(--ink); font-size: 13px; }
+#os-login-dialog input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.os-login-error { color: var(--live) !important; min-height: 16px; }
+.os-login-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.os-login-cancel { padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: 8px; background: transparent; color: var(--ink); font-size: 12px; font-weight: 700; }
+.os-login-submit { padding: 8px 18px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: #141613; font-size: 12px; font-weight: 800; }
+.os-login-submit:disabled { opacity: .55; cursor: wait; }
+.os-eyebrow { font-size: 9.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
 .os-avatar { display: grid; place-items: center; width: 32px; height: 32px; color: #fff8e9; background: var(--forest); border-radius: 50%; font-family: Georgia, serif; }
 
 .os-pane { flex: 1; min-height: 0; overflow: hidden; background: var(--canvas); }

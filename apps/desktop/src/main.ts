@@ -1,6 +1,7 @@
 /** Yaatal OS single-window shell. */
 import "./style.css";
 
+import { invoke } from "@tauri-apps/api/core";
 import { renderSell, type PaneController, type Theme } from "./sell";
 import { renderShop } from "./shop";
 
@@ -55,11 +56,27 @@ function shellMarkup(): string {
             <span class="os-connection"><i id="os-sidecar-dot" aria-hidden="true"></i><span id="os-sidecar-label">Local</span></span>
             <span class="os-language">FR · EN</span>
             <button type="button" class="os-theme" id="os-theme" aria-label="Switch color theme">${icon("theme")}</button>
-            <button type="button" class="os-profile" title="Shared Engine login is the next security seam">
-              <span class="os-avatar">A</span><span><strong>Awa Ndiaye</strong><small>Demo workspace</small></span>
+            <button type="button" class="os-profile" id="os-profile" aria-haspopup="dialog" aria-expanded="false">
+              <span class="os-avatar" id="os-avatar">?</span><span><strong id="os-profile-name">Not signed in</strong><small id="os-profile-sub">Sign in with your Engine account</small></span>
             </button>
           </div>
         </header>
+        <dialog id="os-login-dialog">
+          <form method="dialog" id="os-login-form">
+            <span class="os-eyebrow">Yaatal OS</span>
+            <h2>Sign in</h2>
+            <p>One Engine login unlocks SELL and SHOP. Credentials go to the Rust host only — tokens never touch the web layer.</p>
+            <label for="os-login-email">Email</label>
+            <input id="os-login-email" type="email" autocomplete="username" required>
+            <label for="os-login-password">Password</label>
+            <input id="os-login-password" type="password" autocomplete="current-password" required>
+            <p class="os-login-error" id="os-login-error" hidden></p>
+            <div class="os-login-actions">
+              <button type="button" class="os-login-cancel" id="os-login-cancel">Cancel</button>
+              <button type="submit" class="os-login-submit">Sign in</button>
+            </div>
+          </form>
+        </dialog>
         <main id="os-pane" class="os-pane" tabindex="-1"></main>
       </section>
     </div>
@@ -82,6 +99,78 @@ function setSidecarState(state: string): void {
   const label = document.querySelector<HTMLElement>("#os-sidecar-label");
   dot?.setAttribute("data-state", state);
   if (label) label.textContent = state === "ready" ? "Connected" : state === "failed" ? "Attention" : "Local";
+}
+
+// ── UXR-04: OS session state (sanitized — no tokens here, ever) ──
+interface OsSession { authenticated: boolean; merchant_name: string | null; verified: boolean | null; }
+
+function renderSession(session: OsSession): void {
+  const avatar = document.querySelector<HTMLElement>("#os-avatar");
+  const name = document.querySelector<HTMLElement>("#os-profile-name");
+  const sub = document.querySelector<HTMLElement>("#os-profile-sub");
+  const profile = document.querySelector<HTMLButtonElement>("#os-profile");
+  if (!avatar || !name || !sub || !profile) return;
+  if (session.authenticated) {
+    const merchant = session.merchant_name || "Merchant";
+    avatar.textContent = merchant.trim().charAt(0).toUpperCase() || "Y";
+    name.textContent = merchant;
+    sub.textContent = session.verified ? "Engine session active" : "Engine session active · unverified";
+    profile.dataset.session = "active";
+  } else {
+    avatar.textContent = "?";
+    name.textContent = "Not signed in";
+    sub.textContent = "Sign in with your Engine account";
+    profile.dataset.session = "locked";
+  }
+}
+
+async function initSession(): Promise<void> {
+  try {
+    const session = await invoke<OsSession>("os_session_status");
+    renderSession(session);
+  } catch {
+    renderSession({ authenticated: false, merchant_name: null, verified: null });
+  }
+  const dialog = document.querySelector<HTMLDialogElement>("#os-login-dialog");
+  const profile = document.querySelector<HTMLButtonElement>("#os-profile");
+  const form = document.querySelector<HTMLFormElement>("#os-login-form");
+  const error = document.querySelector<HTMLElement>("#os-login-error");
+  const cancel = document.querySelector<HTMLButtonElement>("#os-login-cancel");
+  if (!dialog || !profile || !form) return;
+
+  profile.addEventListener("click", async () => {
+    const session = await invoke<OsSession>("os_session_status").catch(() => null);
+    if (session?.authenticated) {
+      // Signed in: the profile button becomes logout.
+      const confirmed = window.confirm("Sign out of Yaatal OS?");
+      if (!confirmed) return;
+      const next = await invoke<OsSession>("os_logout").catch(() => null);
+      if (next) renderSession(next);
+      return;
+    }
+    error?.setAttribute("hidden", "");
+    dialog.showModal();
+  });
+  cancel?.addEventListener("click", () => dialog.close());
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = document.querySelector<HTMLInputElement>("#os-login-email")?.value ?? "";
+    const password = document.querySelector<HTMLInputElement>("#os-login-password")?.value ?? "";
+    const submit = form.querySelector<HTMLButtonElement>(".os-login-submit");
+    if (submit) submit.disabled = true;
+    try {
+      const session = await invoke<OsSession>("os_login", { email, password });
+      renderSession(session);
+      dialog.close();
+    } catch (failure) {
+      if (error) {
+        error.textContent = String(failure).replace(/^"|"$/g, "");
+        error.removeAttribute("hidden");
+      }
+    } finally {
+      if (submit) submit.disabled = false;
+    }
+  });
 }
 
 function updateNavigation(): void {
@@ -130,6 +219,7 @@ async function bootstrap(): Promise<void> {
   if (!app) return;
   app.innerHTML = shellMarkup();
   applyTheme(theme);
+  void initSession();
 
   app.querySelectorAll<HTMLButtonElement>("[data-pane], [data-destination]").forEach((control) => {
     control.addEventListener("click", () => {

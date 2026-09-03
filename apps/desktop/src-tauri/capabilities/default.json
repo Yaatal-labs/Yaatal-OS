@@ -3,5 +3,8 @@
   "identifier": "default",
   "description": "Deny-by-default shell permissions for the unified first-party window.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "http:default"
+  ]
 }
