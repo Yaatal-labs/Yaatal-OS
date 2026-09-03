@@ -21,3 +21,11 @@ The second flow is executable behind `YAATAL_COMMERCE_POC=1`. Its in-memory adap
 temporary: the production CommerceIntent, inventory transaction, payment, and order remain Engine
 responsibilities. See [the social-commerce POC runbook](docs/SOCIAL-COMMERCE-POC.md).
 
+## Current execution
+
+The native shell and sandbox social checkout are validated, but the real Studio
+and BOBO user surfaces are not yet integrated. Start with the
+[Symphony board](docs/BOARD.md) and the
+[real-surfaces execution handoff](docs/OS-REAL-SURFACES-HANDOFF.md). Do not treat
+a successful shell launch as finished-product acceptance.
+
