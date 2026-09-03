@@ -7,17 +7,39 @@ import { renderShop } from "./shop";
 export type Pane = "sell" | "shop";
 
 const THEME_KEY = "yaatal-os-theme";
+const RAIL_KEY = "yaatal-os-rail";
 let activePane: Pane = "sell";
 let activeController: PaneController | null = null;
 let theme: Theme = readTheme();
 let pendingProductId: string | null = null;
 let renderRevision = 0;
 
-function readTheme(): Theme {
-  return localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
+function readRail(): "expanded" | "collapsed" {
+  return localStorage.getItem(RAIL_KEY) === "collapsed" ? "collapsed" : "expanded";
 }
 
-function icon(name: "home" | "live" | "products" | "orders" | "customers" | "settings" | "theme"): string {
+function applyRail(state: "expanded" | "collapsed"): void {
+  // A deliberate collapse must outrank the viewport breakpoint, so it is carried on
+  // the element as state rather than left to a media query.
+  const app = document.querySelector<HTMLElement>(".os-app");
+  if (app) app.dataset.rail = state;
+  localStorage.setItem(RAIL_KEY, state);
+  const btn = document.querySelector<HTMLButtonElement>("#os-collapse");
+  btn?.setAttribute("aria-expanded", state === "expanded" ? "true" : "false");
+  btn?.setAttribute("aria-label", state === "expanded" ? "Réduire la navigation" : "Développer la navigation");
+}
+
+function readTheme(): Theme {
+  // An explicit choice wins. Otherwise follow the OS: the previous default returned
+  // "light" unconditionally, so a user on a dark desktop got a light app until they
+  // found the toggle, and the stylesheet media query could never take effect because
+  // applyTheme always stamped data-theme on load.
+  const stored = localStorage.getItem(THEME_KEY);
+  if (stored === "dark" || stored === "light") return stored;
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function icon(name: "home" | "live" | "products" | "orders" | "customers" | "settings" | "theme" | "collapse"): string {
   const paths = {
     home: '<path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/>',
     live: '<path d="M8.5 8.5a5 5 0 0 0 0 7M5.5 5.5a9 9 0 0 0 0 13M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><circle cx="12" cy="12" r="2"/>',
@@ -26,6 +48,7 @@ function icon(name: "home" | "live" | "products" | "orders" | "customers" | "set
     customers: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 20c0-4 2-6 6-6s6 2 6 6M15 15c4 0 6 1.7 6 5"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
     theme: '<path d="M20 15.5A8 8 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z"/>',
+    collapse: '<path d="M15 6l-6 6 6 6"/>',
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24">${paths[name]}</svg>`;
 }
@@ -43,6 +66,7 @@ function shellMarkup(): string {
           <button type="button" disabled title="Customer workspace follows the POC">${icon("customers")}<span>Customers</span><small>Soon</small></button>
         </nav>
         <button type="button" class="os-settings" disabled>${icon("settings")}<span>Settings</span></button>
+        <button type="button" class="os-collapse" id="os-collapse" aria-expanded="true">${icon("collapse")}<span>Réduire</span></button>
       </aside>
 
       <section class="os-workspace">
@@ -130,6 +154,7 @@ async function bootstrap(): Promise<void> {
   if (!app) return;
   app.innerHTML = shellMarkup();
   applyTheme(theme);
+  applyRail(readRail());
 
   app.querySelectorAll<HTMLButtonElement>("[data-pane], [data-destination]").forEach((control) => {
     control.addEventListener("click", () => {
@@ -139,6 +164,10 @@ async function bootstrap(): Promise<void> {
   });
   app.querySelector<HTMLButtonElement>("#os-theme")?.addEventListener("click", () => {
     applyTheme(theme === "dark" ? "light" : "dark");
+  });
+  app.querySelector<HTMLButtonElement>("#os-collapse")?.addEventListener("click", () => {
+    const app_ = document.querySelector<HTMLElement>(".os-app");
+    applyRail(app_?.dataset.rail === "collapsed" ? "expanded" : "collapsed");
   });
 
   updateNavigation();
