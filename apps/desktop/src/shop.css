@@ -1,7 +1,2 @@
-/* ── OSR-03: bundled BOBO Shop surface ─────────────────────── */
-.shop-stage { display: flex; flex-direction: column; height: 100vh; min-height: 0; padding: 0; }
-.shop-topbar { align-items: center; background: #16131cee; border-bottom: 1px solid #ffffff24; display: flex; gap: 1rem; justify-content: space-between; padding: 0.55rem 1rem; }
-.shop-topbar .brand { margin: 0; }
-.shop-note { color: #f6f2e9b8; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.shop-main { flex: 1; min-height: 0; }
-.shop-main iframe { border: 0; display: block; height: 100%; width: 100%; }
+/* ── OSR-03: bundled BOBO Shop surface (pane-local extras) ── */
+/* Most Shop styling lives in style.css under the Shop pane banner. */

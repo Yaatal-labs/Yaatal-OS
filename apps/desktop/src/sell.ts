@@ -1,10 +1,10 @@
 /**
- * Sell window surface — merchant control plane (OSR-02).
+ * Sell pane — merchant control plane (OSR-02).
  *
- * Studio starts automatically on mount and fills the window once ready. The
- * operator sees a branded readiness state, a Live/Utility mode switcher, and
- * secondary diagnostics. Studio's on-air product hints are relayed to the
- * host so the Shop window can follow along (OSR-04).
+ * Studio starts automatically when the pane mounts and fills the pane once
+ * ready. The operator sees a branded readiness state, a Live/Utility mode
+ * switcher, and secondary diagnostics. Studio's on-air product hints are
+ * relayed to the host so the Shop pane can follow along (OSR-04).
  */
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -13,8 +13,6 @@ import {
   sanitizeProductNavigation,
   sanitizeSidecarStatus,
 } from "@yaatal/os-protocol";
-
-export type { SidecarStatus };
 
 const POLL_MS = 2000;
 
@@ -27,6 +25,8 @@ export const FALLBACK_STATUS: SidecarStatus = {
 };
 
 export type SellPhase = "boot" | "starting" | "ready" | "stopped" | "failed";
+
+export type { SidecarStatus };
 
 /**
  * Pure readiness decision for the poll loop (unit-tested).
@@ -106,8 +106,8 @@ function renderUtility(): HTMLElement {
   return panel;
 }
 
-function renderMain(status: SidecarStatus): HTMLElement {
-  const main = document.createElement("main");
+function renderMain(status: SidecarStatus, refresh: (s: SidecarStatus) => void): HTMLElement {
+  const main = document.createElement("section");
   main.className = "sell-main";
   if (mode === "live") {
     cockpitFrame = createCockpit(status);
@@ -119,11 +119,10 @@ function renderMain(status: SidecarStatus): HTMLElement {
   return main;
 }
 
-function renderTopbar(status: SidecarStatus, refresh: (s: SidecarStatus) => void): HTMLElement {
-  const bar = document.createElement("header");
-  bar.className = "sell-topbar";
+function renderModeBar(status: SidecarStatus, refresh: (s: SidecarStatus) => void): HTMLElement {
+  const bar = document.createElement("div");
+  bar.className = "sell-modebar";
   bar.innerHTML = `
-    <div class="sell-brand"><span class="brand">YAATAL OS</span><span class="window-name">SELL / Studio</span></div>
     <div class="sell-mode" role="tablist">
       <button type="button" data-mode="live" role="tab">Live</button>
       <button type="button" data-mode="utility" role="tab">Utility</button>
@@ -177,11 +176,11 @@ function renderDiagnostics(status: SidecarStatus, refresh: (s: SidecarStatus) =>
       }),
     );
   }
-  panel.append(card, actions, document.createElement("p") as HTMLParagraphElement);
-  const msg = panel.lastElementChild as HTMLParagraphElement;
+  const msg = document.createElement("p");
   msg.className = "message";
   msg.setAttribute("data-shell-message", "");
   msg.setAttribute("aria-live", "polite");
+  panel.append(card, actions, msg);
   return panel;
 }
 
@@ -196,11 +195,10 @@ function renderReadiness(app: HTMLElement, phase: SellPhase, status: SidecarStat
   const detail = failed
     ? `Sidecar failed${status.errorCode ? ` (${status.errorCode.replace(/_/g, " ")})` : ""}. Retry when ready — nothing is lost.`
     : stopped
-      ? "Start Studio to load the governed seller cockpit in this window."
-      : "The local Studio sidecar is starting. This window becomes the cockpit automatically.";
+      ? "Start Studio to load the governed seller cockpit in this pane."
+      : "The local Studio sidecar is starting. The Sell pane becomes the cockpit automatically.";
   app.innerHTML = `
     <div class="shell sell-shell">
-      <header><p class="brand">YAATAL OS</p><p class="window-name">SELL / Studio</p></header>
       <section class="hero readiness">
         <div class="readiness-card">
           ${failed || stopped ? "" : '<div class="spinner" aria-hidden="true"></div>'}
@@ -241,7 +239,7 @@ export async function renderSell(app: HTMLElement): Promise<void> {
     void invoke("request_product_navigation", {
       request: request satisfies ProductNavigationRequest,
     }).catch(() => {
-      message("Could not hand the product to the Shop window.");
+      message("Could not hand the product to the Shop pane.");
     });
   };
   window.addEventListener("message", relayStudioHints);
@@ -262,7 +260,6 @@ export async function renderSell(app: HTMLElement): Promise<void> {
   const paint = () => {
     if (phase === "ready") {
       cockpitFrame = null;
-      app.replaceChildren();
       const stage = document.createElement("div");
       stage.className = "sell-stage";
       const refresh = (next: SidecarStatus) => {
@@ -272,7 +269,7 @@ export async function renderSell(app: HTMLElement): Promise<void> {
         }
         paint();
       };
-      stage.append(renderTopbar(status, refresh), renderMain(status), renderDiagnostics(status, refresh));
+      stage.append(renderModeBar(status, refresh), renderMain(status, refresh), renderDiagnostics(status, refresh));
       app.replaceChildren(stage);
     } else {
       cockpitFrame = null;

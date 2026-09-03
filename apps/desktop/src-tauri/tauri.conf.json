@@ -12,8 +12,7 @@
   "app": {
     "security": { "capabilities": ["default"] },
     "windows": [
-      { "label": "sell", "title": "Yaatal OS — Sell", "width": 1000, "height": 720, "minWidth": 720, "minHeight": 560 },
-      { "label": "shop", "title": "Yaatal OS — Shop", "width": 900, "height": 680, "minWidth": 640, "minHeight": 520 }
+      { "label": "main", "title": "Yaatal OS", "width": 1280, "height": 800, "minWidth": 900, "minHeight": 600 }
     ]
   },
   "bundle": { "active": true, "targets": "all", "icon": ["icons/icon.ico"] }

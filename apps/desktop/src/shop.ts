@@ -1,10 +1,10 @@
 /**
- * Shop window surface — buyer surface (OSR-03).
+ * Shop pane — buyer surface (OSR-03).
  *
  * Loads the bundled BOBO static web export (apps/desktop/public/shop/) as the
- * primary full-window surface. Receives sanitized product-navigation events
- * from the native host (originating in the Studio cockpit) and focuses the
- * matching BOBO product by driving the same-origin webview's history, which
+ * full-pane surface. Receives sanitized product-navigation events from the
+ * host (originating in the Studio cockpit) and focuses the matching BOBO
+ * product by driving the same-origin webview's history, which
  * react-navigation web follows via its deep-link config
  * (product/:productId → ProductDetail).
  *
@@ -59,10 +59,6 @@ function focusProduct(productId: string): boolean {
 export async function renderShop(app: HTMLElement): Promise<void> {
   app.innerHTML = `
     <div class="shell shop-shell shop-stage">
-      <header class="shop-topbar">
-        <div class="sell-brand"><span class="brand">YAATAL OS</span><span class="window-name">SHOP / BOBO</span></div>
-        <span class="shop-note">Buyer surface — bundled BOBO</span>
-      </header>
       <main class="shop-main"></main>
     </div>
   `;

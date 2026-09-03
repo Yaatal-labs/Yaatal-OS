@@ -5,38 +5,32 @@ button, input { font: inherit; }
 button { cursor: pointer; border: 0; border-radius: 999px; background: #e8bd56; color: #17130a; font-weight: 750; padding: 0.75rem 1rem; }
 button:hover { background: #f6ce6d; }
 a { color: #f5ca60; font-weight: 700; }
-.shell { min-height: 100vh; padding: clamp(1.5rem, 5vw, 4rem); background: radial-gradient(circle at top right, #234735, transparent 45%), #111612; }
-.shop-shell { background: radial-gradient(circle at top right, #3f294f, transparent 45%), #16131c; }
-header { align-items: baseline; display: flex; justify-content: space-between; border-bottom: 1px solid #ffffff24; padding-bottom: 1rem; }
-.brand, .eyebrow { color: #b5c5aa; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.11em; margin: 0; text-transform: uppercase; }
-.window-name { color: #f6f2e9b8; font-size: 0.9rem; margin: 0; }
-.hero { max-width: 44rem; padding: 5rem 0 2rem; }
-h1 { font-family: Georgia, serif; font-size: clamp(2.6rem, 8vw, 5rem); line-height: 0.98; letter-spacing: -0.05em; margin: 0.7rem 0 1rem; }
-.hero > p:last-child, .status-card > p:last-child, .shop-target > p:last-child { color: #d4d8ce; line-height: 1.6; }
-.status-card, .shop-target { background: #f6f2e9; border-radius: 1.1rem; color: #172017; max-width: 38rem; padding: 1.25rem; }
-.status-card .eyebrow, .shop-target .eyebrow { color: #52644f; }
+
+/* ── Unified app shell (single window, SELL | SHOP panes) ──── */
+.os-app { display: flex; flex-direction: column; height: 100vh; }
+.os-topbar { align-items: center; background: #111612f2; border-bottom: 1px solid #ffffff24; display: flex; gap: 1.25rem; justify-content: space-between; padding: 0.5rem 1rem; }
+.os-brand .brand { margin: 0; }
+.os-segments { display: flex; gap: 0.25rem; background: #0c120e; border: 1px solid #ffffff24; border-radius: 999px; padding: 0.2rem; }
+.os-segments button { background: transparent; color: #f6f2e9b8; font-size: 0.86rem; font-weight: 650; padding: 0.32rem 1.1rem; }
+.os-segments button.active { background: #e8bd56; color: #17130a; }
+.os-status { background: #dd6b35; border-radius: 50%; height: 0.6rem; width: 0.6rem; }
+.os-pane { flex: 1; min-height: 0; overflow: auto; }
+
+/* ── Shared shell bits ───────────────────────────────────── */
+.eyebrow { color: #b5c5aa; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.11em; margin: 0; text-transform: uppercase; }
+.brand, .shell .brand { color: #b5c5aa; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; }
+.status-card { background: #f6f2e9; border-radius: 1.1rem; color: #172017; max-width: 38rem; padding: 1.25rem; }
+.status-card .eyebrow { color: #52644f; }
 .status-row { align-items: center; display: flex; font-size: 1.45rem; justify-content: space-between; margin: 0.5rem 0; }
 .signal { background: #dd6b35; border-radius: 50%; height: 0.75rem; width: 0.75rem; }
 .status-ready .signal { background: #3b9954; }
 .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
 .message { color: #f7c6ab; min-height: 1.4rem; }
-.cockpit-slot { margin-top: 1.5rem; }
-.cockpit-region { border: 1px solid #ffffff24; border-radius: 1.1rem; min-height: 9rem; overflow: hidden; background: #080b09; }
-.cockpit-region > p { color: #a9b1a7; margin: 0; padding: 2rem; }
-.cockpit-region iframe { border: 0; display: block; height: min(62vh, 720px); min-height: 520px; width: 100%; }
-.shop-target { margin-top: 1rem; }
-#shop-url { color: #586355; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
-.product-form { display: grid; gap: 0.65rem; margin-top: 1.5rem; max-width: 30rem; }
-.product-form input { border: 1px solid #ffffff45; border-radius: 0.6rem; padding: 0.75rem; }
-.product-form button { justify-self: start; }
-@media (max-width: 560px) { header { align-items: flex-start; flex-direction: column; gap: 0.4rem; } .hero { padding-top: 3.5rem; } }
 
-/* ── OSR-02: real Sell surface ─────────────────────────────── */
-.sell-stage { display: flex; flex-direction: column; height: 100vh; }
-.sell-topbar { align-items: center; background: #111612ee; border-bottom: 1px solid #ffffff24; display: flex; gap: 1rem; justify-content: space-between; padding: 0.55rem 1rem; }
-.sell-topbar .brand { margin: 0; }
-.sell-brand { align-items: baseline; display: flex; gap: 0.6rem; }
-.sell-brand .window-name { color: #f6f2e9b8; font-size: 0.8rem; margin: 0; }
+/* ── Sell pane ───────────────────────────────────────────── */
+.sell-shell { min-height: 100%; padding: clamp(1.5rem, 5vw, 4rem); background: radial-gradient(circle at top right, #234735, transparent 45%), #111612; }
+.sell-stage { display: flex; flex-direction: column; height: 100%; }
+.sell-modebar { align-items: center; display: flex; justify-content: space-between; padding: 0.5rem 0 0.5rem 0; }
 .sell-mode { display: flex; gap: 0.25rem; background: #0c120e; border: 1px solid #ffffff24; border-radius: 999px; padding: 0.2rem; }
 .sell-mode button { background: transparent; color: #f6f2e9b8; font-size: 0.82rem; font-weight: 650; padding: 0.3rem 0.9rem; }
 .sell-mode button.active { background: #e8bd56; color: #17130a; }
@@ -47,12 +41,18 @@ h1 { font-family: Georgia, serif; font-size: clamp(2.6rem, 8vw, 5rem); line-heig
 .sell-utility { background: #0c120e; border-radius: 1.1rem; margin: 1.5rem auto; max-width: 34rem; padding: 2rem; }
 .sell-utility h2 { font-family: Georgia, serif; font-size: 1.6rem; letter-spacing: -0.03em; margin: 0.5rem 0 0.8rem; }
 .sell-utility p:last-child { color: #d4d8ce; line-height: 1.6; }
-.sell-diagnostics { border-top: 1px solid #ffffff24; padding: 0.9rem 1rem 1rem; }
+.sell-diagnostics { border-top: 1px solid #ffffff24; padding: 0.9rem 0 1rem; }
 .sell-diagnostics[hidden] { display: none; }
 .sell-diagnostics .status-card { margin-bottom: 0.6rem; max-width: 38rem; }
+.hero { max-width: 44rem; padding: 3rem 0 2rem; }
 .readiness-card { background: #f6f2e9; border-radius: 1.1rem; color: #172017; max-width: 30rem; padding: 1.6rem; }
 .readiness-card .eyebrow { color: #52644f; }
-.readiness-card h1 { font-size: 1.7rem; margin: 0.4rem 0 0.6rem; }
+.readiness-card h1 { font-family: Georgia, serif; font-size: 1.7rem; margin: 0.4rem 0 0.6rem; }
 .readiness-card p { color: #172017; line-height: 1.5; }
 .spinner { animation: sell-spin 1s linear infinite; border: 0.25rem solid #23473533; border-top-color: #234735; border-radius: 50%; height: 2.2rem; margin: 0 0 1rem; width: 2.2rem; }
 @keyframes sell-spin { to { transform: rotate(360deg); } }
+
+/* ── Shop pane ───────────────────────────────────────────── */
+.shop-stage { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0; background: #16131c; }
+.shop-main { flex: 1; min-height: 0; }
+.shop-main iframe { border: 0; display: block; height: 100%; width: 100%; }
