@@ -282,9 +282,7 @@ fn probe_health(host: IpAddr, port: u16, timeout: Duration) -> bool {
             let _ = stream.set_read_timeout(Some(Duration::from_millis(250)));
             let _ = stream.set_write_timeout(Some(Duration::from_millis(250)));
             if stream
-                .write_all(
-                    b"GET /api/status HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
-                )
+                .write_all(b"GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
                 .is_ok()
             {
                 let mut response = [0; 128];
@@ -398,7 +396,7 @@ fn sanitize_product_id(value: &str) -> Option<String> {
     Some(value.to_string())
 }
 
-const STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
+const STARTUP_TIMEOUT: Duration = Duration::from_secs(15);
 const PROBE_INTERVAL: Duration = Duration::from_millis(200);
 const PRODUCT_ID_MAX: usize = 128;
 
