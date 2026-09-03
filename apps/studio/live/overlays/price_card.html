@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="wo">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yaatal Price Card</title>
+  <style>
+    *{box-sizing:border-box} body{margin:0;background:transparent;font-family:"Segoe UI",Arial,sans-serif;overflow:hidden}
+    .price-card{position:absolute;top:20px;right:20px;background:linear-gradient(135deg,#d4af37,#f4d03f);color:#19140a;padding:14px 28px;border-radius:10px;box-shadow:0 5px 24px rgba(0,0,0,.42);text-align:center;min-width:190px;transform:translateX(0);transition:opacity .18s,transform .18s}
+    .price-card.empty{opacity:0;transform:translateX(30px)}.label{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;opacity:.75}.price{font-size:36px;font-weight:900;line-height:1.16}.currency{font-size:15px;font-weight:800;letter-spacing:.08em}.flash{animation:flash .65s ease-in-out}@keyframes flash{50%{box-shadow:0 0 34px rgba(244,208,63,.95),0 5px 24px rgba(0,0,0,.42)}}
+  </style>
+</head>
+<body>
+  <div class="price-card empty" id="priceCard" aria-live="polite"><div class="label">prix / njëg</div><div class="price" id="priceText"></div><div class="currency">FCFA</div></div>
+  <script>
+    const card=document.getElementById('priceCard'), priceText=document.getElementById('priceText');
+    const format=(price)=>Number(price).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g,' ');
+    function updatePrice(price){if(!Number.isFinite(Number(price)))return;priceText.textContent=format(price);card.classList.remove('empty','flash');void card.offsetWidth;card.classList.add('flash')}
+    function receipt(message){const result=message.result||message, proposal=result.proposal||{},tool=proposal.tool==='studio.update_price_overlay'?'update_price':proposal.tool;const allowed=result.allowed??result.decision==='allow';if(allowed&&tool==='update_price')updatePrice(proposal.price_fcfa??proposal.price)}
+    function connect(){const scheme=location.protocol==='https:'?'wss':'ws',socket=new WebSocket(`${scheme}://${location.host}/ws`);socket.onmessage=(event)=>{try{const message=JSON.parse(event.data);if(message.type==='governed_action')receipt(message)}catch{}};socket.onclose=()=>setTimeout(connect,2000)}
+    const params=new URLSearchParams(location.search);if(params.get('price'))updatePrice(params.get('price'));connect();
+  </script>
+</body>
+</html>
