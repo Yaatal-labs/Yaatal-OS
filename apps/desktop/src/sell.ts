@@ -1,14 +1,22 @@
 /**
- * Sell window surface — merchant control plane.
+ * Sell window surface — merchant control plane (OSR-02).
  *
- * The Sell window reaches full-window Studio automatically once the sidecar is
- * ready. Sidecar controls stay available but visually secondary.
+ * Studio starts automatically on mount and fills the window once ready. The
+ * operator sees a branded readiness state, a Live/Utility mode switcher, and
+ * secondary diagnostics. Studio's on-air product hints are relayed to the
+ * host so the Shop window can follow along (OSR-04).
  */
 import { invoke } from "@tauri-apps/api/core";
 import {
+  type ProductNavigationRequest,
   type SidecarStatus,
+  sanitizeProductNavigation,
   sanitizeSidecarStatus,
 } from "@yaatal/os-protocol";
+
+export type { SidecarStatus };
+
+const POLL_MS = 2000;
 
 export const FALLBACK_STATUS: SidecarStatus = {
   version: "yaatal-os.v1",
@@ -18,44 +26,43 @@ export const FALLBACK_STATUS: SidecarStatus = {
   port: 8484,
 };
 
+export type SellPhase = "boot" | "starting" | "ready" | "stopped" | "failed";
+
+/**
+ * Pure readiness decision for the poll loop (unit-tested).
+ *
+ * Rust already reports `failed` on unexpected sidecar exit, so a `stopped`
+ * status after `ready` means the operator stopped Studio deliberately.
+ */
+export function nextSellPhase(prev: SellPhase, status: SidecarStatus): SellPhase {
+  switch (status.state) {
+    case "ready":
+      return "ready";
+    case "starting":
+      return "starting";
+    case "failed":
+      return "failed";
+    case "stopped":
+      if (prev === "boot") return "starting"; // auto-start pending
+      if (prev === "failed") return "failed"; // retry not yet attempted
+      return "stopped";
+  }
+}
+
 function statusLabel(status: SidecarStatus): string {
   return status.state === "failed" && status.errorCode
-    ? `Needs attention (${status.errorCode.replace("_", " ")})`
+    ? `Needs attention (${status.errorCode.replace(/_/g, " ")})`
     : status.state[0].toUpperCase() + status.state.slice(1);
 }
 
-export async function sidecarStatus(): Promise<SidecarStatus> {
+async function sidecarStatus(): Promise<SidecarStatus> {
   const result = await invoke<unknown>("sidecar_status");
   return sanitizeSidecarStatus(result) ?? FALLBACK_STATUS;
 }
 
-function createStatusCard(status: SidecarStatus): HTMLElement {
-  const card = document.createElement("section");
-  card.className = `status-card status-${status.state}`;
-  card.innerHTML = `
-    <p class="eyebrow">Studio loopback sidecar</p>
-    <div class="status-row"><strong>${statusLabel(status)}</strong><span class="signal" aria-hidden="true"></span></div>
-    <p>Local port ${status.port}. Connection detail stays in the native shell.</p>
-  `;
-  return card;
-}
-
-let frame: HTMLIFrameElement | null = null;
-
-function createCockpit(status: SidecarStatus): HTMLElement {
-  const region = document.createElement("section");
-  region.className = "cockpit-region";
-  if (status.state !== "ready") {
-    region.innerHTML = "<p>Start Studio to load the governed seller cockpit in this window.</p>";
-    return region;
-  }
-  frame = document.createElement("iframe");
-  frame.title = "Yaatal Studio seller cockpit";
-  frame.src = `http://127.0.0.1:${status.port}/`;
-  frame.allow = "microphone";
-  frame.referrerPolicy = "no-referrer";
-  region.replaceChildren(frame);
-  return region;
+function message(text: string): void {
+  const target = document.querySelector<HTMLElement>("[data-shell-message]");
+  if (target) target.textContent = text;
 }
 
 function button(label: string, action: () => Promise<void>): HTMLButtonElement {
@@ -64,45 +71,228 @@ function button(label: string, action: () => Promise<void>): HTMLButtonElement {
   element.textContent = label;
   element.addEventListener("click", () => {
     void action().catch((error: unknown) => {
-      const target = document.querySelector<HTMLElement>("[data-shell-message]");
-      if (target) target.textContent = error instanceof Error ? error.message : "Request unavailable";
+      message(error instanceof Error ? error.message : "Request unavailable");
     });
   });
   return element;
 }
 
-export async function renderSell(app: HTMLElement): Promise<void> {
-  let status = await sidecarStatus();
+type SellMode = "live" | "utility";
+
+let cockpitFrame: HTMLIFrameElement | null = null;
+let mode: SellMode = "live";
+let diagnosticsOpen = false;
+let restarting = false;
+
+function createCockpit(status: SidecarStatus): HTMLIFrameElement {
+  const frame = document.createElement("iframe");
+  frame.title = "Yaatal Studio seller cockpit";
+  frame.src = `http://127.0.0.1:${status.port}/`;
+  frame.allow = "microphone";
+  frame.referrerPolicy = "no-referrer";
+  return frame;
+}
+
+function renderUtility(): HTMLElement {
+  const panel = document.createElement("section");
+  panel.className = "sell-utility";
+  panel.innerHTML = `
+    <p class="eyebrow">Utility — preview</p>
+    <h2>Listings, inventory, store setup, spoken analytics</h2>
+    <p>These workflows are not implemented yet. This pane previews where the
+    merchant utility surface will live; nothing here manages real products today.
+    Use the Live mode cockpit for the working surface.</p>
+  `;
+  return panel;
+}
+
+function renderMain(status: SidecarStatus): HTMLElement {
+  const main = document.createElement("main");
+  main.className = "sell-main";
+  if (mode === "live") {
+    cockpitFrame = createCockpit(status);
+    main.replaceChildren(cockpitFrame);
+  } else {
+    cockpitFrame = null;
+    main.replaceChildren(renderUtility());
+  }
+  return main;
+}
+
+function renderTopbar(status: SidecarStatus, refresh: (s: SidecarStatus) => void): HTMLElement {
+  const bar = document.createElement("header");
+  bar.className = "sell-topbar";
+  bar.innerHTML = `
+    <div class="sell-brand"><span class="brand">YAATAL OS</span><span class="window-name">SELL / Studio</span></div>
+    <div class="sell-mode" role="tablist">
+      <button type="button" data-mode="live" role="tab">Live</button>
+      <button type="button" data-mode="utility" role="tab">Utility</button>
+    </div>
+    <button type="button" class="sell-diag-toggle">Diagnostics</button>
+  `;
+  bar.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.mode === mode);
+    tab.addEventListener("click", () => {
+      mode = tab.dataset.mode === "utility" ? "utility" : "live";
+      refresh(status);
+    });
+  });
+  bar.querySelector<HTMLButtonElement>(".sell-diag-toggle")?.addEventListener("click", () => {
+    diagnosticsOpen = !diagnosticsOpen;
+    refresh(status);
+  });
+  return bar;
+}
+
+function renderDiagnostics(status: SidecarStatus, refresh: (s: SidecarStatus) => void): HTMLElement {
+  const panel = document.createElement("section");
+  panel.className = "sell-diagnostics";
+  panel.hidden = !diagnosticsOpen;
+  const card = document.createElement("div");
+  card.className = `status-card status-${status.state}`;
+  card.innerHTML = `
+    <p class="eyebrow">Studio loopback sidecar</p>
+    <div class="status-row"><strong>${statusLabel(status)}</strong><span class="signal" aria-hidden="true"></span></div>
+    <p>Local port ${status.port}. Connection detail stays in the native shell.</p>
+  `;
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  actions.append(
+    button("Check status", async () => {
+      refresh(await sidecarStatus());
+    }),
+  );
+  if (status.isRunning) {
+    actions.append(
+      button("Stop Studio", async () => {
+        await invoke("stop_sidecar");
+        refresh(await sidecarStatus());
+      }),
+    );
+  } else {
+    actions.append(
+      button("Start Studio", async () => {
+        const next = sanitizeSidecarStatus(await invoke<unknown>("start_sidecar")) ?? FALLBACK_STATUS;
+        refresh(next);
+      }),
+    );
+  }
+  panel.append(card, actions, document.createElement("p") as HTMLParagraphElement);
+  const msg = panel.lastElementChild as HTMLParagraphElement;
+  msg.className = "message";
+  msg.setAttribute("data-shell-message", "");
+  msg.setAttribute("aria-live", "polite");
+  return panel;
+}
+
+function renderReadiness(app: HTMLElement, phase: SellPhase, status: SidecarStatus, retry: () => void): void {
+  const failed = phase === "failed";
+  const stopped = phase === "stopped";
+  const heading = failed
+    ? "Studio needs attention."
+    : stopped
+      ? "Studio is stopped."
+      : "Preparing Studio.";
+  const detail = failed
+    ? `Sidecar failed${status.errorCode ? ` (${status.errorCode.replace(/_/g, " ")})` : ""}. Retry when ready — nothing is lost.`
+    : stopped
+      ? "Start Studio to load the governed seller cockpit in this window."
+      : "The local Studio sidecar is starting. This window becomes the cockpit automatically.";
   app.innerHTML = `
     <div class="shell sell-shell">
       <header><p class="brand">YAATAL OS</p><p class="window-name">SELL / Studio</p></header>
-      <section class="hero"><p class="eyebrow">Merchant control surface</p><h1>Sell with the local cockpit.</h1><p>Studio remains a loopback sidecar. Engine identity and commerce never move into this shell.</p></section>
-      <div class="status-slot"></div>
-      <div class="actions"></div>
-      <p class="message" data-shell-message aria-live="polite"></p>
-      <div class="cockpit-slot"></div>
+      <section class="hero readiness">
+        <div class="readiness-card">
+          ${failed || stopped ? "" : '<div class="spinner" aria-hidden="true"></div>'}
+          <p class="eyebrow">${failed ? "Sidecar failure" : stopped ? "Sidecar stopped" : "Readiness"}</p>
+          <h1>${heading}</h1>
+          <p>${detail}</p>
+          <div class="actions"></div>
+          <p class="message" data-shell-message aria-live="polite"></p>
+        </div>
+      </section>
     </div>
   `;
-  const slot = app.querySelector<HTMLElement>(".status-slot");
   const actions = app.querySelector<HTMLElement>(".actions");
-  const cockpit = app.querySelector<HTMLElement>(".cockpit-slot");
-  if (!slot || !actions || !cockpit) return;
-  const refresh = async () => {
-    status = await sidecarStatus();
-    slot.replaceChildren(createStatusCard(status));
-    cockpit.replaceChildren(createCockpit(status));
+  if (!actions) return;
+  if (failed || stopped) {
+    actions.append(
+      button(failed ? "Retry" : "Start Studio", async () => {
+        retry();
+      }),
+    );
+  }
+}
+
+export async function renderSell(app: HTMLElement): Promise<void> {
+  let status = await sidecarStatus();
+  let phase: SellPhase = "boot";
+
+  // Auto-start once on mount: the operator should never need a Start button.
+  if (status.state === "stopped") {
+    status = sanitizeSidecarStatus(await invoke<unknown>("start_sidecar")) ?? FALLBACK_STATUS;
+  }
+  phase = nextSellPhase(phase, status);
+
+  const relayStudioHints = (event: MessageEvent) => {
+    if (!cockpitFrame?.contentWindow || event.source !== cockpitFrame.contentWindow) return;
+    const request = sanitizeProductNavigation(event.data);
+    if (!request) return;
+    void invoke("request_product_navigation", {
+      request: request satisfies ProductNavigationRequest,
+    }).catch(() => {
+      message("Could not hand the product to the Shop window.");
+    });
   };
-  slot.replaceChildren(createStatusCard(status));
-  cockpit.replaceChildren(createCockpit(status));
-  actions.append(
-    button("Check status", refresh),
-    button("Start Studio", async () => {
-      await invoke("start_sidecar");
-      await refresh();
-    }),
-    button("Stop Studio", async () => {
-      await invoke("stop_sidecar");
-      await refresh();
-    }),
-  );
+  window.addEventListener("message", relayStudioHints);
+
+  const retry = async () => {
+    if (restarting) return;
+    restarting = true;
+    try {
+      if (status.isRunning) await invoke("stop_sidecar");
+      status = sanitizeSidecarStatus(await invoke<unknown>("start_sidecar")) ?? FALLBACK_STATUS;
+      phase = nextSellPhase(phase, status);
+      paint();
+    } finally {
+      restarting = false;
+    }
+  };
+
+  const paint = () => {
+    if (phase === "ready") {
+      cockpitFrame = null;
+      app.replaceChildren();
+      const stage = document.createElement("div");
+      stage.className = "sell-stage";
+      const refresh = (next: SidecarStatus) => {
+        if (!restarting) {
+          phase = nextSellPhase(phase, next);
+          status = next;
+        }
+        paint();
+      };
+      stage.append(renderTopbar(status, refresh), renderMain(status), renderDiagnostics(status, refresh));
+      app.replaceChildren(stage);
+    } else {
+      cockpitFrame = null;
+      renderReadiness(app, phase, status, () => void retry());
+    }
+  };
+
+  paint();
+
+  const poll = async () => {
+    if (restarting) return;
+    const next = await sidecarStatus();
+    const nextPhase = nextSellPhase(phase, next);
+    if (nextPhase !== phase || next.state !== status.state) {
+      phase = nextPhase;
+      status = next;
+      paint();
+    } else {
+      status = next;
+    }
+  };
+  window.setInterval(() => void poll(), POLL_MS);
 }

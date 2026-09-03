@@ -30,3 +30,29 @@ h1 { font-family: Georgia, serif; font-size: clamp(2.6rem, 8vw, 5rem); line-heig
 .product-form input { border: 1px solid #ffffff45; border-radius: 0.6rem; padding: 0.75rem; }
 .product-form button { justify-self: start; }
 @media (max-width: 560px) { header { align-items: flex-start; flex-direction: column; gap: 0.4rem; } .hero { padding-top: 3.5rem; } }
+
+/* ── OSR-02: real Sell surface ─────────────────────────────── */
+.sell-stage { display: flex; flex-direction: column; height: 100vh; }
+.sell-topbar { align-items: center; background: #111612ee; border-bottom: 1px solid #ffffff24; display: flex; gap: 1rem; justify-content: space-between; padding: 0.55rem 1rem; }
+.sell-topbar .brand { margin: 0; }
+.sell-brand { align-items: baseline; display: flex; gap: 0.6rem; }
+.sell-brand .window-name { color: #f6f2e9b8; font-size: 0.8rem; margin: 0; }
+.sell-mode { display: flex; gap: 0.25rem; background: #0c120e; border: 1px solid #ffffff24; border-radius: 999px; padding: 0.2rem; }
+.sell-mode button { background: transparent; color: #f6f2e9b8; font-size: 0.82rem; font-weight: 650; padding: 0.3rem 0.9rem; }
+.sell-mode button.active { background: #e8bd56; color: #17130a; }
+.sell-diag-toggle { background: transparent; border: 1px solid #ffffff45; color: #f6f2e9b8; font-size: 0.78rem; font-weight: 650; padding: 0.3rem 0.85rem; }
+.sell-diag-toggle:hover { background: #ffffff14; }
+.sell-main { flex: 1; min-height: 0; position: relative; }
+.sell-main iframe { border: 0; display: block; height: 100%; width: 100%; }
+.sell-utility { background: #0c120e; border-radius: 1.1rem; margin: 1.5rem auto; max-width: 34rem; padding: 2rem; }
+.sell-utility h2 { font-family: Georgia, serif; font-size: 1.6rem; letter-spacing: -0.03em; margin: 0.5rem 0 0.8rem; }
+.sell-utility p:last-child { color: #d4d8ce; line-height: 1.6; }
+.sell-diagnostics { border-top: 1px solid #ffffff24; padding: 0.9rem 1rem 1rem; }
+.sell-diagnostics[hidden] { display: none; }
+.sell-diagnostics .status-card { margin-bottom: 0.6rem; max-width: 38rem; }
+.readiness-card { background: #f6f2e9; border-radius: 1.1rem; color: #172017; max-width: 30rem; padding: 1.6rem; }
+.readiness-card .eyebrow { color: #52644f; }
+.readiness-card h1 { font-size: 1.7rem; margin: 0.4rem 0 0.6rem; }
+.readiness-card p { color: #172017; line-height: 1.5; }
+.spinner { animation: sell-spin 1s linear infinite; border: 0.25rem solid #23473533; border-top-color: #234735; border-radius: 50%; height: 2.2rem; margin: 0 0 1rem; width: 2.2rem; }
+@keyframes sell-spin { to { transform: rotate(360deg); } }
