@@ -1,5 +1,5 @@
 {
-  "name": "@njooba/shared",
+  "name": "@yaatal/shared",
   "version": "0.1.0",
   "description": "Shared utilities for BOBO",
   "main": "src/index.ts",
@@ -8,6 +8,9 @@
     ".": "./src/index.ts",
     "./utils": "./src/utils/index.ts",
     "./types": "./src/types/index.ts"
+  },
+  "dependencies": {
+    "@yaatal/client": "github:Yaatal-labs/Yaatal-SDK#main"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"

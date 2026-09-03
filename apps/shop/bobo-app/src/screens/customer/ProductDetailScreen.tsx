@@ -17,11 +17,17 @@ import {
 } from 'react-native'
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av'
 import { useAuthStore } from '../../store/authStore'
-import { productsService, getProductImageUrl, getAvatarUrl, getFileUrl } from '@njooba/core'
+import {
+  catalogService,
+  productsService,
+  getProductImageUrl,
+  getAvatarUrl,
+  getFileUrl,
+  type CatalogProductView,
+} from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
 import { formatCFA } from '../../utils/formatters'
 import { calculateLevel } from '../../constants/gamification'
-import type { Product } from '../../types/models'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -30,7 +36,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
   const { profile } = useAuthStore()
   const videoRef = useRef<any>(null)
 
-  const [product, setProduct] = useState<Product | null>(null)
+  const [product, setProduct] = useState<CatalogProductView | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isUpvoted, setIsUpvoted] = useState(false)
   const [upvoteCount, setUpvoteCount] = useState(0)
@@ -44,7 +50,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
     setIsLoading(true)
 
     try {
-      const fetchedProduct = await productsService.getById(productId)
+      const fetchedProduct = await catalogService.getCatalogProduct(productId)
 
       if (!fetchedProduct) {
         Alert.alert('Erreur', 'Produit introuvable')
@@ -52,7 +58,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
         return
       }
 
-      setProduct(fetchedProduct as unknown as Product)
+      setProduct(fetchedProduct)
       setUpvoteCount(fetchedProduct.upvotes || 0)
 
       // Check if user has upvoted (simplified - would use a upvotes junction table in production)
@@ -130,8 +136,15 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
 
   const hasDiscount = product.discount_price && product.discount_price < product.price
   const displayPrice = hasDiscount ? product.discount_price! : product.price
-  const isOutOfStock = product.stock_quantity === 0
-  const imageUrl = getProductImageUrl(product.image_url) || 'https://via.placeholder.com/400'
+  // Prefer the Engine's preformatted catalog display strings, fall back to numeric.
+  const priceText = product.discount_price_display || product.price_display || formatCFA(displayPrice)
+  const originalPriceText = product.price_display || formatCFA(product.price)
+  const isOutOfStock = product.stock_status
+    ? product.stock_status === 'out_of_stock'
+    : product.stock_quantity === 0
+  const imageUrl =
+    getProductImageUrl(product.images[0] || product.image_url) ||
+    'https://via.placeholder.com/400'
   const videoUrl = product.video_url ? getFileUrl('videos', product.video_url) : null
   const seller = product.expand?.seller_id
   const sellerLevel = seller ? calculateLevel(seller.xp) : null
@@ -180,10 +193,10 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
 
           {/* Price */}
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>{formatCFA(displayPrice)}</Text>
+            <Text style={styles.price}>{priceText}</Text>
             {hasDiscount && (
               <View style={styles.discountRow}>
-                <Text style={styles.originalPrice}>{formatCFA(product.price)}</Text>
+                <Text style={styles.originalPrice}>{originalPriceText}</Text>
                 <View style={styles.discountBadge}>
                   <Text style={styles.discountText}>
                     -{Math.round(((product.price - product.discount_price!) / product.price) * 100)}%

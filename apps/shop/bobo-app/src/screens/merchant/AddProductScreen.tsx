@@ -19,7 +19,7 @@ import {
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { useAuthStore } from '../../store/authStore'
-import { productsService } from '@njooba/core'
+import { productsService } from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
 import type { Product, ProductFormData } from '../../types/models'
 

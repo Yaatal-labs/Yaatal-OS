@@ -7,6 +7,13 @@ export {
   mapEngineProductToProduct,
 } from './products.service.engine'
 export {
+  CatalogServiceEngine as CatalogService,
+  catalogServiceEngine as catalogService,
+  catalogServiceEngine,
+  mapCatalogProductToProduct,
+  type CatalogProductView,
+} from './catalog.service.engine'
+export {
   OrdersServiceEngine as OrdersService,
   ordersServiceEngine as ordersService,
   ordersServiceEngine,
@@ -27,27 +34,21 @@ export {
   notificationsServiceEngine,
   type NotificationListParams,
 } from './notifications.service.engine'
-export * from './engine.client'
-
-// Non-commerce services stay on the legacy HTTP/PocketBase implementations so
-// the active BOBO barrel does not import legacy sync/Supabase at startup.
 export {
-  AISearchService,
-  NLPEngine,
-  VoiceSearch,
-  VisualSearch,
-  RecommendationEngine,
-  VercelAIService,
-} from './ai.service'
-export { ChatService, chatService } from './chat.service'
-export type { ChatMessage } from './chat.service'
-export { DeliveryService, deliveryService } from './delivery.service'
-export type {
-  DeliveryRequest,
-  DeliveryPerson,
-  DeliveryZone,
-  DeliveryAssignment,
-  DeliveryQuote,
-  MerchantDeliveryPreferences,
-} from '../types/delivery'
-
+  ChatServiceEngine as ChatService,
+  chatServiceEngine as chatService,
+  chatServiceEngine,
+  type ChatMessage,
+} from './chat.service.engine'
+export {
+  AIServiceEngine as AIService,
+  aiServiceEngine as aiService,
+  aiServiceEngine,
+  type ProductSearchResult,
+} from './ai.service.engine'
+export {
+  DeliveryServiceEngine as DeliveryService,
+  deliveryServiceEngine as deliveryService,
+  deliveryServiceEngine,
+} from './delivery.service.engine'
+export * from './engine.client'

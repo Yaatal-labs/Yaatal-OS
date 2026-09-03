@@ -16,8 +16,8 @@ import {
   ActivityIndicator
 } from 'react-native'
 import { useAuthStore } from '../../store/authStore'
-import { deliveryService } from '@njooba/core'
-import type { MerchantDeliveryPreferences } from '@njooba/core'
+import { deliveryService } from '@yaatal/core'
+import type { MerchantDeliveryPreferences } from '@yaatal/core'
 
 export const MerchantDeliveryPreferencesScreen = () => {
   const { profile } = useAuthStore()
@@ -45,8 +45,10 @@ export const MerchantDeliveryPreferencesScreen = () => {
     
     try {
       setLoading(true)
-      const prefs = await deliveryService.getMerchantPreferences(profile.id)
-      setPreferences(prefs)
+      // No merchant id: the Engine scopes preferences to the authenticated
+      // caller, so passing one would be a second, unchecked claim of identity.
+      const prefs = await deliveryService.getMerchantPreferences()
+      if (prefs) setPreferences(prefs)
     } catch (error) {
       console.error('Load preferences error:', error)
       Alert.alert('Erreur', 'Impossible de charger les préférences de livraison')
@@ -60,10 +62,7 @@ export const MerchantDeliveryPreferencesScreen = () => {
     
     setSaving(true)
     try {
-      const result = await deliveryService.updateMerchantPreferences(
-        profile.id,
-        preferences
-      )
+      const result = await deliveryService.updateMerchantPreferences(preferences)
       
       if (result) {
         Alert.alert('Succès', 'Préférences de livraison enregistrées')

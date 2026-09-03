@@ -9,7 +9,7 @@
       "distribution": "internal",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_ENGINE_API_URL": "https://yaatal-engine-production.up.railway.app"
+        "EXPO_PUBLIC_ENGINE_API_URL": "https://engine.njooba.com"
       }
     },
     "development-simulator": {
@@ -24,13 +24,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_ENGINE_API_URL": "https://yaatal-engine-production.up.railway.app"
+        "EXPO_PUBLIC_ENGINE_API_URL": "https://engine.njooba.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_ENGINE_API_URL": "https://yaatal-engine-production.up.railway.app"
+        "EXPO_PUBLIC_ENGINE_API_URL": "https://engine.njooba.com"
       }
     }
   },

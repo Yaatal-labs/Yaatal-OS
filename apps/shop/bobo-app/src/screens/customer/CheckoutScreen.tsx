@@ -20,10 +20,12 @@ import {
   Platform,
 } from 'react-native'
 import { useAuthStore } from '../../store/authStore'
-import { ordersService, type ShippingInfo, getProductImageUrl } from '@njooba/core'
+import { ordersService, type ShippingInfo, getProductImageUrl } from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
-import { formatCFA, validatePhoneNumber, type Product, type Order } from '@njooba/core'
+import { formatCFA, validatePhoneNumber, type Product, type Order } from '@yaatal/core'
+import { isPiSpiAliasShaped } from '@yaatal/client'
 import { shippingService } from '../../services/shipping.service'
+import { PiSpiAliasScanner } from '../../components/PiSpiAliasScanner'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -41,7 +43,12 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
   const [region, setRegion] = useState('')
   const [zipCode, setZipCode] = useState('')
   const [phoneNumber, setPhoneNumber] = useState(profile?.phone_number || '')
-  const [paymentMethod, setPaymentMethod] = useState<'wave' | 'cash'>('cash')
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'pispi'>('pispi')
+  // The buyer's own PI-SPI payment address. Typed, pasted, or filled by
+  // scanning the alias QR their wallet app shows — the same three ways
+  // BCEAO's own checkout widget offers, because nobody types 36 characters.
+  const [pispiAlias, setPispiAlias] = useState('')
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   // UI states
   const [isLoading, setIsLoading] = useState(false)
@@ -92,6 +99,15 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
       newErrors.phone = phoneValidation.error || 'Numéro invalide'
     }
 
+    // Checked here rather than letting the Engine answer 400: the buyer is
+    // looking at the field, and a round trip to be told the same thing is a
+    // worse way to learn it.
+    if (paymentMethod === 'pispi' && !isPiSpiAliasShaped(pispiAlias.trim())) {
+      newErrors.pispiAlias = pispiAlias.trim()
+        ? 'Adresse PI-SPI invalide (36 caractères)'
+        : 'Adresse PI-SPI requise'
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -126,7 +142,8 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
         product.id,
         selectedQuantity,
         shippingInfo,
-        paymentMethod
+        paymentMethod,
+        paymentMethod === 'pispi' ? pispiAlias.trim() : undefined
       )
 
       if (result.success && result.order) {
@@ -326,25 +343,30 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>💳 Méthode de paiement</Text>
 
-          {/* Wave */}
+          {/* PI-SPI — the interoperable rail: one integration reaches Orange
+              Money, Free, Wave and the banks. Wave-direct was removed; it is
+              a second contract and a second fee for wallets this already
+              covers. */}
           <TouchableOpacity
             style={[
               styles.paymentButton,
-              paymentMethod === 'wave' && styles.paymentButtonActive,
+              paymentMethod === 'pispi' && styles.paymentButtonActive,
             ]}
-            onPress={() => setPaymentMethod('wave')}
+            onPress={() => setPaymentMethod('pispi')}
           >
             <View style={styles.paymentButtonContent}>
-              <Text style={styles.paymentIcon}>🌊</Text>
+              <Text style={styles.paymentIcon}>📱</Text>
               <View style={styles.paymentInfo}>
-                <Text style={styles.paymentName}>Wave Money</Text>
-                <Text style={styles.paymentDesc}>Paiement mobile sécurisé</Text>
+                <Text style={styles.paymentName}>Mobile money (PI-SPI)</Text>
+                <Text style={styles.paymentDesc}>
+                  Orange Money, Free, Wave, banques — validez dans votre app
+                </Text>
               </View>
             </View>
             <View
               style={[
                 styles.radioButton,
-                paymentMethod === 'wave' && styles.radioButtonActive,
+                paymentMethod === 'pispi' && styles.radioButtonActive,
               ]}
             />
           </TouchableOpacity>
@@ -373,11 +395,30 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
           </TouchableOpacity>
 
           {/* Payment Info */}
-          {paymentMethod === 'wave' && (
-            <View style={styles.paymentInfoBox}>
-              <Text style={styles.paymentInfoText}>
-                💡 Wave est branché sur le stub Engine MVP. Le statut restera en attente
-                jusqu'à la confirmation provider.
+          {paymentMethod === 'pispi' && (
+            <View style={styles.aliasBlock}>
+              <Text style={styles.label}>Votre adresse de paiement PI-SPI</Text>
+              <View style={styles.aliasRow}>
+                <TextInput
+                  style={[styles.input, styles.aliasInput, errors.pispiAlias && styles.inputError]}
+                  value={pispiAlias}
+                  onChangeText={setPispiAlias}
+                  placeholder="00000000-0000-4000-8000-000000000000"
+                  placeholderTextColor={colors.text.tertiary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  style={styles.scanButton}
+                  onPress={() => setScannerOpen(true)}
+                >
+                  <Text style={styles.scanButtonText}>Scanner</Text>
+                </TouchableOpacity>
+              </View>
+              {errors.pispiAlias && <Text style={styles.errorText}>{errors.pispiAlias}</Text>}
+              <Text style={styles.helperText}>
+                Trouvez-la dans votre application bancaire ou mobile money, ou scannez
+                son QR code. Vous validerez le paiement dans votre application.
               </Text>
             </View>
           )}
@@ -413,6 +454,20 @@ export const CheckoutScreen = ({ route, navigation }: any) => {
           )}
         </TouchableOpacity>
       </View>
+
+      <PiSpiAliasScanner
+        visible={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onAlias={(alias) => {
+          setPispiAlias(alias)
+          // A scanned alias is valid by construction, so a stale validation
+          // error from a previous typed attempt must not survive it.
+          setErrors((prev) => {
+            const { pispiAlias: _cleared, ...rest } = prev
+            return rest
+          })
+        }}
+      />
     </KeyboardAvoidingView>
   )
 }
@@ -576,6 +631,29 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.primary,
     backgroundColor: colors.background.main,
+  },
+  aliasBlock: {
+    marginTop: spacing.md,
+    gap: spacing.xs,
+  },
+  aliasRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  aliasInput: {
+    flex: 1,
+  },
+  scanButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+  },
+  scanButtonText: {
+    ...typography.body,
+    color: colors.text.inverse,
+    fontWeight: '600',
   },
   inputError: {
     borderColor: colors.error,

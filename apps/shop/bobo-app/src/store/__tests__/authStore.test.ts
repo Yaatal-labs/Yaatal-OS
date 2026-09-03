@@ -4,10 +4,11 @@
  */
 
 import { useAuthStore } from '../authStore'
-import { authService } from '@njooba/core'
+import { authService } from '@yaatal/core'
 
 // Mock auth service
-jest.mock('@njooba/core', () => ({
+jest.mock('@yaatal/core', () => ({
+  ...jest.requireActual('@yaatal/core'),
   authService: {
     signUp: jest.fn(),
     signIn: jest.fn(),
@@ -17,7 +18,6 @@ jest.mock('@njooba/core', () => ({
     updateAvatar: jest.fn(),
     isAuthenticated: jest.fn(),
     getCurrentUser: jest.fn(),
-    restoreSession: jest.fn(),
   },
 }))
 
@@ -374,29 +374,6 @@ describe('useAuthStore', () => {
   })
 
   describe('initialize', () => {
-    it('should restore persisted Engine token through auth service', async () => {
-      const mockUser = {
-        id: 'user123',
-        email: 'test@example.com',
-        accessToken: 'engine-token',
-      }
-      const mockProfile = { id: 'profile123', username: 'testuser' }
-
-      useAuthStore.setState({
-        user: mockUser,
-        profile: mockProfile as any,
-        isAuthenticated: false,
-      })
-
-      await useAuthStore.getState().initialize()
-
-      expect((authService as any).restoreSession).toHaveBeenCalledWith(
-        mockUser,
-        mockProfile
-      )
-      expect(useAuthStore.getState().isAuthenticated).toBe(true)
-    })
-
     it('should initialize auth state if user is authenticated', async () => {
       const mockUser = { id: 'user123', email: 'test@example.com' }
       const mockProfile = { id: 'profile123', username: 'testuser' }

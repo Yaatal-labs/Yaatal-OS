@@ -20,9 +20,38 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from 'react-native-vector-icons/Ionicons'
 import { ProductCard } from '../../components/ProductCard'
-import { productsService } from '@njooba/core'
+import { catalogService } from '@yaatal/core'
 import { colors, theme } from '../../theme'
-import type { Product } from '@njooba/core'
+import type { Product } from '@yaatal/core'
+
+// Public, unauthenticated marketplace browse over the Engine catalog. The catalog
+// endpoint takes page/per_page/category/merchant_id only.
+// ponytail: /api/catalog has no free-text param yet, so a search query filters the
+//           returned page client-side. Upgrade path = add `q` to ListCatalogParams
+//           and the Engine /api/catalog handler, then pass it straight through.
+const browseCatalog = async (
+  page: number,
+  category?: string,
+  query?: string
+) => {
+  const result = await catalogService.listCatalog({
+    page,
+    per_page: 20,
+    ...(category ? { category } : {}),
+  })
+
+  const q = query?.trim().toLowerCase()
+  if (!q) return result
+
+  return {
+    ...result,
+    items: result.items.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q)
+    ),
+  }
+}
 
 const CATEGORIES = [
   { value: 'all', label: 'Tout', icon: 'apps-outline' },
@@ -58,19 +87,14 @@ export const DiscoveryScreen = ({ navigation }: any) => {
 
     try {
       const category = selectedCategory === 'all' ? undefined : selectedCategory
-      if (searchQuery || category) {
-        const result = await productsService.search(searchQuery, currentPage, 20, {
-          category,
-        } as any)
-        setProducts(reset ? result.items : [...products, ...result.items])
-      } else {
-        const result = await productsService.getAll(currentPage, 20)
-        setProducts(reset ? result.items : [...products, ...result.items])
-      }
+      const result = await browseCatalog(currentPage, category, searchQuery)
+      setProducts(reset ? result.items : [...products, ...result.items])
 
       if (reset) {
-        const result = await productsService.getAll(1, 10)
-        const featured = result.items.filter((p) => p.is_featured || p.upvotes > 5)
+        const featuredResult = await browseCatalog(1)
+        const featured = featuredResult.items.filter(
+          (p) => p.is_featured || p.upvotes > 5
+        )
         setFeaturedProducts(featured)
       }
 
@@ -106,14 +130,15 @@ export const DiscoveryScreen = ({ navigation }: any) => {
     setPage(1)
 
     try {
-      // Hybrid AI Search
-      const result = await productsService.search(searchQuery, 1, 20, {
-        category: selectedCategory === 'all' ? undefined : selectedCategory,
-      } as any)
+      const result = await browseCatalog(
+        1,
+        selectedCategory === 'all' ? undefined : selectedCategory,
+        searchQuery
+      )
       setProducts(result.items)
       setPage(2)
     } catch (error) {
-      console.error('AI search failed:', error)
+      console.error('Catalog search failed:', error)
       await loadProducts(true)
     } finally {
       setIsAISearching(false)
@@ -144,16 +169,15 @@ export const DiscoveryScreen = ({ navigation }: any) => {
     setIsLoading(true)
 
     try {
-      const result =
-        category === 'all' && !searchQuery
-          ? await productsService.getAll(1, 20)
-          : await productsService.search(searchQuery, 1, 20, {
-              category: category === 'all' ? undefined : category,
-            } as any)
+      const result = await browseCatalog(
+        1,
+        category === 'all' ? undefined : category,
+        searchQuery
+      )
       setProducts(result.items)
       setPage(2)
     } catch (error) {
-      console.error('Category search failed:', error)
+      console.error('Category browse failed:', error)
     } finally {
       setIsLoading(false)
     }

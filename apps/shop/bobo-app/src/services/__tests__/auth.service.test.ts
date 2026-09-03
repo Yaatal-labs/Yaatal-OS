@@ -1,458 +1,120 @@
 /**
- * Authentication Service Tests
- * Testing signup, signin, validation, and profile management
+ * AuthService — input validation at the auth boundary.
+ *
+ * This suite replaces one that could not run and, once it could, turned out to
+ * be testing nothing: it mocked `AuthService` itself, called
+ * `service.signUp.mockResolvedValue({success: true})`, and then asserted that
+ * the mock returned `{success: true}`. Its "validation" cases mocked
+ * `validateEmail` and friends off the `@yaatal/core` barrel, but
+ * `auth.service.engine.ts` imports them from its own `../utils/validation`, so
+ * those mocks never applied — and because `clearAllMocks()` clears calls but
+ * not implementations, each case inherited the previous one's resolved value.
+ *
+ * So: no mocked service and no mocked validators here. The real
+ * `authService` runs against the mocked `@yaatal/client` (wired globally in
+ * `jest.config.js`), which means a rejection below is the real validator
+ * refusing real input before any network call.
  */
 
-import { AuthService } from '@njooba/core'
-import {
-  validateEmail,
-  validatePassword,
-  validateUsername,
-  validatePhoneNumber,
-} from '@njooba/core'
+import { authService } from '@yaatal/core'
 
-// Mock validation utilities
-jest.mock('@njooba/core', () => {
-  const mockAuthService = {
-    signUp: jest.fn(),
-    signIn: jest.fn(),
-    signOut: jest.fn(),
-    getUserProfile: jest.fn(),
-    updateProfile: jest.fn(),
-    updateAvatar: jest.fn(),
-    requestPasswordReset: jest.fn(),
-    getCurrentUser: jest.fn(),
-    isAuthenticated: jest.fn(),
-  }
+// Not `TestPassword123!` — the validator keeps a common-password blocklist and
+// refuses it, which is the correct behaviour and made a poor "valid" fixture.
+const PASSWORD = 'Njaay$Sarax7211'
 
-  return {
-    __esModule: true,
-    ...jest.requireActual('@njooba/core'),
-    AuthService: jest.fn().mockImplementation(() => mockAuthService),
-    authService: mockAuthService,
-    validateEmail: jest.fn(() => ({ valid: true })),
-    validatePassword: jest.fn(() => ({ valid: true })),
-    validateUsername: jest.fn(() => ({ valid: true })),
-    validatePhoneNumber: jest.fn(() => ({ valid: true })),
-    generateSKU: jest.fn(() => 'BOBO-TEST-ABC1'),
-  }
-})
+const VALID = {
+  email: 'buyer@example.com',
+  password: PASSWORD,
+  passwordConfirm: PASSWORD,
+  username: 'testuser',
+  isMerchant: false,
+}
 
-describe('AuthService', () => {
-  let service: any
-
+describe('AuthService validation', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
-    const { AuthService } = require('@njooba/core')
-    service = new AuthService()
-
-    // Reset validation mocks to success by default
-    ;(validateEmail as jest.Mock).mockReturnValue({ valid: true })
-    ;(validatePassword as jest.Mock).mockReturnValue({ valid: true })
-    ;(validateUsername as jest.Mock).mockReturnValue({ valid: true })
-    ;(validatePhoneNumber as jest.Mock).mockReturnValue({ valid: true })
-
-    // Silence console.error
     jest.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   afterEach(() => {
-    // Restore console.error
-    ;(console.error as jest.Mock).mockRestore?.()
+    jest.restoreAllMocks()
   })
 
   describe('signUp', () => {
-    it('should create new user account successfully', async () => {
-      const mockUser = {
-        id: 'user123',
-        email: 'test@example.com',
-        created: '2025-01-01',
-      }
-
-      const mockProfile = {
-        id: 'profile123',
-        user_id: 'user123',
-        username: 'testuser',
-        is_merchant: false,
-        level: 1,
-        xp: 0,
-      }
-
-      service.signUp.mockResolvedValue({
-        success: true,
-        user: mockUser,
-        profile: mockProfile,
-      })
-
-      const result = await service.signUp({
-        email: 'test@example.com',
-        password: 'TestPassword123!',
-        passwordConfirm: 'TestPassword123!',
-        username: 'testuser',
-        isMerchant: false,
-      })
-
-      expect(result.success).toBe(true)
-      expect(result.user?.email).toBe('test@example.com')
-      expect(result.profile?.username).toBe('testuser')
+    it('accepts well-formed input', async () => {
+      const result = await authService.signUp({ ...VALID })
+      // The client is mocked, so this asserts only that nothing was rejected
+      // locally -- the point of the negative cases below.
+      expect(result.error).toBeUndefined()
     })
 
-    it('should validate email format', async () => {
-      const mockValidateEmail = validateEmail as jest.Mock
-      mockValidateEmail.mockReturnValue({
-        valid: false,
-        error: 'Invalid email',
-      })
-
-      const result = await service.signUp({
-        email: 'invalid-email',
-        password: 'TestPassword123!',
-        passwordConfirm: 'TestPassword123!',
-        username: 'testuser',
-        isMerchant: false,
-      })
-
+    it('rejects a malformed email', async () => {
+      const result = await authService.signUp({ ...VALID, email: 'not-an-email' })
       expect(result.success).toBe(false)
-      expect(result.error).toContain('email')
+      expect(result.error).toBeTruthy()
     })
 
-    it('should validate password strength (12+ chars)', async () => {
-      const mockValidatePassword = validatePassword as jest.Mock
-      mockValidatePassword.mockReturnValue({
-        valid: false,
-        error: 'Password must contain at least 12 characters',
+    it.each([
+      ['too short', 'Short1!'],
+      ['no digit or symbol', 'passwordpassword'],
+    ])('rejects a weak password (%s)', async (_label, password) => {
+      const result = await authService.signUp({
+        ...VALID,
+        password,
+        passwordConfirm: password,
       })
-
-      const result = await service.signUp({
-        email: 'test@example.com',
-        password: 'short',
-        passwordConfirm: 'short',
-        username: 'testuser',
-        isMerchant: false,
-      })
-
       expect(result.success).toBe(false)
-      expect(result.error).toContain('Password')
+      expect(result.error).toBeTruthy()
     })
 
-    it('should validate password complexity', async () => {
-      const mockValidatePassword = validatePassword as jest.Mock
-      mockValidatePassword.mockReturnValue({
-        valid: false,
-        error:
-          'Password must contain uppercase, lowercase, number, and special char',
-      })
-
-      const result = await service.signUp({
-        email: 'test@example.com',
-        password: 'SimplePassword123',
-        passwordConfirm: 'SimplePassword123',
-        username: 'testuser',
-        isMerchant: false,
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBeDefined()
-    })
-
-    it('should check password confirmation matches', async () => {
-      const result = await service.signUp({
-        email: 'test@example.com',
-        password: 'TestPassword123!',
+    it('rejects a confirmation that does not match', async () => {
+      const result = await authService.signUp({
+        ...VALID,
         passwordConfirm: 'DifferentPassword123!',
-        username: 'testuser',
-        isMerchant: false,
       })
-
       expect(result.success).toBe(false)
-      expect(result.error).toContain('mots de passe')
+      expect(result.error).toBeTruthy()
     })
 
-    it('should validate username format', async () => {
-      const mockValidateUsername = validateUsername as jest.Mock
-      mockValidateUsername.mockReturnValue({
-        valid: false,
-        error: 'Username must be 3-20 characters',
-      })
-
-      const result = await service.signUp({
-        email: 'test@example.com',
-        password: 'TestPassword123!',
-        passwordConfirm: 'TestPassword123!',
-        username: 'ab',
-        isMerchant: false,
-      })
-
+    it('rejects a malformed username', async () => {
+      const result = await authService.signUp({ ...VALID, username: 'a' })
       expect(result.success).toBe(false)
-      expect(result.error).toContain('Username')
+      expect(result.error).toBeTruthy()
     })
   })
 
   describe('signIn', () => {
-    it('should authenticate user successfully', async () => {
-      const mockUser = { id: 'user123', email: 'test@example.com' }
-      const mockProfile = { id: 'profile123', username: 'testuser' }
-
-      service.signIn.mockResolvedValue({
-        success: true,
-        user: mockUser,
-        profile: mockProfile,
+    it('rejects a malformed email before calling the Engine', async () => {
+      const result = await authService.signIn({
+        email: 'not-an-email',
+        password: PASSWORD,
       })
-
-      const result = await service.signIn({
-        email: 'test@example.com',
-        password: 'TestPassword123!',
-      })
-
-      expect(result.success).toBe(true)
-      expect(result.user?.email).toBe('test@example.com')
-    })
-
-    it('should validate email before signin', async () => {
-      const mockValidateEmail = validateEmail as jest.Mock
-      mockValidateEmail.mockReturnValue({
-        valid: false,
-        error: 'Invalid email',
-      })
-
-      const result = await service.signIn({
-        email: 'invalid-email',
-        password: 'TestPassword123!',
-      })
-
       expect(result.success).toBe(false)
-      expect(result.error).toContain('email')
+      expect(result.error).toBeTruthy()
     })
 
-    it('should require password', async () => {
-      const result = await service.signIn({
-        email: 'test@example.com',
+    it('rejects an empty password', async () => {
+      const result = await authService.signIn({
+        email: VALID.email,
         password: '',
       })
-
       expect(result.success).toBe(false)
-      expect(result.error).toContain('mot de passe')
-    })
-
-    it('should handle invalid credentials', async () => {
-      service.signIn.mockResolvedValue({
-        success: false,
-        error: 'Email ou mot de passe incorrect',
-      })
-
-      const result = await service.signIn({
-        email: 'test@example.com',
-        password: 'wrongpassword',
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('Email ou mot de passe incorrect')
-    })
-  })
-
-  describe('signOut', () => {
-    it('should clear authentication', async () => {
-      service.signOut.mockResolvedValue({ success: true })
-
-      const result = await service.signOut()
-
-      expect(result.success).toBe(true)
-    })
-
-    it('should handle signout errors', async () => {
-      service.signOut.mockResolvedValue({ success: false })
-
-      const result = await service.signOut()
-
-      expect(result.success).toBe(false)
-    })
-  })
-
-  describe('getCurrentUser', () => {
-    it('should return current authenticated user', () => {
-      const mockUser = { id: 'user123', email: 'test@example.com' }
-      service.getCurrentUser.mockReturnValue(mockUser)
-
-      const user = service.getCurrentUser()
-
-      expect(user).toEqual(mockUser)
-    })
-
-    it('should return null if not authenticated', () => {
-      service.getCurrentUser.mockReturnValue(null)
-
-      const user = service.getCurrentUser()
-
-      expect(user).toBeNull()
-    })
-  })
-
-  describe('isAuthenticated', () => {
-    it('should return true if user is authenticated', () => {
-      service.isAuthenticated.mockReturnValue(true)
-
-      const isAuth = service.isAuthenticated()
-
-      expect(isAuth).toBe(true)
-    })
-
-    it('should return false if user is not authenticated', () => {
-      service.isAuthenticated.mockReturnValue(false)
-
-      const isAuth = service.isAuthenticated()
-
-      expect(isAuth).toBe(false)
-    })
-  })
-
-  describe('getUserProfile', () => {
-    it('should retrieve user profile', async () => {
-      const mockProfile = { id: 'profile123', username: 'testuser' }
-      service.getUserProfile.mockResolvedValue(mockProfile)
-
-      const profile = await service.getUserProfile('user123')
-
-      expect(profile).toEqual(mockProfile)
-    })
-
-    it('should return null on error', async () => {
-      service.getUserProfile.mockResolvedValue(null)
-
-      const profile = await service.getUserProfile('user123')
-
-      expect(profile).toBeNull()
+      expect(result.error).toBeTruthy()
     })
   })
 
   describe('updateProfile', () => {
-    it('should update profile successfully', async () => {
-      const mockProfile = {
-        id: 'profile123',
-        username: 'newusername',
-        bio: 'Updated bio',
-      }
-
-      service.updateProfile.mockResolvedValue({
-        success: true,
-        profile: mockProfile,
-      })
-
-      const result = await service.updateProfile('profile123', {
-        username: 'newusername',
-        bio: 'Updated bio',
-      })
-
-      expect(result.success).toBe(true)
-      expect(result.profile?.username).toBe('newusername')
-    })
-
-    it('should validate username if updating', async () => {
-      const mockValidateUsername = validateUsername as jest.Mock
-      mockValidateUsername.mockReturnValue({
-        valid: false,
-        error: 'Invalid username',
-      })
-
-      const result = await service.updateProfile('profile123', {
-        username: 'a',
-      })
-
+    it('rejects a malformed username', async () => {
+      const result = await authService.updateProfile('user123', { username: 'a' })
       expect(result.success).toBe(false)
-      expect(result.error).toContain('username')
+      expect(result.error).toBeTruthy()
     })
 
-    it('should validate phone number if updating', async () => {
-      const mockValidatePhoneNumber = validatePhoneNumber as jest.Mock
-      mockValidatePhoneNumber.mockReturnValue({
-        valid: false,
-        error: 'Invalid phone format',
+    it('rejects a malformed phone number', async () => {
+      const result = await authService.updateProfile('user123', {
+        phone_number: '123',
       })
-
-      const result = await service.updateProfile('profile123', {
-        phone_number: 'invalid',
-      })
-
       expect(result.success).toBe(false)
-      expect(result.error).toContain('phone')
-    })
-
-    it('should accept valid Senegal phone numbers', async () => {
-      const mockValidatePhoneNumber = validatePhoneNumber as jest.Mock
-      mockValidatePhoneNumber.mockReturnValue({ valid: true })
-
-      service.updateProfile.mockResolvedValue({ success: true })
-
-      const result = await service.updateProfile('profile123', {
-        phone_number: '+221701234567',
-      })
-
-      expect(result.success).toBe(true)
-    })
-  })
-
-  describe('updateAvatar', () => {
-    it('should update user avatar', async () => {
-      const mockProfile = {
-        id: 'profile123',
-        avatar_url: 'file:///avatar.jpg',
-      }
-
-      service.updateAvatar.mockResolvedValue({
-        success: true,
-        profile: mockProfile,
-      })
-
-      const result = await service.updateAvatar('profile123', 'file:///image.jpg')
-
-      expect(result.success).toBe(true)
-      expect(result.profile?.avatar_url).toBe('file:///avatar.jpg')
-    })
-
-    it('should handle avatar update errors', async () => {
-      service.updateAvatar.mockResolvedValue({
-        success: false,
-        error: 'Upload failed',
-      })
-
-      const result = await service.updateAvatar('profile123', 'file:///image.jpg')
-
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('photo')
-    })
-  })
-
-  describe('requestPasswordReset', () => {
-    it('should request password reset with valid email', async () => {
-      service.requestPasswordReset.mockResolvedValue({ success: true })
-
-      const result = await service.requestPasswordReset('test@example.com')
-
-      expect(result.success).toBe(true)
-    })
-
-    it('should validate email before requesting reset', async () => {
-      const mockValidateEmail = validateEmail as jest.Mock
-      mockValidateEmail.mockReturnValue({
-        valid: false,
-        error: 'Invalid email',
-      })
-
-      const result = await service.requestPasswordReset('invalid-email')
-
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('email')
-    })
-
-    it('should handle password reset errors', async () => {
-      service.requestPasswordReset.mockResolvedValue({
-        success: false,
-        error: 'User not found',
-      })
-
-      const result = await service.requestPasswordReset('notfound@example.com')
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBeDefined()
+      expect(result.error).toBeTruthy()
     })
   })
 })

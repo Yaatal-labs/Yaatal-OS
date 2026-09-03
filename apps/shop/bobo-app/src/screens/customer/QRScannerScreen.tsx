@@ -13,9 +13,13 @@ import {
   Linking,
 } from 'react-native'
 import { CameraView, Camera, BarcodeScanningResult } from 'expo-camera'
-import { parseBoboProductLink } from '@njooba/core'
+import { parseBoboProductLink } from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
 
+// One job: read BOBO product links from the Scanner tab. Reading the buyer's
+// PI-SPI alias is `PiSpiAliasScanner`, a modal rendered inside checkout —
+// checkout is reached from a different tab's stack, so it could never have
+// navigated here anyway.
 export const QRScannerScreen = ({ navigation }: any) => {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const [scanned, setScanned] = useState(false)

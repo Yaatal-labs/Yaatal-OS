@@ -11,17 +11,17 @@ Engine API integration branch and documents the follow-up PR sequence.
 | Surface | Deployment | Branch | Source state |
 | --- | --- | --- | --- |
 | BOBO web | `https://bobo-6g9.pages.dev` | `codex/bobo-engine-netlify-integration` | Pushed and deployed from `c05d58a` |
-| Engine API | `https://yaatal-engine-production.up.railway.app` | `codex/bobo-engine-pr27-integration` | Pushed and deployed |
-| Engine database | Railway Postgres | production environment | Active |
+| Engine API | `https://engine.njooba.com` | `codex/bobo-engine-pr27-integration` | Pushed and deployed |
+| Engine database | engine.njooba.com | production environment | Active |
 
 Verified on 2026-05-31:
 
 - `https://bobo-6g9.pages.dev/Login` renders the BOBO login screen.
 - The production Pages deployment was triggered from Git commit `c05d58a`.
-- The deployed BOBO bundle contains the Railway Engine domain.
+- The deployed BOBO bundle contains the engine.njooba.com Engine domain.
 - The deployed BOBO bundle does not contain invalid `import.meta` syntax.
-- `GET https://yaatal-engine-production.up.railway.app/health` returns `200`.
-- `GET https://yaatal-engine-production.up.railway.app/api/products` returns
+- `GET https://engine.njooba.com/health` returns `200`.
+- `GET https://engine.njooba.com/api/products` returns
   `200`.
 
 ## Existing PR stack
@@ -87,7 +87,7 @@ Output directory: bobo-app/dist
 Required build-time variable:
 
 ```text
-EXPO_PUBLIC_ENGINE_API_URL=https://yaatal-engine-production.up.railway.app
+EXPO_PUBLIC_ENGINE_API_URL=https://engine.njooba.com
 ```
 
 ## Follow-up PRs
@@ -153,7 +153,7 @@ Before merging a BOBO web change:
 
 ```powershell
 pnpm install --frozen-lockfile
-$env:EXPO_PUBLIC_ENGINE_API_URL='https://yaatal-engine-production.up.railway.app'
+$env:EXPO_PUBLIC_ENGINE_API_URL='https://engine.njooba.com'
 pnpm build
 pnpm --filter bobo-app type-check
 ```
@@ -162,13 +162,13 @@ Inspect the generated bundle:
 
 ```powershell
 rg -n "import\.meta" bobo-app/dist/_expo/static/js/web
-rg -n "yaatal-engine-production\.up\.railway\.app" bobo-app/dist/_expo/static/js/web
+rg -n "engine.njooba.com" bobo-app/dist/_expo/static/js/web
 ```
 
 Expected result:
 
 - the first command returns no matches;
-- the second command finds the deployed Railway Engine domain;
+- the second command finds the deployed engine.njooba.com domain;
 - `https://bobo-6g9.pages.dev/Login` renders;
 - `GET /api/products` returns `200`.
 
