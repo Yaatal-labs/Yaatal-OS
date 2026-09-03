@@ -81,8 +81,12 @@ let currentView = 'live';
 function switchView(view) {
   if (!['live', 'catalog', 'media', 'insights'].includes(view)) return;
   currentView = view;
-  document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
+  document.querySelectorAll('.view-tab').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
   document.querySelectorAll('[data-view-panel]').forEach((panel) => { panel.hidden = panel.dataset.viewPanel !== view; });
+  // UXR-03: the Live Assistant panel is a Live-view element per the approved
+  // reference; other views get the full width.
+  const assistant = document.querySelector('.assistant-panel');
+  if (assistant) assistant.hidden = view !== 'live';
   if (view === 'catalog') renderCatalogGrid();
   if (view === 'media') renderMediaGrid();
   if (view === 'insights') loadInsights();
@@ -243,7 +247,7 @@ async function unlock(event) {
 }
 
 function wire() {
-  document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => switchView(button.dataset.view)));
+  document.querySelectorAll('.view-tab').forEach((button) => button.addEventListener('click', () => switchView(button.dataset.view)));
   $('#openShop').addEventListener('click', () => selected ? postProduct(selected) : notify('Choose a product first.'));
   $('#armLive').addEventListener('click', armLive);
   $('#unlock').addEventListener('click', () => $('#unlockDialog').showModal());

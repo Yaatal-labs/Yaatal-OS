@@ -8,13 +8,11 @@
 </head>
 <body>
   <main class="studio-canvas">
-    <nav class="os-nav" aria-label="Studio views">
-      <span class="nav-brand">YAATAL</span>
-      <button type="button" class="nav-item active" data-view="live"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm-4 9a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z"/></svg>Live</button>
-      <button type="button" class="nav-item" data-view="catalog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6Zm2-3h12v2H6V3Zm2 8h8v2H8v-2Zm0 4h5v2H8v-2Z"/></svg>Catalog</button>
-      <button type="button" class="nav-item" data-view="media"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4V5Zm2 10 3.5-4 2.5 3 3-4L18 17H6Zm3-6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>Media</button>
-      <button type="button" class="nav-item" data-view="insights"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10h4v10H4Zm6 0V4h4v16h-4Zm6 0v-7h4v7h-4Z"/></svg>Insights</button>
-      <span class="nav-foot" id="navFoot"></span>
+    <nav class="view-strip" aria-label="Studio views">
+      <button type="button" class="view-tab active" data-view="live"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm-4 9a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z"/></svg>Live</button>
+      <button type="button" class="view-tab" data-view="catalog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6Zm2-3h12v2H6V3Zm2 8h8v2H8v-2Zm0 4h5v2H8v-2Z"/></svg>Catalog</button>
+      <button type="button" class="view-tab" data-view="media"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4V5Zm2 10 3.5-4 2.5 3 3-4L18 17H6Zm3-6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>Media</button>
+      <button type="button" class="view-tab" data-view="insights"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10h4v10H4Zm6 0V4h4v16h-4Zm6 0v-7h4v7h-4Z"/></svg>Insights</button>
     </nav>
 
     <section class="live-workspace" data-view-panel="live" aria-label="Live workspace">
