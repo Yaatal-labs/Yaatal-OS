@@ -11,14 +11,15 @@ Starting point: PR #1, branch `yaatal/os-poc-bootstrap`, commit
 Turn the validated Yaatal OS plumbing POC into a recognisable, testable product
 surface without redesigning the Engine, Harness, Studio, or BOBO.
 
-The intended desktop product has two top-level windows:
+The intended desktop product has one native window with two primary workspaces,
+following the current ChatGPT/Codex/Claude desktop pattern:
 
 ```text
-Yaatal OS
-├── Sell — merchant surface
+Yaatal OS window
+├── SELL — merchant workspace
 │   ├── Live: Studio cockpit, OBS, product queue, governed agent assistance
 │   └── Utility: listings, inventory, store setup, spoken analytics
-└── Shop — buyer surface
+└── SHOP — buyer workspace
     └── BOBO catalog, product detail, Commerce Sheet, order and receipt
 ```
 
@@ -28,21 +29,21 @@ and preserve the already-proven Telegram checkout path.
 
 ## 2. Correction to the current desktop status
 
-The native application at PR #1 is an architectural shell, not a finished
-desktop product. Launching it proves that Tauri compiles and that the authority
-boundary is enforceable; it does not prove usable Sell or Shop experiences.
+The native application at PR #1 was an architectural shell, not a finished
+desktop product. Launching it proved that Tauri compiled; it did not prove
+usable Sell or Shop experiences. The implementation branch subsequently
+consolidated the shell into the intended single window at `d27c5a3`.
 
-Current behaviour:
+Historical PR #1 behaviour, which must not be restored:
 
-- the `sell` window renders a small shell with sidecar status and start/stop
+- the `sell` window rendered a small shell with sidecar status and start/stop
   controls;
-- after the Studio sidecar is ready, Sell places the existing cockpit in an
+- after the Studio sidecar was ready, Sell placed the existing cockpit in an
   iframe;
-- the `shop` window renders a configured URL, a product-ID field, and a refresh
+- the `shop` window rendered a configured URL, a product-ID field, and a refresh
   button;
-- BOBO source exists under `apps/shop`, but its Expo web build is not bundled;
-- the product-navigation command is currently callable by Shop and emits to
-  Sell. That direction does not express the required Studio-to-Shop preview;
+- BOBO source existed under `apps/shop`, but its Expo web build was not bundled;
+- the product-navigation command flowed in the wrong direction;
 - no merchant utility pane exists;
 - no production installer or signed distribution has been qualified.
 
@@ -52,8 +53,8 @@ Do not present this shell as the completed Yaatal desktop application.
 
 The following work is validated and should be preserved:
 
-1. Two Tauri windows named `sell` and `shop`.
-2. Deny-by-default Rust command authorization by window label.
+1. A Tauri host with a deliberately narrow command surface.
+2. Browser-safe payload validation at both TypeScript and Rust boundaries.
 3. A supervised, loopback-only Python Studio sidecar.
 4. Browser-safe `yaatal-os.v1` contracts that reject credentials, transcripts,
    raw audio, token-bearing URLs, and malformed product identifiers.
@@ -124,12 +125,13 @@ The note fixes these product decisions:
 - DashScope must not be required for the sovereign path;
 - the speech seam and key-free local path must be proven before adoption.
 
-That plan concerns the merchant surface. BOBO remains the buyer surface and
-belongs in the separate Shop window. The combined interpretation is therefore:
+That plan concerns the merchant surface. BOBO remains the buyer surface. The
+combined interpretation is therefore:
 
-- top-level Sell window;
-- Live and Utility modes inside Sell;
-- top-level Shop window for BOBO.
+- one native Yaatal OS window and one shared session shell;
+- SELL and SHOP as primary segmented workspaces;
+- Live and Utility modes nested inside SELL;
+- BOBO rendered inside SHOP.
 
 ## 6. Clip4Clicks forensic: adopt patterns, not product code
 
@@ -166,7 +168,7 @@ never be serialized into either webview.
 
 ## 7. Target POC behaviour
 
-### Sell window
+### SELL workspace
 
 1. Native host starts and supervises Studio automatically.
 2. Startup shows a short branded readiness state, not a control-plane demo.
@@ -177,7 +179,7 @@ never be serialized into either webview.
      inventory, and spoken analytics. It must not imply those workflows work.
 5. Sidecar recovery remains available from a small diagnostics panel.
 
-### Shop window
+### SHOP workspace
 
 1. Build BOBO from a pinned, clean source revision with:
 
@@ -194,7 +196,7 @@ never be serialized into either webview.
    embedding a JWT.
 5. Preserve BOBO's mobile-first layout.
 
-### Cross-window product handoff
+### Cross-pane product handoff
 
 The minimum event is a navigation hint, not a product snapshot:
 
@@ -209,8 +211,8 @@ The minimum event is a navigation hint, not a product snapshot:
 
 Rules:
 
-- only Sell may request a Studio-originated product navigation;
-- Rust validates the bounded identifier and emits only to Shop;
+- only the Studio relay may request a Studio-originated product navigation;
+- Rust validates the bounded identifier and emits it to the SHOP adapter;
 - Shop loads product truth from Engine or its existing offline cache;
 - no price, stock, merchant identity, JWT, CommerceIntent token, transcript, or
   audio crosses the Tauri event;
@@ -241,7 +243,7 @@ Actions:
 Done when the branch is clean, provenance is exact, and the imported Shop source
 matches the selected revision.
 
-### OSR-02 — Replace Sell shell with real Studio surface
+### OSR-02 — Replace Sell shell with real Studio workspace
 
 Lane: Ready after OSR-01
 Write set: `apps/desktop/src/**`, Studio lifecycle code under
@@ -258,7 +260,7 @@ Actions:
 Done when a fresh launch reaches the actual Studio cockpit without the operator
 having to understand sidecars, and failures produce a recoverable state.
 
-### OSR-03 — Bundle BOBO into Shop
+### OSR-03 — Bundle BOBO into SHOP
 
 Lane: Ready after OSR-01; parallel with OSR-02
 Write set: `apps/shop/**`, build scripts, Shop loading code
@@ -275,7 +277,7 @@ Actions:
 Done when Shop launches offline from packaged static assets and renders a real
 catalog or a truthful Engine-unavailable state.
 
-### OSR-04 — Correct the Sell-to-Shop event
+### OSR-04 — Correct the SELL-to-SHOP event
 
 Lane: Ready after OSR-02 and OSR-03
 Write set: `packages/os-protocol/**`, Rust commands, Sell and Shop adapters
@@ -315,7 +317,7 @@ Write set: tests, runbook evidence, no production mutations
 
 Acceptance sequence:
 
-1. Launch the Tauri app and observe real Sell and Shop surfaces.
+1. Launch the Tauri app and observe real SELL and SHOP workspaces in one window.
 2. Unlock Studio and arm a disposable live session.
 3. Select a product in Sell and verify Shop focuses its BOBO product.
 4. Create a Telegram share link from Studio.

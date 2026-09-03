@@ -6,9 +6,9 @@ without moving business authority out of Yaatal Engine or policy authority out o
 
 ## POC contract
 
-- **Sell window:** Studio cockpit, voice session, governed actions, and OBS controls.
-- **Shop window:** BOBO's Expo web surface backed by `@yaatal/client`.
-- **Tauri host:** window lifecycle, capability-scoped IPC, sidecar supervision, deep links, and local secrets.
+- **Sell workspace:** Studio cockpit, voice session, governed actions, and OBS controls.
+- **Shop workspace:** BOBO's Expo web surface backed by `@yaatal/client`.
+- **Tauri host:** one unified native window, narrow IPC, sidecar supervision, deep links, and local secrets.
 - **Remote services:** Engine owns identity and commerce; Harness owns policy and audit; the voice service owns inference.
 
 The first product acceptance flows are:
