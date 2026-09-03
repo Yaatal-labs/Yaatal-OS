@@ -101,6 +101,7 @@ struct SidecarConfig {
 
 impl SidecarConfig {
     fn from_env() -> Result<Self, String> {
+        load_dotenv();
         let host = env::var("YAATAL_OS_STUDIO_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
         let host: IpAddr = host
             .parse()
@@ -158,6 +159,31 @@ fn default_studio_dir() -> PathBuf {
         .join("studio")
 }
 
+/// Load `apps/desktop/.env` (KEY=VALUE lines). Existing process env wins:
+/// the file only fills gaps, it never overrides. Server-owned values only —
+/// nothing here is serialized to a renderer.
+fn load_dotenv() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".env");
+    let Ok(contents) = std::fs::read_to_string(&path) else {
+        return;
+    };
+    for line in contents.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        let key = key.trim();
+        let value = value.trim().trim_matches('"');
+        if key.is_empty() || env::var(key).is_ok() {
+            continue;
+        }
+        std::env::set_var(key, value);
+    }
+}
+
 fn is_loopback(address: IpAddr) -> bool {
     address.is_loopback()
 }
@@ -165,6 +191,7 @@ fn is_loopback(address: IpAddr) -> bool {
 struct SidecarSupervisor {
     config: SidecarConfig,
     child: Option<Child>,
+    adopted: bool,
     state: SidecarState,
     error_code: Option<SidecarErrorCode>,
 }
@@ -174,6 +201,7 @@ impl SidecarSupervisor {
         Self {
             config,
             child: None,
+            adopted: false,
             state: SidecarState::Stopped,
             error_code: None,
         }
@@ -195,19 +223,42 @@ impl SidecarSupervisor {
                     self.error_code = Some(SidecarErrorCode::UnexpectedExit);
                 }
             }
+        } else if self.adopted
+            && !probe_health(
+                self.config.host,
+                self.config.port,
+                Duration::from_millis(350),
+            )
+        {
+            self.adopted = false;
+            self.state = SidecarState::Failed;
+            self.error_code = Some(SidecarErrorCode::UnexpectedExit);
         }
         SanitizedSidecarStatus {
             version: PROTOCOL_VERSION,
             kind: "sidecar-status",
             state: self.state,
-            is_running: self.child.is_some(),
+            is_running: self.child.is_some() || self.adopted,
             port: self.config.port,
             error_code: self.error_code,
         }
     }
 
     fn start(&mut self) -> SanitizedSidecarStatus {
-        if self.child.is_some() {
+        if self.child.is_some() || self.adopted {
+            return self.status();
+        }
+        // A prior shell may have been closed before its development sidecar.
+        // Reuse a healthy loopback Studio rather than spawning a second process
+        // that can only fail with an opaque address-in-use error.
+        if probe_health(
+            self.config.host,
+            self.config.port,
+            Duration::from_millis(350),
+        ) {
+            self.adopted = true;
+            self.state = SidecarState::Ready;
+            self.error_code = None;
             return self.status();
         }
         if !self.config.studio_dir.is_dir() {
@@ -267,9 +318,21 @@ impl SidecarSupervisor {
     }
 
     fn stop_child(&mut self) {
+        self.adopted = false;
         if let Some(mut child) = self.child.take() {
             let _ = child.kill();
             let _ = child.wait();
+        }
+    }
+}
+
+impl Drop for SidecarSupervisor {
+    fn drop(&mut self) {
+        // Never leave a child owned by this shell holding the loopback port.
+        // An adopted process is deliberately not killed because we did not
+        // create it and therefore do not own its lifecycle.
+        if self.child.is_some() {
+            self.stop_child();
         }
     }
 }

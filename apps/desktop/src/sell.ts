@@ -104,7 +104,7 @@ function studioOrigin(status: SidecarStatus): string {
 function createCockpit(status: SidecarStatus, theme: Theme): HTMLIFrameElement {
   const frame = document.createElement("iframe");
   frame.title = "Yaatal Studio seller cockpit";
-  frame.src = `${studioOrigin(status)}/?embedded=1&theme=${theme}`;
+  frame.src = `${studioOrigin(status)}/dashboard/os.html?theme=${theme}`;
   frame.allow = "microphone";
   frame.referrerPolicy = "no-referrer";
   return frame;

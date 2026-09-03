@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yaatal OS — Live Studio</title>
+  <link rel="stylesheet" href="/dashboard/os.css?v=1">
+</head>
+<body>
+  <main class="studio-canvas">
+    <section class="live-workspace" aria-label="Live workspace">
+      <header class="surface-head">
+        <div>
+          <span class="live-state"><i></i><span id="liveState">Preview</span></span>
+          <span class="viewer-state" id="viewerState">Local Studio connected</span>
+        </div>
+        <div class="surface-actions">
+          <button type="button" class="quiet-action" id="openShop">Open in SHOP <span aria-hidden="true">→</span></button>
+          <button type="button" class="primary-action" id="armLive">Arm cockpit</button>
+        </div>
+      </header>
+
+      <div class="preview" id="preview">
+        <div class="preview-scrim"></div>
+        <div class="preview-topline"><span id="previewCategory">Product preview</span><span id="previewTimer">00:00</span></div>
+        <div class="preview-caption">
+          <span class="on-air" id="previewState">Preview</span>
+          <strong id="previewName">Choose a product below</strong>
+          <span id="previewPrice">— FCFA</span>
+        </div>
+      </div>
+
+      <section class="catalog-strip" aria-labelledby="catalogTitle">
+        <div class="section-title">
+          <div><span class="eyebrow">Live catalog</span><h2 id="catalogTitle">Products ready to present</h2></div>
+          <span id="catalogState">Loading…</span>
+        </div>
+        <div class="products" id="products" aria-live="polite"></div>
+      </section>
+    </section>
+
+    <aside class="assistant-panel" aria-label="Governed assistant activity">
+      <header>
+        <div><span class="eyebrow">Harness governed</span><h2>Live assistant</h2></div>
+        <span class="assistant-dot" id="assistantDot" title="Studio event stream"></span>
+      </header>
+      <ol class="activity" id="activity"></ol>
+      <div class="governance" id="governance">
+        <span class="shield" aria-hidden="true">Y</span>
+        <div><strong id="governanceTitle">Checking operator session</strong><p id="governanceText">No action is applied without explicit authorization.</p></div>
+      </div>
+    </aside>
+
+    <footer class="voice-dock">
+      <button type="button" class="mic" id="mic" disabled aria-label="Voice control unavailable">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="12" rx="4"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"></path></svg>
+      </button>
+      <div><strong id="voiceTitle">Voice controls locked</strong><span id="voiceText">Use the governed operator session to enable voice.</span></div>
+      <div class="voice-divider"></div>
+      <span class="voice-hint" id="voiceHint">Product selection and SHOP handoff are available now.</span>
+      <button type="button" class="quiet-action" id="unlock">Unlock controls</button>
+    </footer>
+  </main>
+
+  <dialog id="unlockDialog">
+    <form method="dialog" id="unlockForm">
+      <span class="eyebrow">Local operator authority</span>
+      <h2>Unlock governed controls</h2>
+      <p>The token is sent only to the loopback Studio and becomes an HttpOnly session cookie.</p>
+      <label for="operatorToken">Operator token</label>
+      <input id="operatorToken" type="password" autocomplete="off" required>
+      <p class="form-error" id="unlockError"></p>
+      <div class="dialog-actions">
+        <button type="button" class="quiet-action" id="cancelUnlock">Cancel</button>
+        <button type="submit" class="primary-action">Unlock</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/dashboard/os.js?v=1"></script>
+</body>
+</html>

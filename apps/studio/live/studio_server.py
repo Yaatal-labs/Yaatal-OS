@@ -300,7 +300,43 @@ def normalize_studio_product(product: dict) -> dict:
     normalized["price_fcfa"] = price_fcfa
     if price_fcfa is not None and not normalized.get("price_display"):
         normalized["price_display"] = f"{price_fcfa:,} FCFA".replace(",", " ")
+    if STUDIO_DEMO_MODE and not _first_image(normalized):
+        placeholder = _DEMO_CATEGORY_IMAGES.get(str(normalized.get("category") or "").lower())
+        if placeholder:
+            normalized["images"] = [placeholder]
     return normalized
+
+
+def _first_image(product: dict):
+    images = product.get("images")
+    if isinstance(images, str):
+        try:
+            images = json.loads(images)
+        except (ValueError, TypeError):
+            images = []
+    if isinstance(images, list):
+        for image in images:
+            if isinstance(image, str) and image.strip():
+                return image.strip()
+    return None
+
+
+# Demo-only visual fallbacks for Engine products that have no photos yet.
+# Production never silently substitutes data; this only fills image slots
+# in STUDIO_DEMO_MODE so the cockpit shows a living catalog.
+_DEMO_CATEGORY_IMAGES = {
+    "tech": "/dashboard/img/smartphone.png",
+    "phone": "/dashboard/img/smartphone.png",
+    "fashion": "/dashboard/img/bazin_robe.png",
+    "clothing": "/dashboard/img/bazin_robe.png",
+    "leather": "/dashboard/img/leather_bag.png",
+    "bags": "/dashboard/img/leather_bag.png",
+    "jewelry": "/dashboard/img/gold_earrings.png",
+    "drinks": "/dashboard/img/bissap.png",
+    "food": "/dashboard/img/bissap.png",
+    "decor": "/dashboard/img/thiote_mat.png",
+    "home": "/dashboard/img/thiote_mat.png",
+}
 
 
 def edge_decision_to_intent(response: dict) -> dict:

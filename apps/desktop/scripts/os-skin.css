@@ -1,0 +1,92 @@
+/*
+ * Yaatal OS Shop-pane skin (OSR-03 + UI unification).
+ * Injected ONLY into the packaged copy of BOBO by scripts/build-shop.mjs —
+ * the vendored BOBO source stays untouched (tree parity with the pinned
+ * revision). This adapts BOBO's "Lagos Gold & Midnight Indigo" light theme
+ * to the OS warm-dark shell so the Shop pane reads as a pane of the app.
+ */
+
+:root {
+  --os-ink: #f6f2e9;          /* warm cream text on dark */
+  --os-ink-muted: #b0aea5;     /* warm silver */
+  --os-bg: #141613;            /* warm charcoal */
+  --os-surface: #1d201c;       /* elevated dark surface */
+  --os-surface-2: #262a25;
+  --os-border: #3a3e37;
+  --os-amber: #e8bd56;         /* OS brand accent */
+  --os-amber-deep: #c99b3c;
+  --os-terracotta: #dd6b35;
+  --os-ok: #3b9954;
+}
+
+/* ── Global canvas ───────────────────────────────────────── */
+html, body {
+  background: var(--os-bg) !important;
+  color: var(--os-ink);
+}
+
+/* Neutralize the hard light-mode jump at the iframe edge */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at top right, #23473526, transparent 55%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root { position: relative; z-index: 1; }
+
+/* ── Typography ───────────────────────────────────────────── */
+h1, h2, h3, h4 { color: var(--os-ink); letter-spacing: -0.01em; }
+p, span, div, label, text { color: var(--os-ink-muted); }
+input, textarea {
+  background: var(--os-surface) !important;
+  border: 1px solid var(--os-border) !important;
+  color: var(--os-ink) !important;
+}
+input::placeholder, textarea::placeholder { color: #6f7369; }
+
+/* ── Buttons: BOBO indigo/gold → OS amber/terracotta ─────── */
+button, a[role="button"], [class*="Button"], [class*="btn"] {
+  background: var(--os-amber) !important;
+  color: #17130a !important;
+  font-weight: 650;
+}
+button[disabled], [class*="Button"][disabled] {
+  background: var(--os-surface-2) !important;
+  color: #6f7369 !important;
+}
+[class*="secondary"], [class*="outline"], [class*="ghost"] {
+  background: transparent !important;
+  color: var(--os-amber) !important;
+  border: 1px solid var(--os-amber-deep) !important;
+}
+
+/* ── Cards & surfaces ───────────────────────────────────── */
+[class*="Card"], [class*="card"], [class*="Surface"], [class*="container"] {
+  background: var(--os-surface) !important;
+  border: 1px solid var(--os-border) !important;
+  border-radius: 12px;
+}
+[class*="Card"]:hover { border-color: var(--os-amber-deep) !important; }
+
+/* Product imagery: warm frame like the OS cards */
+[class*="Image"], [class*="image"], [class*="thumb"], img {
+  border-radius: 10px;
+}
+
+/* ── Status colors ──────────────────────────────────────── */
+[class*="success"], [class*="Success"] { color: var(--os-ok) !important; }
+[class*="error"], [class*="Error"], [class*="danger"] { color: var(--os-terracotta) !important; }
+
+/* Scrollbars: OS-warm thin */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--os-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--os-amber-deep); }
+
+/* ── Login screen hero: brand moment ───────────────────── */
+form, [class*="Form"] {
+  background: transparent !important;
+}

@@ -29,7 +29,7 @@
  *   node scripts/build-shop.mjs                 # export + install
  *   EXPO_PUBLIC_ENGINE_API_URL=https://engine.example.com node scripts/build-shop.mjs
  */
-import { cpSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -79,6 +79,29 @@ console.log("build-shop: installing full export into apps/desktop/public/shop �
 rmSync(target, { recursive: true, force: true });
 mkdirSync(target, { recursive: true });
 cpSync(shopDist, target, { recursive: true });
+
+// Inject the OS Shop-pane skin into the packaged copy ONLY — the vendored
+// BOBO source and its original export stay untouched (tree parity).
+const skinSource = join(root, "apps", "desktop", "scripts", "os-skin.css");
+const shimSource = join(root, "apps", "desktop", "scripts", "os-skin.js");
+const skinTarget = join(target, "os-skin.css");
+cpSync(skinSource, skinTarget);
+cpSync(shimSource, join(target, "os-skin.js"));
+const indexPath = join(target, "index.html");
+let indexHtml = readFileSync(indexPath, "utf8");
+if (!indexHtml.includes("os-skin.js")) {
+  indexHtml = indexHtml.replace(
+    "</head>",
+    '  <link rel="stylesheet" href="./os-skin.css" />\n  </head>',
+  );
+  // The shim must run before the app bundle so it skins every RNW style batch.
+  indexHtml = indexHtml.replace(
+    /<script\s+src="\/_expo\/[^"]*"\s+defer><\/script>/,
+    '<script defer src="./os-skin.js"></script>\n  $&',
+  );
+  writeFileSync(indexPath, indexHtml);
+  console.log("build-shop: OS skin + palette shim injected into packaged index.html.");
+}
 
 console.log("build-shop: spreading root-absolute assets to apps/desktop/public …");
 for (const name of ROOT_SPREAD) {

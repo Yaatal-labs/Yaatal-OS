@@ -1,0 +1,178 @@
+/* Dedicated embedded SELL surface. Standalone Studio remains available at /. */
+const CATALOG_URL = '/api/studio/product-queue';
+const SESSION_URL = '/api/studio/operator/session';
+const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+const params = new URLSearchParams(location.search);
+let theme = params.get('theme') === 'dark' ? 'dark' : 'light';
+let products = [];
+let selected = null;
+let live = false;
+let startedAt = 0;
+let timer = 0;
+let operatorAuthenticated = false;
+let toastTimer = 0;
+let socket = null;
+
+const $ = (selector) => document.querySelector(selector);
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
+const safeImage = (value) => { try { const url = new URL(String(value || ''), location.origin); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
+const price = (product) => product?.price_display || `${Number(product?.price_fcfa ?? product?.price_cents ?? 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ')} FCFA`;
+
+function applyTheme(next) {
+  theme = next === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = theme;
+}
+
+function notify(text) {
+  const root = $('#toast');
+  root.textContent = text;
+  root.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => root.classList.remove('show'), 2600);
+}
+
+function activity(title, detail) {
+  const item = document.createElement('li');
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  item.innerHTML = `<strong>${escapeHtml(title)}</strong>${escapeHtml(detail)}<time>${time}</time>`;
+  $('#activity').prepend(item);
+  while ($('#activity').children.length > 5) $('#activity').lastElementChild.remove();
+}
+
+function postProduct(product) {
+  const productId = String(product?.id ?? '').trim();
+  if (!ID_PATTERN.test(productId) || window.parent === window) return;
+  window.parent.postMessage({ version: 'yaatal-os.v1', kind: 'product-navigation', productId, source: 'studio' }, '*');
+}
+
+function selectProduct(product, announce = true) {
+  selected = product;
+  const image = safeImage(product?.images?.[0] || product?.image_url || product?.thumbnail);
+  $('#preview').style.backgroundImage = image ? `url(${JSON.stringify(image)})` : '';
+  $('#previewName').textContent = product?.name || 'Choose a product below';
+  $('#previewPrice').textContent = product ? price(product) : '— FCFA';
+  $('#previewCategory').textContent = product?.category || 'Product preview';
+  document.querySelectorAll('.product').forEach((card) => card.classList.toggle('active', card.dataset.id === String(product?.id)));
+  if (announce) {
+    activity('Product selected', `${product.name} is ready for the live overlay.`);
+    postProduct(product);
+  }
+}
+
+function renderProducts() {
+  const root = $('#products');
+  root.innerHTML = products.slice(0, 3).map((product) => {
+    const image = safeImage(product.images?.[0] || product.image_url || product.thumbnail);
+    return `<button class="product" type="button" data-id="${escapeHtml(product.id)}">
+      <span class="product-image" style="background-image:url(${JSON.stringify(image)})"></span>
+      <span class="product-copy"><em>${product.stock_status === 'low_stock' ? 'Low stock' : 'Available'}</em><strong>${escapeHtml(product.name)}</strong><span>${escapeHtml(price(product))}</span></span>
+    </button>`;
+  }).join('');
+  root.querySelectorAll('.product').forEach((card) => card.addEventListener('click', () => {
+    const product = products.find((item) => String(item.id) === card.dataset.id);
+    if (product) selectProduct(product);
+  }));
+  $('#catalogState').textContent = `${products.length} available`;
+}
+
+async function loadCatalog() {
+  const response = await fetch(CATALOG_URL, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+  if (!response.ok) throw new Error(`Catalog unavailable (${response.status})`);
+  const payload = await response.json();
+  products = Array.isArray(payload) ? payload : payload.products || [];
+  renderProducts();
+  if (products[0]) selectProduct(products[0], false);
+  activity('Catalog ready', `${products.length} products loaded from the Studio context.`);
+}
+
+function renderSession(configured = true) {
+  // The embedded surface does not own an audio-device session yet. Keep this
+  // visibly unavailable instead of presenting a control that only looks live.
+  $('#mic').disabled = true;
+  $('#armLive').disabled = !operatorAuthenticated;
+  $('#unlock').hidden = operatorAuthenticated || !configured;
+  $('#governanceTitle').textContent = operatorAuthenticated ? 'Governance active' : configured ? 'Operator controls locked' : 'Operator token unavailable';
+  $('#governanceText').textContent = operatorAuthenticated ? 'Harness approval remains required before state changes.' : 'Product preview works; governed live and voice actions remain locked.';
+  $('#voiceTitle').textContent = operatorAuthenticated ? 'Voice lane reserved' : 'Voice controls locked';
+  $('#voiceText').textContent = operatorAuthenticated ? 'Audio-device handoff is the next explicit integration seam.' : 'Unlock the local operator session to inspect governed controls.';
+}
+
+async function refreshSession() {
+  try {
+    const response = await fetch(SESSION_URL, { credentials: 'same-origin', cache: 'no-store' });
+    const state = await response.json();
+    operatorAuthenticated = response.ok && Boolean(state.authenticated);
+    renderSession(state.configured !== false);
+  } catch {
+    operatorAuthenticated = false;
+    renderSession(false);
+  }
+}
+
+async function armLive() {
+  if (!operatorAuthenticated) return $('#unlockDialog').showModal();
+  const endpoint = live ? '/api/studio/stop-stream' : '/api/studio/go-live';
+  const response = await fetch(endpoint, {
+    method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+    body: live ? undefined : JSON.stringify({ title: 'Yaatal Live Commerce' }),
+  });
+  if (!response.ok) return notify(`Studio rejected the request (${response.status}).`);
+  live = !live;
+  $('#liveState').textContent = live ? 'Live' : 'Preview';
+  $('#previewState').textContent = live ? 'On air' : 'Preview';
+  $('#armLive').textContent = live ? 'End live' : 'Arm cockpit';
+  $('.live-state').dataset.live = String(live);
+  startedAt = live ? Date.now() : 0;
+  activity(live ? 'Cockpit armed' : 'Cockpit disarmed', live ? 'The governed live session is active.' : 'The live session ended cleanly.');
+}
+
+function updateTimer() {
+  const elapsed = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+  $('#previewTimer').textContent = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
+}
+
+function connectEvents() {
+  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  socket = new WebSocket(`${protocol}://${location.host}/ws`);
+  socket.onopen = () => { $('#assistantDot').classList.add('connected'); activity('Studio connected', 'The local event stream is ready.'); };
+  socket.onmessage = (event) => { try { const message = JSON.parse(event.data); if (message.type === 'governed_action') activity('Governed action', message.result?.allowed ? 'Harness allowed the proposal.' : 'Proposal was not applied.'); if (message.type === 'commerce_conversion') activity('Conversion recorded', `${message.source_channel || 'Social'} checkout confirmed.`); } catch {} };
+  socket.onclose = () => { $('#assistantDot').classList.remove('connected'); setTimeout(connectEvents, 2000); };
+}
+
+async function unlock(event) {
+  event.preventDefault();
+  const token = $('#operatorToken').value;
+  const response = await fetch(SESSION_URL, { method: 'POST', credentials: 'same-origin', headers: { Authorization: `Bearer ${token}` } });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.authenticated) { $('#unlockError').textContent = payload.error || 'Unlock rejected.'; return; }
+  operatorAuthenticated = true;
+  $('#operatorToken').value = '';
+  $('#unlockDialog').close();
+  renderSession(true);
+  activity('Operator unlocked', 'Governed live and voice controls are available.');
+}
+
+function wire() {
+  $('#openShop').addEventListener('click', () => selected ? postProduct(selected) : notify('Choose a product first.'));
+  $('#armLive').addEventListener('click', armLive);
+  $('#unlock').addEventListener('click', () => $('#unlockDialog').showModal());
+  $('#cancelUnlock').addEventListener('click', () => $('#unlockDialog').close());
+  $('#unlockForm').addEventListener('submit', unlock);
+  window.addEventListener('message', (event) => {
+    if (event.source !== window.parent) return;
+    if (event.data?.version !== 'yaatal-os.v1' || event.data.kind !== 'theme-change') return;
+    if (event.data.theme === 'light' || event.data.theme === 'dark') applyTheme(event.data.theme);
+  });
+}
+
+async function init() {
+  applyTheme(theme);
+  wire();
+  renderSession(false);
+  timer = setInterval(updateTimer, 1000);
+  connectEvents();
+  await Promise.allSettled([loadCatalog(), refreshSession()]);
+}
+
+window.addEventListener('beforeunload', () => { clearInterval(timer); socket?.close(); });
+document.addEventListener('DOMContentLoaded', init);
