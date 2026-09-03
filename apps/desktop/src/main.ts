@@ -5,8 +5,14 @@
  * Shop  → apps/desktop/src/shop.ts  (buyer, bundled BOBO)
  */
 import "./style.css";
-import { currentLabel, renderShop } from "./shop";
+import { renderShop } from "./shop";
 import { renderSell } from "./sell";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
+function currentLabel(): "sell" | "shop" {
+  const label = getCurrentWindow().label;
+  return label === "shop" ? "shop" : "sell";
+}
 
 async function bootstrap(): Promise<void> {
   const app = document.querySelector<HTMLElement>("#app");

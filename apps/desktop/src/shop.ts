@@ -1,65 +1,99 @@
 /**
- * Shop window surface — buyer surface.
+ * Shop window surface — buyer surface (OSR-03).
  *
- * Loads the bundled BOBO static web export. Shop can request navigation and
- * refresh only. It has no access to Studio controls.
+ * Loads the bundled BOBO static web export (apps/desktop/public/shop/) as the
+ * primary full-window surface. Receives sanitized product-navigation events
+ * from the native host (originating in the Studio cockpit) and focuses the
+ * matching BOBO product by driving the same-origin webview's history, which
+ * react-navigation web follows via its deep-link config
+ * (product/:productId → ProductDetail).
+ *
+ * No credentials, JWTs, or Engine URLs are configured here: BOBO calls the
+ * Engine directly with its own auth, using the API URL baked at OS build time
+ * (scripts/build-shop.mjs, EXPO_PUBLIC_ENGINE_API_URL).
  */
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import {
-  type ProductNavigationRequest,
-  sanitizeProductNavigation,
-} from "@yaatal/os-protocol";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import "./shop.css";
 
-export function currentLabel(): "sell" | "shop" {
-  const label = getCurrentWindow().label;
-  return label === "shop" ? "shop" : "sell";
+const SHOP_BUNDLE_URL = "/shop/index.html";
+const PRODUCT_PATH_PREFIX = "/product/";
+
+export interface ProductNavigationEvent {
+  version: string;
+  kind: "product-navigation";
+  productId: string;
+  source: string;
 }
 
-function configuredShopUrl(): string {
-  const configured = import.meta.env.VITE_YAATAL_OS_SHOP_URL?.trim() || "http://127.0.0.1:5173";
+const productIdPattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+
+/** Pure: accept only bounded identifiers delivered by the host. */
+export function sanitizeNavigationEvent(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) return null;
+  const event = value as Partial<ProductNavigationEvent>;
+  if (event.kind !== "product-navigation" || typeof event.productId !== "string") return null;
+  const productId = event.productId.trim();
+  return productIdPattern.test(productId) ? productId : null;
+}
+
+/** Pure: the same-origin history path react-navigation web matches. */
+export function productPath(productId: string): string {
+  return `${PRODUCT_PATH_PREFIX}${encodeURIComponent(productId)}`;
+}
+
+let frame: HTMLIFrameElement | null = null;
+
+function focusProduct(productId: string): boolean {
+  const win = frame?.contentWindow;
+  if (!win) return false;
   try {
-    const url = new URL(configured);
-    const hasSensitiveQuery = [...url.searchParams.keys()].some((key) => /token|jwt|secret/i.test(key));
-    if ((url.protocol !== "http:" && url.protocol !== "https:") || hasSensitiveQuery) {
-      return "http://127.0.0.1:5173";
-    }
-    return url.toString();
+    win.history.pushState(null, "", productPath(productId));
+    win.dispatchEvent(new PopStateEvent("popstate"));
+    return true;
   } catch {
-    return "http://127.0.0.1:5173";
+    return false; // cross-origin or unready — fall back to the catalog view
   }
 }
 
 export async function renderShop(app: HTMLElement): Promise<void> {
-  const shopUrl = configuredShopUrl();
   app.innerHTML = `
-    <div class="shell shop-shell">
-      <header><p class="brand">YAATAL OS</p><p class="window-name">SHOP / BOBO</p></header>
-      <section class="hero"><p class="eyebrow">Buyer surface</p><h1>Browse the local or bundled shop.</h1><p>Shop can request navigation and refresh only. It has no access to Studio controls.</p></section>
-      <section class="shop-target"><p class="eyebrow">Configured Shop target</p><a id="shop-link" rel="noreferrer">Open BOBO Shop</a><p id="shop-url"></p></section>
-      <form id="product-form" class="product-form"><label for="product-id">Product ID</label><input id="product-id" maxlength="128" autocomplete="off" placeholder="e.g. kaftan_42" /><button type="submit">Request product view</button></form>
-      <div class="actions"><button id="refresh-shop" type="button">Request catalog refresh</button></div>
-      <p class="message" data-shell-message aria-live="polite"></p>
+    <div class="shell shop-shell shop-stage">
+      <header class="shop-topbar">
+        <div class="sell-brand"><span class="brand">YAATAL OS</span><span class="window-name">SHOP / BOBO</span></div>
+        <span class="shop-note">Buyer surface — bundled BOBO</span>
+      </header>
+      <main class="shop-main"></main>
     </div>
   `;
-  const link = app.querySelector<HTMLAnchorElement>("#shop-link");
-  const url = app.querySelector<HTMLElement>("#shop-url");
-  if (link && url) {
-    link.href = shopUrl;
-    url.textContent = shopUrl;
+  const main = app.querySelector<HTMLElement>(".shop-main");
+  if (!main) return;
+
+  frame = document.createElement("iframe");
+  frame.title = "BOBO Shop buyer surface";
+  frame.src = SHOP_BUNDLE_URL;
+  frame.referrerPolicy = "no-referrer";
+  main.replaceChildren(frame);
+
+  let unlisten: UnlistenFn | null = null;
+  try {
+    unlisten = await listen<ProductNavigationEvent>("yaatal://product-navigation", (event) => {
+      const productId = sanitizeNavigationEvent(event.payload);
+      if (productId === null) return;
+      if (!focusProduct(productId)) {
+        // Honest degrade: BOBO stays on its catalog; the bundle may still be
+        // loading. The buyer never sees a fake product view.
+        console.info("shop: bundle not ready for product focus; showing catalog");
+      }
+    });
+  } catch {
+    // The event bridge is best-effort: the bundled BOBO still works standalone.
   }
-  app.querySelector<HTMLFormElement>("#product-form")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const productId = app.querySelector<HTMLInputElement>("#product-id")?.value ?? "";
-    const request = sanitizeProductNavigation({ kind: "product-navigation", productId });
-    if (!request) {
-      const target = app.querySelector<HTMLElement>("[data-shell-message]");
-      if (target) target.textContent = "Enter a simple product identifier.";
-      return;
-    }
-    void invoke("request_product_navigation", { request: request satisfies ProductNavigationRequest });
+
+  window.addEventListener("beforeunload", () => {
+    unlisten?.();
+    unlisten = null;
   });
-  app.querySelector<HTMLButtonElement>("#refresh-shop")?.addEventListener("click", () => {
-    void invoke("request_shop_refresh", { scope: "catalog" });
-  });
+
+  void invoke("request_shop_refresh", { scope: "catalog" }).catch(() => {});
 }
