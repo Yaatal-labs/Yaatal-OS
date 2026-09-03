@@ -75,11 +75,101 @@ function renderProducts() {
   $('#catalogState').textContent = `${products.length} available`;
 }
 
+// ── Views: Live / Catalog / Media / Insights ──────────────────────
+let currentView = 'live';
+
+function switchView(view) {
+  if (!['live', 'catalog', 'media', 'insights'].includes(view)) return;
+  currentView = view;
+  document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
+  document.querySelectorAll('[data-view-panel]').forEach((panel) => { panel.hidden = panel.dataset.viewPanel !== view; });
+  if (view === 'catalog') renderCatalogGrid();
+  if (view === 'media') renderMediaGrid();
+  if (view === 'insights') loadInsights();
+}
+
+function renderCatalogGrid() {
+  const root = $('#catalogGrid');
+  if (!root || root.dataset.rendered === String(products.length)) return;
+  root.dataset.rendered = String(products.length);
+  root.innerHTML = products.map((product) => {
+    const image = safeImage(product.images?.[0] || product.image_url || product.thumbnail);
+    const stock = product.stock_status === 'low_stock' ? '<em class="low">Low stock</em>' : '<em>Available</em>';
+    return `<button class="catalog-card" type="button" data-id="${escapeHtml(product.id)}">
+      <span class="catalog-image" style="background-image:url(${JSON.stringify(image)})"></span>
+      <span class="catalog-copy">${stock}<strong>${escapeHtml(product.name)}</strong>
+        <span>${escapeHtml(product.category || '')}</span><span class="catalog-price">${escapeHtml(price(product))}</span></span>
+    </button>`;
+  }).join('');
+  root.querySelectorAll('.catalog-card').forEach((card) => card.addEventListener('click', () => {
+    const product = products.find((item) => String(item.id) === card.dataset.id);
+    if (!product) return;
+    switchView('live');
+    selectProduct(product);
+  }));
+  $('#catalogSource').textContent = `${products.length} products · ${lastCatalogSource || 'studio context'}`;
+}
+
+const MEDIA_LIBRARY = [
+  { src: '/dashboard/img/bazin_robe.png', title: 'Robe Bazin — editorial', tag: 'Fashion' },
+  { src: '/dashboard/img/leather_bag.png', title: 'Sac en cuir — atelier', tag: 'Leather' },
+  { src: '/dashboard/img/gold_earrings.png', title: 'Sablé gold — macro', tag: 'Jewelry' },
+  { src: '/dashboard/img/bissap.png', title: 'Bissap — bouteille', tag: 'Drinks' },
+  { src: '/dashboard/img/thiote_mat.png', title: 'Tapis thiote — texture', tag: 'Decor' },
+  { src: '/dashboard/img/smartphone.png', title: 'Smartphone — studio', tag: 'Tech' },
+];
+
+function renderMediaGrid() {
+  const root = $('#mediaGrid');
+  if (!root || root.dataset.rendered === '1') return;
+  root.dataset.rendered = '1';
+  root.innerHTML = MEDIA_LIBRARY.map((item) => `
+    <figure class="media-card">
+      <img src="${item.src}" alt="${escapeHtml(item.title)}" loading="lazy">
+      <figcaption><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.tag)} · demo visual</span></figcaption>
+    </figure>`).join('');
+}
+
+let lastCatalogSource = '';
+
+async function loadInsights() {
+  const count = $('#conversionCount');
+  const list = $('#conversionList');
+  const empty = $('#insightEmpty');
+  count.textContent = '…';
+  try {
+    const response = await fetch('/api/studio/poc/conversions', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    if (response.status === 401 || response.status === 403) {
+      count.textContent = '—';
+      list.hidden = true; empty.hidden = false;
+      empty.textContent = 'Unlock the operator session to read conversion receipts.';
+      return;
+    }
+    if (!response.ok) throw new Error(String(response.status));
+    const payload = await response.json();
+    const rows = Array.isArray(payload.conversions) ? payload.conversions : [];
+    count.textContent = String(payload.count ?? rows.length);
+    empty.hidden = rows.length > 0;
+    list.innerHTML = rows.slice(0, 8).map((row) => {
+      const channel = row.source_channel ? escapeHtml(String(row.source_channel)) : 'social';
+      const live = row.live_session_id ? ` · live ${escapeHtml(String(row.live_session_id)).slice(0, 8)}` : '';
+      const when = row.confirmed_at ? new Date(row.confirmed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      return `<li><span class="conv-channel">${channel}</span><span class="conv-meta">checkout confirmed${live}</span><time>${when}</time></li>`;
+    }).join('');
+    list.hidden = rows.length === 0;
+  } catch {
+    count.textContent = '—';
+    list.hidden = true; empty.hidden = false;
+    empty.textContent = 'Commerce receipts are unavailable while the Studio POC store is unreachable.';
+  }
+}
+
 async function loadCatalog() {
   const response = await fetch(CATALOG_URL, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
   if (!response.ok) throw new Error(`Catalog unavailable (${response.status})`);
   const payload = await response.json();
   products = Array.isArray(payload) ? payload : payload.products || [];
+  lastCatalogSource = payload.source || '';
   renderProducts();
   if (products[0]) selectProduct(products[0], false);
   activity('Catalog ready', `${products.length} products loaded from the Studio context.`);
@@ -153,11 +243,13 @@ async function unlock(event) {
 }
 
 function wire() {
+  document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => switchView(button.dataset.view)));
   $('#openShop').addEventListener('click', () => selected ? postProduct(selected) : notify('Choose a product first.'));
   $('#armLive').addEventListener('click', armLive);
   $('#unlock').addEventListener('click', () => $('#unlockDialog').showModal());
   $('#cancelUnlock').addEventListener('click', () => $('#unlockDialog').close());
   $('#unlockForm').addEventListener('submit', unlock);
+  $('#refreshInsights').addEventListener('click', loadInsights);
   window.addEventListener('message', (event) => {
     if (event.source !== window.parent) return;
     if (event.data?.version !== 'yaatal-os.v1' || event.data.kind !== 'theme-change') return;

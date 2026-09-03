@@ -4,11 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yaatal OS — Live Studio</title>
-  <link rel="stylesheet" href="/dashboard/os.css?v=1">
+  <link rel="stylesheet" href="/dashboard/os.css?v=2">
 </head>
 <body>
   <main class="studio-canvas">
-    <section class="live-workspace" aria-label="Live workspace">
+    <nav class="os-nav" aria-label="Studio views">
+      <span class="nav-brand">YAATAL</span>
+      <button type="button" class="nav-item active" data-view="live"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm-4 9a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z"/></svg>Live</button>
+      <button type="button" class="nav-item" data-view="catalog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6Zm2-3h12v2H6V3Zm2 8h8v2H8v-2Zm0 4h5v2H8v-2Z"/></svg>Catalog</button>
+      <button type="button" class="nav-item" data-view="media"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4V5Zm2 10 3.5-4 2.5 3 3-4L18 17H6Zm3-6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>Media</button>
+      <button type="button" class="nav-item" data-view="insights"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10h4v10H4Zm6 0V4h4v16h-4Zm6 0v-7h4v7h-4Z"/></svg>Insights</button>
+      <span class="nav-foot" id="navFoot"></span>
+    </nav>
+
+    <section class="live-workspace" data-view-panel="live" aria-label="Live workspace">
       <header class="surface-head">
         <div>
           <span class="live-state"><i></i><span id="liveState">Preview</span></span>
@@ -37,6 +46,34 @@
         </div>
         <div class="products" id="products" aria-live="polite"></div>
       </section>
+    </section>
+
+    <section class="live-workspace" data-view-panel="catalog" hidden aria-label="Full catalog">
+      <header class="surface-head">
+        <div><span class="eyebrow">Studio catalog</span><h2>All products</h2></div>
+        <span class="viewer-state" id="catalogSource"></span>
+      </header>
+      <div class="catalog-grid" id="catalogGrid"></div>
+    </section>
+
+    <section class="live-workspace" data-view-panel="media" hidden aria-label="Media library">
+      <header class="surface-head">
+        <div><span class="eyebrow">Media library</span><h2>Product visuals</h2></div>
+        <span class="viewer-state" id="mediaNote">Demo visuals — generated placeholders</span>
+      </header>
+      <div class="media-grid" id="mediaGrid"></div>
+    </section>
+
+    <section class="live-workspace" data-view-panel="insights" hidden aria-label="Insights">
+      <header class="surface-head">
+        <div><span class="eyebrow">Commerce insights</span><h2>Conversions</h2></div>
+        <button type="button" class="quiet-action" id="refreshInsights">Refresh</button>
+      </header>
+      <div class="insights-body">
+        <div class="insight-hero" id="insightHero"><span class="insight-num" id="conversionCount">—</span><span class="viewer-state">sandbox-confirmed checkouts attributed to this Studio</span></div>
+        <ol class="conversion-list" id="conversionList"></ol>
+        <p class="insight-empty" id="insightEmpty" hidden>No conversions yet. Share a checkout link from the live view, complete a sandbox payment, and it appears here with its channel attribution.</p>
+      </div>
     </section>
 
     <aside class="assistant-panel" aria-label="Governed assistant activity">
@@ -78,6 +115,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="/dashboard/os.js?v=1"></script>
+  <script src="/dashboard/os.js?v=2"></script>
 </body>
 </html>
