@@ -16,6 +16,19 @@ import {
 
 const POLL_MS = 2000;
 
+export type Theme = "light" | "dark";
+
+export interface PaneController {
+  dispose: () => void;
+  setTheme: (theme: Theme) => void;
+}
+
+export interface SellRenderOptions {
+  theme: Theme;
+  onSidecarState: (state: SidecarStatus["state"]) => void;
+  onProductNavigation: (productId: string) => void;
+}
+
 export const FALLBACK_STATUS: SidecarStatus = {
   version: "yaatal-os.v1",
   kind: "sidecar-status",
@@ -84,13 +97,24 @@ let mode: SellMode = "live";
 let diagnosticsOpen = false;
 let restarting = false;
 
-function createCockpit(status: SidecarStatus): HTMLIFrameElement {
+function studioOrigin(status: SidecarStatus): string {
+  return `http://127.0.0.1:${status.port}`;
+}
+
+function createCockpit(status: SidecarStatus, theme: Theme): HTMLIFrameElement {
   const frame = document.createElement("iframe");
   frame.title = "Yaatal Studio seller cockpit";
-  frame.src = `http://127.0.0.1:${status.port}/`;
+  frame.src = `${studioOrigin(status)}/?embedded=1&theme=${theme}`;
   frame.allow = "microphone";
   frame.referrerPolicy = "no-referrer";
   return frame;
+}
+
+function sendTheme(frame: HTMLIFrameElement | null, status: SidecarStatus, theme: Theme): void {
+  frame?.contentWindow?.postMessage(
+    { version: "yaatal-os.v1", kind: "theme-change", theme },
+    studioOrigin(status),
+  );
 }
 
 function renderUtility(): HTMLElement {
@@ -106,11 +130,11 @@ function renderUtility(): HTMLElement {
   return panel;
 }
 
-function renderMain(status: SidecarStatus, refresh: (s: SidecarStatus) => void): HTMLElement {
+function renderMain(status: SidecarStatus, refresh: (s: SidecarStatus) => void, theme: Theme): HTMLElement {
   const main = document.createElement("section");
   main.className = "sell-main";
   if (mode === "live") {
-    cockpitFrame = createCockpit(status);
+    cockpitFrame = createCockpit(status, theme);
     main.replaceChildren(cockpitFrame);
   } else {
     cockpitFrame = null;
@@ -123,11 +147,17 @@ function renderModeBar(status: SidecarStatus, refresh: (s: SidecarStatus) => voi
   const bar = document.createElement("div");
   bar.className = "sell-modebar";
   bar.innerHTML = `
-    <div class="sell-mode" role="tablist">
-      <button type="button" data-mode="live" role="tab">Live</button>
-      <button type="button" data-mode="utility" role="tab">Utility</button>
+    <div class="sell-context">
+      <strong>Live Studio</strong>
+      <span class="eyebrow">Governed seller workspace</span>
     </div>
-    <button type="button" class="sell-diag-toggle">Diagnostics</button>
+    <div class="sell-mode-actions">
+      <div class="sell-mode" role="tablist">
+        <button type="button" data-mode="live" role="tab">Live</button>
+        <button type="button" data-mode="utility" role="tab">Utility</button>
+      </div>
+      <button type="button" class="sell-diag-toggle">Diagnostics</button>
+    </div>
   `;
   bar.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((tab) => {
     tab.classList.toggle("active", tab.dataset.mode === mode);
@@ -222,7 +252,8 @@ function renderReadiness(app: HTMLElement, phase: SellPhase, status: SidecarStat
   }
 }
 
-export async function renderSell(app: HTMLElement): Promise<void> {
+export async function renderSell(app: HTMLElement, options: SellRenderOptions): Promise<PaneController> {
+  let disposed = false;
   let status = await sidecarStatus();
   let phase: SellPhase = "boot";
 
@@ -231,6 +262,7 @@ export async function renderSell(app: HTMLElement): Promise<void> {
     status = sanitizeSidecarStatus(await invoke<unknown>("start_sidecar")) ?? FALLBACK_STATUS;
   }
   phase = nextSellPhase(phase, status);
+  options.onSidecarState(status.state);
 
   const relayStudioHints = (event: MessageEvent) => {
     if (!cockpitFrame?.contentWindow || event.source !== cockpitFrame.contentWindow) return;
@@ -238,9 +270,13 @@ export async function renderSell(app: HTMLElement): Promise<void> {
     if (!request) return;
     void invoke("request_product_navigation", {
       request: request satisfies ProductNavigationRequest,
-    }).catch(() => {
-      message("Could not hand the product to the Shop pane.");
-    });
+    })
+      .then(() => {
+        if (!disposed) options.onProductNavigation(request.productId);
+      })
+      .catch(() => {
+        message("Could not hand the product to the Shop pane.");
+      });
   };
   window.addEventListener("message", relayStudioHints);
 
@@ -258,6 +294,7 @@ export async function renderSell(app: HTMLElement): Promise<void> {
   };
 
   const paint = () => {
+    if (disposed) return;
     if (phase === "ready") {
       cockpitFrame = null;
       const stage = document.createElement("div");
@@ -269,7 +306,7 @@ export async function renderSell(app: HTMLElement): Promise<void> {
         }
         paint();
       };
-      stage.append(renderModeBar(status, refresh), renderMain(status, refresh), renderDiagnostics(status, refresh));
+      stage.append(renderModeBar(status, refresh), renderMain(status, refresh, options.theme), renderDiagnostics(status, refresh));
       app.replaceChildren(stage);
     } else {
       cockpitFrame = null;
@@ -280,8 +317,9 @@ export async function renderSell(app: HTMLElement): Promise<void> {
   paint();
 
   const poll = async () => {
-    if (restarting) return;
+    if (disposed || restarting) return;
     const next = await sidecarStatus();
+    if (disposed) return;
     const nextPhase = nextSellPhase(phase, next);
     if (nextPhase !== phase || next.state !== status.state) {
       phase = nextPhase;
@@ -290,6 +328,20 @@ export async function renderSell(app: HTMLElement): Promise<void> {
     } else {
       status = next;
     }
+    options.onSidecarState(status.state);
   };
-  window.setInterval(() => void poll(), POLL_MS);
+  const pollTimer = window.setInterval(() => void poll(), POLL_MS);
+
+  return {
+    dispose: () => {
+      disposed = true;
+      window.clearInterval(pollTimer);
+      window.removeEventListener("message", relayStudioHints);
+      cockpitFrame = null;
+    },
+    setTheme: (nextTheme) => {
+      options.theme = nextTheme;
+      sendTheme(cockpitFrame, status, nextTheme);
+    },
+  };
 }

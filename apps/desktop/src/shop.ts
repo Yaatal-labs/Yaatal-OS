@@ -14,6 +14,7 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { PaneController, Theme } from "./sell";
 import "./shop.css";
 
 const SHOP_BUNDLE_URL = "/shop/index.html";
@@ -44,6 +45,11 @@ export function productPath(productId: string): string {
 
 let frame: HTMLIFrameElement | null = null;
 
+export interface ShopRenderOptions {
+  theme: Theme;
+  initialProductId: string | null;
+}
+
 function focusProduct(productId: string): boolean {
   const win = frame?.contentWindow;
   if (!win) return false;
@@ -56,14 +62,47 @@ function focusProduct(productId: string): boolean {
   }
 }
 
-export async function renderShop(app: HTMLElement): Promise<void> {
+function applyShopTheme(target: HTMLIFrameElement | null, theme: Theme): void {
+  const document = target?.contentDocument;
+  if (!document) return;
+  document.documentElement.dataset.yaatalTheme = theme;
+  let style = document.querySelector<HTMLStyleElement>("#yaatal-os-theme");
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "yaatal-os-theme";
+    document.head.append(style);
+  }
+  style.textContent = theme === "dark"
+    ? `
+      html, body, #root { background: #101412 !important; color: #f1e8d5 !important; }
+      [style*="background-color: rgb(253, 251, 247)"],
+      [style*="background-color: rgb(255, 255, 255)"],
+      [style*="background-color: rgb(243, 244, 246)"] { background-color: #171c18 !important; }
+      [style*="color: rgb(17, 24, 39)"],
+      [style*="color: rgb(75, 85, 99)"] { color: #f1e8d5 !important; }
+      [style*="color: rgb(156, 163, 175)"] { color: #b9b09d !important; }
+      [style*="border-color: rgb(229, 231, 235)"],
+      [style*="border-color: rgb(209, 213, 219)"] { border-color: #514633 !important; }
+      [style*="background-color: rgb(46, 16, 101)"] { background-color: #315e49 !important; }
+      [style*="color: rgb(46, 16, 101)"] { color: #68a87d !important; }
+    `
+    : `
+      html, body, #root { background: #f4f0e6 !important; color: #1d211d !important; }
+      [style*="background-color: rgb(46, 16, 101)"] { background-color: #214d3b !important; }
+      [style*="color: rgb(46, 16, 101)"] { color: #214d3b !important; }
+      [style*="border-color: rgb(46, 16, 101)"] { border-color: #214d3b !important; }
+    `;
+}
+
+export async function renderShop(app: HTMLElement, options: ShopRenderOptions): Promise<PaneController> {
+  let disposed = false;
   app.innerHTML = `
     <div class="shell shop-shell shop-stage">
       <main class="shop-main"></main>
     </div>
   `;
   const main = app.querySelector<HTMLElement>(".shop-main");
-  if (!main) return;
+  if (!main) return { dispose: () => {}, setTheme: () => {} };
 
   frame = document.createElement("iframe");
   frame.title = "BOBO Shop buyer surface";
@@ -71,9 +110,17 @@ export async function renderShop(app: HTMLElement): Promise<void> {
   frame.referrerPolicy = "no-referrer";
   main.replaceChildren(frame);
 
+  const onFrameLoad = () => {
+    if (disposed) return;
+    applyShopTheme(frame, options.theme);
+    if (options.initialProductId) focusProduct(options.initialProductId);
+  };
+  frame.addEventListener("load", onFrameLoad);
+
   let unlisten: UnlistenFn | null = null;
   try {
     unlisten = await listen<ProductNavigationEvent>("yaatal://product-navigation", (event) => {
+      if (disposed) return;
       const productId = sanitizeNavigationEvent(event.payload);
       if (productId === null) return;
       if (!focusProduct(productId)) {
@@ -86,10 +133,19 @@ export async function renderShop(app: HTMLElement): Promise<void> {
     // The event bridge is best-effort: the bundled BOBO still works standalone.
   }
 
-  window.addEventListener("beforeunload", () => {
-    unlisten?.();
-    unlisten = null;
-  });
-
   void invoke("request_shop_refresh", { scope: "catalog" }).catch(() => {});
+
+  return {
+    dispose: () => {
+      disposed = true;
+      frame?.removeEventListener("load", onFrameLoad);
+      unlisten?.();
+      unlisten = null;
+      frame = null;
+    },
+    setTheme: (nextTheme) => {
+      options.theme = nextTheme;
+      applyShopTheme(frame, nextTheme);
+    },
+  };
 }
