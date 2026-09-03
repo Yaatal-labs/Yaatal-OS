@@ -4,7 +4,8 @@ The POC imports source only from pinned commits. Dirty or untracked working-tree
 
 | Component | Source | Pinned revision |
 |---|---|---|
-| BOBO Shop | `C:/Users/momo-/OneDrive/Desktop/YAATAL/BOBO-` | `607b8eb07f31ca034476924387763cf38ca34415` |
+| BOBO Shop | `https://github.com/MouhamedN96/BOBO-.git` branch `codex/bobo-engine-netlify-integration` | `735a90dbb4954e46e0ca4a5b5517eea7b80a7880` (imported 2026-09-02, commit `6dca165`) |
+| BOBO Shop (previous) | same | `607b8eb07f31ca034476924387763cf38ca34415` (imported at `89b1e43`) |
 | Studio | Yaatal Engine Git ref `studio/yaatal/studio-os-closure` | `074c5278a1a9a03617389539efa44c1ed2b1f9d7` |
 | Engine API contract | `Yaatal-labs/Yaatal-Engine` | `74be4bdd575d366158e2e0dab30528102040aff9` |
 | Engine voice seam | `Yaatal-labs/Yaatal-Engine` | `e93100971be8f3e4ce5d67af584ee135e7e24704` |

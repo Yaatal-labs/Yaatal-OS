@@ -13,7 +13,7 @@ sidecar, capability isolation, and one governed cross-window commerce flow.
 | Track | Scope | Checkpoint | Status |
 |---|---|---|---|
 | A — Shell | Tauri 2 host, two windows, IPC capabilities, health surface | Both windows launch; Shop cannot invoke Studio commands | Validated |
-| B — Shop | BOBO web export and desktop platform boundary | Static Shop loads in Tauri and can read Engine products | Ready |
+| B — Shop | BOBO web export and desktop platform boundary | Static Shop loads in Tauri and can read Engine products | In progress |
 | C — Studio | Python sidecar packaging and sanitized event bridge | Sidecar starts/stops and exposes health without leaking credentials | Validated |
 | S — Social checkout | Opaque intent, social links, mobile sheet, sandbox payment, conversion | WhatsApp/Telegram/live link → sheet → attributed receipt | Validated |
 | R — Review | Spec, security, and integration review | No open critical findings | Pending |
@@ -96,9 +96,9 @@ Tauri permissions, renderer-visible API key, and null CSP must not be imported.
 | Card | Lane | Owner/write set | Depends on | Checkpoint | Status |
 |---|---|---|---|---|---|
 | OSR-00 — Handoff | Spec | `docs/**` | — | Source pins, decisions, gotchas, acceptance and stop conditions are explicit | Validated |
-| OSR-01 — Clean branch and refresh provenance | Ready | Git/provenance; no product code | OSR-00 | `yaatal/os-real-surfaces` starts from reviewed PR #1; BOBO remote `735a90db` imported cleanly | Pending |
-| OSR-02 — Real Sell surface | Ready | `apps/desktop/src/**`, Studio lifecycle Rust | OSR-01 | App reaches full-window Studio automatically; diagnostics are secondary | Pending |
-| OSR-03 — Bundled BOBO Shop | Ready | `apps/shop/**`, Shop build/loading | OSR-01 | Static BOBO export loads from packaged assets without localhost | Pending |
+| OSR-01 — Clean branch and refresh provenance | Validated | Git/provenance; no product code | OSR-00 | Branch `yaatal/os-real-surfaces` from `1a97929`; BOBO `735a90db` imported at `6dca165` with exact tree parity; provenance updated | Validated |
+| OSR-02 — Real Sell surface | In progress | `apps/desktop/src/**`, Studio lifecycle Rust | OSR-01 | App reaches full-window Studio automatically; diagnostics are secondary | Pending |
+| OSR-03 — Bundled BOBO Shop | In progress | `apps/shop/**`, Shop build/loading | OSR-01 | Static BOBO export loads from packaged assets without localhost | Pending |
 | OSR-04 — Sell → Shop product handoff | Build | `packages/os-protocol/**`, narrow Rust commands/adapters | OSR-02, OSR-03 | Studio product ID focuses matching BOBO product; sensitive fields rejected | Pending |
 | OSR-05 — Minimal offline outbox | Build | New Rust state module and tests | OSR-01; integrates after OSR-04 | Same idempotent handoff survives restart and reconciles once | Pending |
 | OSR-06 — Native + Telegram acceptance | Validate | Tests and evidence only | OSR-04; OSR-05 separately | Sell → Shop plus Telegram → sheet → sandbox receipt → Studio conversion passes | Pending |
@@ -136,4 +136,3 @@ their write sets separate. OSR-04 owns the shared contract integration.
 - Automatic Telegram/WhatsApp publishing and privileged livestream product APIs.
 - Qwen Audio Agent sidecar qualification with no DashScope dependency.
 - Mobile Tauri, signing, updater, distribution, multitenancy and white-label.
-
