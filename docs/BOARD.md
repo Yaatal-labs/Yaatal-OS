@@ -129,7 +129,7 @@ displayed inside a wrapper.
 | Card | Lane | Owner/write set | Depends on | Checkpoint | Status |
 |---|---|---|---|---|---|
 | UXR-01 — Pane lifecycle and trusted navigation | Ready | `apps/desktop/src/**` | OSR-04 | Repeated SELL/SHOP switching creates one poller and one listener per mounted pane; only the mounted Studio frame can trigger product navigation | Ready |
-| UXR-02 — Unified shell design contract | Ready | `docs/**`, shell tokens only | OSR-01 | One restrained matte palette, type scale, spacing system, icon language, and responsive shell are documented; no neon, glow, glass, or generic AI dashboard styling | Ready |
+| UXR-02 — Unified shell design contract | Review | `docs/design/**`, shell tokens only | OSR-01 | Approved SELL/SHOP references exist in light and dark; palette, typography, ownership, density and responsive acceptance are documented | Review |
 | UXR-03 — Embedded surface mode | Build | Studio dashboard and BOBO desktop adapters | UXR-02 | OS owns brand, primary navigation, language, theme, status, and account chrome; embedded Studio/BOBO do not render duplicate headers or navigation | Blocked by UXR-02 |
 | UXR-04 — Native Engine session broker | Shape | Tauri Rust session state, Engine auth adapter, Studio/BOBO bootstrap adapters | UXR-01 | One login unlocks authorized SELL and SHOP routes; raw access/refresh tokens never enter iframe state or web `localStorage`; logout clears both surfaces | Needs contract |
 | UXR-05 — Canonical demo catalog and media | Review | Shared catalog fixture, Studio/BOBO adapters, product assets | OSR-03 | SELL and SHOP show the same IDs, names, prices, stock, and optimized 4:5 media; assets have provenance, alt text, and bounded size | Draft assets uncommitted |
