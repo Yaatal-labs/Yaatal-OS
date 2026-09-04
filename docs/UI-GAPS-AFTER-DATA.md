@@ -5,6 +5,24 @@
 lane; this is the pickup list, not a backlog wish list — every item below was observed,
 not imagined.*
 
+## Reconciliation — 2026-09-04
+
+This document re-entered the branch with the remote responsive-UI lineage at
+`a07d128`. Its observations are historical; use this table instead of assuming
+every original item remains open.
+
+| Original item | Current status |
+|---|---|
+| Studio duplicate brand/navigation rail | **Closed** by `9a6f9d1`; current-source Studio embedded mode exposes only the page-level Live/Catalog/Media/Insights view strip. |
+| Two SELL header rows | **Open** for the unified native UXR-06 run; the isolated embedded surface still owns Preview/Arm controls below shell chrome. |
+| Mostly empty assistant column | **Open** at wide viewports; it collapses cleanly at 900×600. |
+| BOBO embedded mode | **Partial** through `b63babc`; the shell passes `embedded=1` and constrains measure, but BOBO still needs first-class embedded chrome ownership. |
+| Rail and authenticated pane route can disagree | **Open**, coupled to the unfinished SELL/SHOP session bootstrap in UXR-04/07. |
+
+UXR-05 catalog/media is independently closed at `d6eb509`: current-source SELL
+and packaged SHOP showed the same 20 live Engine products and labeled fallback
+media at both acceptance viewports.
+
 ## Already fixed (commits `5f2d13d`, `03bf97a`)
 
 | | |
@@ -21,7 +39,7 @@ not imagined.*
 
 ---
 
-## Open — the root cause is one thing
+## Original open observations
 
 **Embedded mode is the contract's central mechanism and it is only half implemented.**
 
