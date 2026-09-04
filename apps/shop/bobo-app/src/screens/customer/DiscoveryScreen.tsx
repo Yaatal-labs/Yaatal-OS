@@ -56,7 +56,9 @@ const browseCatalog = async (
 const CATEGORIES = [
   { value: 'all', label: 'Tout', icon: 'apps-outline' },
   { value: 'fashion', label: 'Mode', icon: 'shirt-outline' },
-  { value: 'electronics', label: 'Tech', icon: 'phone-portrait-outline' },
+  // Engine's canonical catalog category is `tech`; the adapter maps it to
+  // BOBO's internal `electronics` product enum after the response arrives.
+  { value: 'tech', label: 'Tech', icon: 'phone-portrait-outline' },
   { value: 'beauty', label: 'Beauté', icon: 'sparkles-outline' },
   { value: 'food', label: 'Food', icon: 'restaurant-outline' },
   { value: 'home', label: 'Maison', icon: 'home-outline' },

@@ -143,7 +143,9 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
     ? product.stock_status === 'out_of_stock'
     : product.stock_quantity === 0
   const imageUrl =
-    getProductImageUrl(product.images[0] || product.image_url) ||
+    (product.demo_visual
+      ? product.images[0] || product.image_url
+      : getProductImageUrl(product.images[0] || product.image_url)) ||
     'https://via.placeholder.com/400'
   const videoUrl = product.video_url ? getFileUrl('videos', product.video_url) : null
   const seller = product.expand?.seller_id
@@ -176,7 +178,18 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
             )}
           </View>
         ) : (
-          <Image source={{ uri: imageUrl }} style={styles.image} />
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.image}
+              accessibilityLabel={product.image_alt || product.title}
+            />
+            {product.demo_visual && (
+              <View style={styles.demoBadge}>
+                <Text style={styles.demoBadgeText}>Demo visual</Text>
+              </View>
+            )}
+          </View>
         )}
 
         {/* Product Info */}
@@ -363,10 +376,30 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   image: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH,
+    width: '100%',
+    aspectRatio: 4 / 5,
     resizeMode: 'cover',
     backgroundColor: colors.background.subtle,
+  },
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    backgroundColor: colors.background.subtle,
+  },
+  demoBadge: {
+    position: 'absolute',
+    left: spacing.md,
+    bottom: spacing.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(20, 31, 27, 0.82)',
+    borderRadius: 6,
+  },
+  demoBadgeText: {
+    ...typography.micro,
+    color: colors.text.inverse,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   infoContainer: {
     padding: spacing.lg,

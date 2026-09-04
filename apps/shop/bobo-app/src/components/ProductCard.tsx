@@ -22,10 +22,19 @@ interface ProductCardProps {
 }
 
 export const ProductCard = ({ product, onPress }: ProductCardProps) => {
-  const imageUrl = getProductImageUrl(product.image_url) || 'https://via.placeholder.com/300'
+  const imageUrl = (
+    product.demo_visual
+      ? product.image_url
+      : getProductImageUrl(product.image_url)
+  ) || 'https://via.placeholder.com/300'
   const hasVideo = !!product.video_url
   const hasDiscount = product.discount_price && product.discount_price < product.price
   const displayPrice = hasDiscount ? product.discount_price! : product.price
+  const displayPriceText = (
+    hasDiscount
+      ? product.discount_price_display
+      : product.price_display
+  ) || formatCFA(displayPrice)
 
   return (
     <TouchableOpacity
@@ -35,7 +44,17 @@ export const ProductCard = ({ product, onPress }: ProductCardProps) => {
     >
       {/* Image Container */}
       <View style={styles.imageContainer}>
-        <Image source={{ uri: imageUrl }} style={styles.image} />
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.image}
+          accessibilityLabel={product.image_alt || product.title}
+        />
+
+        {product.demo_visual && (
+          <View style={styles.demoBadge}>
+            <Text style={styles.demoBadgeText}>Demo visual</Text>
+          </View>
+        )}
 
         {/* Video Badge - Glassy */}
         {hasVideo && (
@@ -68,10 +87,10 @@ export const ProductCard = ({ product, onPress }: ProductCardProps) => {
 
         {/* Price Row */}
         <View style={styles.priceRow}>
-          <Text style={theme.typography.priceLarge}>{formatCFA(displayPrice)}</Text>
+          <Text style={theme.typography.priceLarge}>{displayPriceText}</Text>
           {hasDiscount && (
             <Text style={styles.originalPrice}>
-              {formatCFA(product.price)}
+              {product.price_display || formatCFA(product.price)}
             </Text>
           )}
         </View>
@@ -141,6 +160,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     borderRadius: 12,
     padding: 6,
+  },
+  demoBadge: {
+    position: 'absolute',
+    left: 12,
+    bottom: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(20, 31, 27, 0.82)',
+    borderRadius: 6,
+  },
+  demoBadgeText: {
+    ...theme.typography.micro,
+    color: colors.text.inverse,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   discountBadge: {
     position: 'absolute',

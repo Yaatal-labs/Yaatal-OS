@@ -53,12 +53,19 @@ export interface Product extends BaseRecord {
   title: string
   description?: string
   price: number
+  price_display?: string
   discount_price?: number
+  discount_price_display?: string | null
   category: 'fashion' | 'electronics' | 'beauty' | 'food' | 'home' | 'other'
   tags?: string[]
   image_url: string
+  // OS catalog fallback metadata. Merchant media always wins; demo media is
+  // explicitly labeled in the UI and never represented as a real product photo.
+  demo_visual?: boolean
+  image_alt?: string | null
   video_url?: string
   stock_quantity: number
+  stock_status?: string
   upvotes: number
   view_count: number
   is_featured: boolean

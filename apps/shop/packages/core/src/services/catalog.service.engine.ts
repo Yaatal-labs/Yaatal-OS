@@ -29,6 +29,121 @@ const CATEGORIES: Product['category'][] = [
   'other',
 ]
 
+const ENGINE_CATEGORY_TO_PRODUCT: Record<string, Product['category']> = {
+  fashion: 'fashion',
+  clothing: 'fashion',
+  leather: 'fashion',
+  bags: 'fashion',
+  jewelry: 'fashion',
+  tech: 'electronics',
+  phone: 'electronics',
+  electronics: 'electronics',
+  cosmetics: 'beauty',
+  beauty: 'beauty',
+  skincare: 'beauty',
+  drinks: 'food',
+  food: 'food',
+  decor: 'home',
+  home: 'home',
+}
+
+type DemoCatalogMedia = {
+  filename: string
+  alt: string
+}
+
+// Keep this category contract aligned with Studio's _DEMO_CATEGORY_IMAGES.
+// It is deliberately a fallback, never a replacement for merchant media.
+const DEMO_MEDIA_BY_CATEGORY: Record<string, DemoCatalogMedia> = {
+  tech: {
+    filename: 'smartphone.webp',
+    alt: 'Generic smartphone on cream studio backdrop',
+  },
+  phone: {
+    filename: 'smartphone.webp',
+    alt: 'Generic smartphone on cream studio backdrop',
+  },
+  fashion: {
+    filename: 'bazin_robe.webp',
+    alt: 'Indigo bazin robe with gold embroidery',
+  },
+  clothing: {
+    filename: 'bazin_robe.webp',
+    alt: 'Indigo bazin robe with gold embroidery',
+  },
+  leather: {
+    filename: 'leather_bag.webp',
+    alt: 'Cognac leather satchel with brass clasp',
+  },
+  bags: {
+    filename: 'leather_bag.webp',
+    alt: 'Cognac leather satchel with brass clasp',
+  },
+  jewelry: {
+    filename: 'gold_earrings.webp',
+    alt: 'Sablé gold filigree earrings on silk',
+  },
+  drinks: {
+    filename: 'bissap.webp',
+    alt: 'Bissap hibiscus bottle with dried flowers',
+  },
+  food: {
+    filename: 'bissap.webp',
+    alt: 'Bissap hibiscus bottle with dried flowers',
+  },
+  decor: {
+    filename: 'thiote_mat.webp',
+    alt: 'Woven thiote mat with geometric pattern',
+  },
+  home: {
+    filename: 'thiote_mat.webp',
+    alt: 'Woven thiote mat with geometric pattern',
+  },
+  cosmetics: {
+    filename: 'cosmetics.webp',
+    alt: 'Natural cosmetics: black soap serum, shea balm, hibiscus',
+  },
+  beauty: {
+    filename: 'cosmetics.webp',
+    alt: 'Natural cosmetics: black soap serum, shea balm, hibiscus',
+  },
+  skincare: {
+    filename: 'cosmetics.webp',
+    alt: 'Natural cosmetics: black soap serum, shea balm, hibiscus',
+  },
+}
+
+export type ResolvedCatalogMedia = {
+  images: string[]
+  demoVisual: boolean
+  imageAlt: string | null
+}
+
+export const resolveCatalogMedia = (
+  category: string,
+  sourceImages: string[] | null | undefined,
+  mediaBaseUrl = process.env.EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL
+): ResolvedCatalogMedia => {
+  const realImages = (sourceImages || []).filter(
+    (image): image is string => typeof image === 'string' && image.trim().length > 0
+  )
+  if (realImages.length > 0) {
+    return { images: realImages, demoVisual: false, imageAlt: null }
+  }
+
+  const baseUrl = mediaBaseUrl?.trim().replace(/\/+$/, '')
+  const fallback = DEMO_MEDIA_BY_CATEGORY[String(category || '').toLowerCase()]
+  if (!baseUrl || !fallback) {
+    return { images: [], demoVisual: false, imageAlt: null }
+  }
+
+  return {
+    images: [`${baseUrl}/${fallback.filename}`],
+    demoVisual: true,
+    imageAlt: fallback.alt,
+  }
+}
+
 // The mapped storefront product keeps the existing `Product` UI shape and carries
 // the Engine's preformatted display fields alongside it.
 export type CatalogProductView = Product & {
@@ -36,6 +151,8 @@ export type CatalogProductView = Product & {
   discount_price_display: string | null
   stock_status: string
   images: string[]
+  demo_visual: boolean
+  image_alt: string | null
 }
 
 const sellerProfileFromCatalog = (product: CatalogProduct): Profile => {
@@ -59,10 +176,13 @@ const sellerProfileFromCatalog = (product: CatalogProduct): Profile => {
 export const mapCatalogProductToProduct = (
   product: CatalogProduct
 ): CatalogProductView => {
-  const images = product.images || []
-  const category = CATEGORIES.includes(product.category as Product['category'])
-    ? (product.category as Product['category'])
-    : 'other'
+  const media = resolveCatalogMedia(product.category, product.images)
+  const images = media.images
+  const rawCategory = String(product.category || '').toLowerCase()
+  const category = ENGINE_CATEGORY_TO_PRODUCT[rawCategory]
+    || (CATEGORIES.includes(rawCategory as Product['category'])
+      ? (rawCategory as Product['category'])
+      : 'other')
 
   return {
     id: product.id,
@@ -95,6 +215,8 @@ export const mapCatalogProductToProduct = (
     discount_price_display: product.discount_price_display,
     stock_status: product.stock_status,
     images,
+    demo_visual: media.demoVisual,
+    image_alt: media.imageAlt,
   } as CatalogProductView
 }
 

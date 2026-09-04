@@ -42,6 +42,17 @@ const target = join(publicDir, "shop");
 
 /** Root-absolute paths referenced by the BOBO export's index.html and bundle. */
 const ROOT_SPREAD = ["_expo", "assets", "favicon.ico", "manifest.json", "metadata.json"];
+const DEMO_MEDIA = [
+  "bazin_robe.webp",
+  "bissap.webp",
+  "cosmetics.webp",
+  "gold_earrings.webp",
+  "leather_bag.webp",
+  "smartphone.webp",
+  "thiote_mat.webp",
+];
+const demoMediaSource = join(root, "apps", "studio", "live", "dashboard", "img");
+const catalogMediaBaseUrl = process.env.EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL || "/shop/catalog-media";
 
 const NOOP_SERVICE_WORKER = `/* Yaatal OS no-op service worker (installed by scripts/build-shop.mjs).
    BOBO's bundle registers '/service-worker.js' at root scope; this harmless
@@ -69,7 +80,10 @@ const exportRun = spawnSync(pnpmCommand(), ["--filter", "bobo-app", "exec", "exp
   cwd: shopSource,
   stdio: "inherit",
   shell: process.platform === "win32",
-  env: process.env,
+  env: {
+    ...process.env,
+    EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL: catalogMediaBaseUrl,
+  },
 });
 if (exportRun.status !== 0) fail("expo export failed — see output above.");
 
@@ -79,6 +93,18 @@ console.log("build-shop: installing full export into apps/desktop/public/shop �
 rmSync(target, { recursive: true, force: true });
 mkdirSync(target, { recursive: true });
 cpSync(shopDist, target, { recursive: true });
+
+// Install the exact same optimized, provenance-recorded demo media used by
+// Studio. The BOBO adapter only selects it when Engine returns no product
+// image, and labels it as a demo visual in both browse and detail views.
+const demoMediaTarget = join(target, "catalog-media");
+mkdirSync(demoMediaTarget, { recursive: true });
+for (const filename of DEMO_MEDIA) {
+  const source = join(demoMediaSource, filename);
+  if (!existsSync(source)) fail(`missing shared demo media: ${source}`);
+  cpSync(source, join(demoMediaTarget, filename));
+}
+console.log(`build-shop: installed ${DEMO_MEDIA.length} shared catalog WebPs at ${catalogMediaBaseUrl}.`);
 
 // Inject the OS Shop-pane skin into the packaged copy ONLY — the vendored
 // BOBO source and its original export stay untouched (tree parity).

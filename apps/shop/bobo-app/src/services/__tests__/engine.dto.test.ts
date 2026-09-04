@@ -5,6 +5,7 @@ import {
 } from '../../../../packages/core/src/services/orders.service.engine'
 import { mapEngineProductToProduct } from '../../../../packages/core/src/services/products.service.engine'
 import { ProductsServiceEngine } from '../../../../packages/core/src/services/products.service.engine'
+import { mapCatalogProductToProduct } from '../../../../packages/core/src/services/catalog.service.engine'
 
 describe('Engine DTO mapping', () => {
   const getMockClient = () => {
@@ -65,6 +66,78 @@ describe('Engine DTO mapping', () => {
       category: 'fashion',
     })
     expect(product.expand?.seller_id?.id).toBe('seller-1')
+  })
+
+  it('adds an explicitly marked OS demo visual only when catalog media is empty', () => {
+    const previousBaseUrl = process.env.EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL
+    process.env.EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL = '/shop/catalog-media'
+    try {
+      const product = mapCatalogProductToProduct({
+        id: 'prod_infinix_hot',
+        merchant_id: 'seller-1',
+        name: 'Infinix Hot 40i',
+        description: null,
+        price_cents: 95000,
+        price_display: '95 000 FCFA',
+        discount_price_cents: null,
+        discount_price_display: null,
+        stock: 22,
+        stock_status: 'in_stock',
+        category: 'tech',
+        images: [],
+        upvotes: 0,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-02T00:00:00Z',
+      } as any)
+
+      expect(product.id).toBe('prod_infinix_hot')
+      expect(product.image_url).toBe('/shop/catalog-media/smartphone.webp')
+      expect(product.images).toEqual(['/shop/catalog-media/smartphone.webp'])
+      expect(product.category).toBe('electronics')
+      expect(product.demo_visual).toBe(true)
+      expect(product.image_alt).toBe('Generic smartphone on cream studio backdrop')
+    } finally {
+      if (previousBaseUrl === undefined) {
+        delete process.env.EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL
+      } else {
+        process.env.EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL = previousBaseUrl
+      }
+    }
+  })
+
+  it('never replaces merchant catalog media with a demo visual', () => {
+    const previousBaseUrl = process.env.EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL
+    process.env.EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL = '/shop/catalog-media'
+    try {
+      const product = mapCatalogProductToProduct({
+        id: 'prod_ankara_dress',
+        merchant_id: 'seller-1',
+        name: 'Robe Ankara',
+        description: null,
+        price_cents: 22000,
+        price_display: '22 000 FCFA',
+        discount_price_cents: null,
+        discount_price_display: null,
+        stock: 10,
+        stock_status: 'in_stock',
+        category: 'fashion',
+        images: ['https://cdn.example/merchant-robe.webp'],
+        upvotes: 0,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-02T00:00:00Z',
+      } as any)
+
+      expect(product.images).toEqual(['https://cdn.example/merchant-robe.webp'])
+      expect(product.image_url).toBe('https://cdn.example/merchant-robe.webp')
+      expect(product.demo_visual).toBe(false)
+      expect(product.image_alt).toBeNull()
+    } finally {
+      if (previousBaseUrl === undefined) {
+        delete process.env.EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL
+      } else {
+        process.env.EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL = previousBaseUrl
+      }
+    }
   })
 
   it('searches products through the Engine SDK search surface', async () => {

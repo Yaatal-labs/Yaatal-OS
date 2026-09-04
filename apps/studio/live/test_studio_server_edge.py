@@ -309,6 +309,54 @@ class StudioControlPlaneTest(unittest.TestCase):
         self.assertEqual(self.client.get("/").status_code, 200)
         self.assertEqual(self.client.get("/dashboard/app.js").status_code, 200)
         self.assertEqual(self.client.get("/dashboard/styles.css").status_code, 200)
+        for filename in (
+            "bazin_robe.webp",
+            "bissap.webp",
+            "cosmetics.webp",
+            "gold_earrings.webp",
+            "leather_bag.webp",
+            "smartphone.webp",
+            "thiote_mat.webp",
+        ):
+            self.assertEqual(
+                self.client.get(f"/dashboard/img/{filename}").status_code,
+                200,
+                filename,
+            )
+
+    def test_catalog_demo_media_is_fallback_only_and_labeled(self):
+        old_demo_mode = server.STUDIO_DEMO_MODE
+        server.STUDIO_DEMO_MODE = True
+        try:
+            missing = server.normalize_studio_product(
+                {
+                    "id": "prod_infinix_hot",
+                    "name": "Infinix Hot 40i",
+                    "category": "tech",
+                    "images": [],
+                }
+            )
+            merchant = server.normalize_studio_product(
+                {
+                    "id": "prod_ankara_dress",
+                    "name": "Robe Ankara",
+                    "category": "fashion",
+                    "images": ["https://cdn.example/merchant-robe.webp"],
+                }
+            )
+        finally:
+            server.STUDIO_DEMO_MODE = old_demo_mode
+
+        self.assertEqual(missing["id"], "prod_infinix_hot")
+        self.assertEqual(missing["images"], ["/dashboard/img/smartphone.webp"])
+        self.assertTrue(missing["demo_visual"])
+        self.assertEqual(
+            missing["image_alt"], "Generic smartphone on cream studio backdrop"
+        )
+        self.assertEqual(
+            merchant["images"], ["https://cdn.example/merchant-robe.webp"]
+        )
+        self.assertNotIn("demo_visual", merchant)
 
 
 if __name__ == "__main__":
