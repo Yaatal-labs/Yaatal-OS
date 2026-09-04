@@ -1,5 +1,15 @@
 # UXR-05 — catalog unification
 
+**Status: Validated in `d6eb509` on 2026-09-04.**
+
+SHOP now reads the same live Engine catalog as SELL, maps Engine category
+aliases without changing canonical product data, uses Engine-formatted prices,
+and receives the exact same optimized Studio WebPs only when merchant media is
+empty. Browse and detail views visibly label fallback media and expose its alt
+text. The live comparison found 20/20 matching IDs and zero name, price, stock,
+or fallback-media differences; both panes were browser-checked at 1280×800 and
+900×600. The six obsolete PNG sources were removed.
+
 Pickup document. Written 2026-09-03 for whoever takes this next; assume no memory of the
 conversation it came from.
 
@@ -9,7 +19,7 @@ reach `main` without dragging the other. Putting work on the wrong one re-couple
 
 ## What is already done
 
-`06cc701` landed the media half: seven 4:5 WebPs under
+`8aa4ee5` landed the media half: seven 4:5 WebPs under
 `apps/studio/live/dashboard/img/`, plus placeholder logic in `studio_server.py` and
 `os.js`. That commit is explicit about the policy it chose, and it should be preserved:
 
@@ -19,9 +29,8 @@ A missing image shows a *visibly* marked placeholder. It never quietly substitut
 different product's photo, because a demo that silently shows the wrong picture is worse
 than one that shows a gap.
 
-**The board row for UXR-05 is stale** — it still reads "fixture unification pending",
-which is now an accurate description of what remains rather than of the whole card.
-Update it when you finish; a stale row is how work gets done twice.
+The board row is now closed against `d6eb509`; the historical pickup notes below
+remain so the source-of-truth and fallback decisions are not rediscovered.
 
 ## What remains
 

@@ -1,6 +1,6 @@
 # Yaatal OS Symphony Board
 
-Updated: 2026-09-02
+Updated: 2026-09-04
 Execution handoff: [`OS-REAL-SURFACES-HANDOFF.md`](./OS-REAL-SURFACES-HANDOFF.md)
 
 ## Goal
@@ -14,7 +14,7 @@ and one governed cross-pane commerce flow.
 | Track | Scope | Checkpoint | Status |
 |---|---|---|---|
 | A — Shell | Tauri 2 host, one window, SELL/SHOP router, narrow IPC, health surface | Unified window launches; only explicitly registered commands exist | Revalidation required |
-| B — Shop | BOBO web export and desktop platform boundary | Static Shop loads in Tauri and can read Engine products | In progress |
+| B — Shop | BOBO web export and desktop platform boundary | Static Shop loads in Tauri and can read Engine products | Validated `d6eb509` |
 | C — Studio | Python sidecar packaging and sanitized event bridge | Sidecar starts/stops and exposes health without leaking credentials | Validated |
 | S — Social checkout | Opaque intent, social links, mobile sheet, sandbox payment, conversion | WhatsApp/Telegram/live link → sheet → attributed receipt | Validated |
 | R — Review | Spec, security, and integration review | No open critical findings | Pending |
@@ -65,10 +65,31 @@ implemented separately.
   air → create share links → open mobile sheet → choose Orange Money → confirm
   sandbox payment → receipt appears → Studio counter changes from 0 to 1.
 
-Track B and Track I remain open for product-level acceptance. BOBO is now
-bundled and the product-navigation seam exists, but the combined SELL/SHOP
-flow has not yet been exercised through the native app against one canonical
-catalog and one OS-owned session.
+At this 2026-09-02 checkpoint, Track B and Track I remained open for
+product-level acceptance. BOBO was bundled and the product-navigation seam
+existed, but the combined SELL/SHOP flow had not yet been exercised through
+the native app against one canonical catalog and one OS-owned session.
+
+## Catalog acceptance checkpoint — 2026-09-04
+
+- `d6eb509` makes BOBO SHOP consume the same live Engine catalog as SELL and
+  carries Engine IDs, names, formatted prices, stock and category aliases
+  without a second fixture.
+- The seven 4:5 WebPs are installed from Studio into the packaged Shop export;
+  merchant media always wins and fallback media is visibly labeled
+  `Demo visual` with alt text.
+- Live Engine versus isolated current-source Studio: **20/20 IDs equal, zero
+  name/price/stock differences, zero fallback-media mapping differences**.
+- Real browser at **1280×800** and **900×600**: SHOP catalog and product detail
+  render the same `prod_infinix_hot`, `95 000 FCFA`, stock `22`, category
+  `Électronique`, and labeled smartphone fallback shown in SELL. All rendered
+  catalog-media requests returned 200; zero broken catalog images.
+- BOBO: type-check passed; **67 tests passed**. Studio: **78 passed, 1 skipped**.
+  OS: check/build passed; **11 tests passed**. Tauri: fmt passed, **2 tests
+  passed**, warning-denying Clippy passed.
+
+Track B and UXR-05 are closed. Track I remains open because the authenticated
+native SELL → SHOP handoff and Commerce Sheet receipt belong to UXR-06.
 
 ## Real-surfaces correction
 
@@ -132,7 +153,7 @@ displayed inside a wrapper.
 | UXR-02 — Unified shell design contract | Review | `docs/design/**`, shell tokens only | OSR-01 | Approved SELL/SHOP references exist in light and dark; palette, typography, ownership, density and responsive acceptance are documented | Validated — founder approved references 2026-09-03; contract at `docs/design/YAATAL-OS-UI-CONTRACT.md` |
 | UXR-03 — Embedded surface mode | Build | Studio dashboard and BOBO desktop adapters | UXR-02 | OS owns brand, primary navigation, language, theme, status, and account chrome; embedded Studio/BOBO do not render duplicate headers or navigation | Validated `9a6f9d1` — Studio embedded surface now page-level view strip, no brand/secondary rail; assistant panel Live-only; BOBO chrome suppressed via skin (`1b6c021`); browser-verified per contract |
 | UXR-04 — Native Engine session broker | Shape | Tauri Rust session state, Engine auth adapter, Studio/BOBO bootstrap adapters | UXR-01 | One login unlocks authorized SELL and SHOP routes; raw access/refresh tokens never enter iframe state or web `localStorage`; logout clears both surfaces | Implemented `19e171d` (contract `4fd2cb3`): os_login/os_logout/os_session_status, tokens Rust-process-only, sanitized session events, shell login dialog; SELL auto-unlock + BOBO nonce bootstrap remain |
-| UXR-05 — Canonical demo catalog and media | Review | Shared catalog fixture, Studio/BOBO adapters, product assets | OSR-03 | SELL and SHOP show the same IDs, names, prices, stock, and optimized 4:5 media; assets have provenance, alt text, and bounded size | Media done: `c90b3d1` (six parchment photos with provenance) + `06cc701` (seven 4:5 WebPs, fallback-only placeholder policy — a missing image is marked, never silently substituted). **Remaining: catalog unification.** SELL reads the Engine (`get_catalog`/`get_session_products`, `studio_server.py:483,963`), so the task is making SHOP resolve the same canonical IDs — not authoring a shared fixture. Pickup doc: `docs/scopes/UXR-05-CATALOG-UNIFICATION.md` |
+| UXR-05 — Canonical demo catalog and media | Validated | Studio/BOBO catalog adapters, product assets, Shop build | OSR-03 | SELL and SHOP show the same IDs, names, prices, stock, and optimized 4:5 media; assets have provenance, alt text, and bounded size | Validated `d6eb509`: both panes consume the live Engine catalog; Shop mirrors Studio's fallback-only WebPs with visible labels and alt text; 20/20 live IDs and metadata matched; browser-verified at 1280×800 and 900×600. Heavy PNG duplicates removed. |
 | UXR-06 — Unified visual and commerce acceptance | Validate | Tests and evidence only | UXR-03, UXR-04, UXR-05 | Login → SELL → select product → SHOP detail → Commerce Sheet → sandbox receipt passes at 1280×800 and 900×600 without nested chrome | Pending |
 
 ### Corrected execution order
