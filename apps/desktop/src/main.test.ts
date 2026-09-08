@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { sanitizeProductNavigation, sanitizeSidecarStatus } from "@yaatal/os-protocol";
 import {
   postStudioMessage,
+  reconcileStudioReadyState,
   sanitizeStudioAuthMessage,
   sanitizeStudioBootstrapGrant,
   sanitizeStudioFrameOrigin,
@@ -71,5 +72,27 @@ describe("native Studio session bridge", () => {
     );
     expect(calls.sort()).toEqual(["engine", "studio"]);
     expect(result).toEqual({ engineCleared: true, studioCleared: false });
+  });
+
+  it("cleans an unmounted Studio on remount without bootstrapping a logged-out shell", async () => {
+    const logout = await settleCoordinatedLogout(
+      async () => undefined,
+      async () => false, // no mounted Studio frame could receive cleanup
+    );
+    expect(logout).toEqual({ engineCleared: true, studioCleared: false });
+
+    const calls: string[] = [];
+    const remount = await reconcileStudioReadyState(
+      { engineAuthenticated: false, cleanupPending: true },
+      async () => { calls.push("cleanup"); return true; },
+      async () => { calls.push("bootstrap"); },
+    );
+
+    expect(calls).toEqual(["cleanup"]);
+    expect(remount).toEqual({
+      engineAuthenticated: false,
+      cleanupPending: false,
+      action: "cleanup",
+    });
   });
 });

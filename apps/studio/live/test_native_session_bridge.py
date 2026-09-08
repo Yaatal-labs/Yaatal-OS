@@ -37,6 +37,10 @@ class NativeSessionBridgeSourceTest(unittest.TestCase):
         self.assertIn("method: 'DELETE'", self.javascript)
         self.assertIn('@app.delete("/api/studio/operator/session")', self.server)
 
+    def test_embedded_reload_starts_locked_until_native_sync(self):
+        self.assertIn("refreshSession(window.parent === window)", self.javascript)
+        self.assertIn("acceptExistingSession && response.ok", self.javascript)
+
 
 if __name__ == "__main__":
     unittest.main()

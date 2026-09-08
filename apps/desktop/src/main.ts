@@ -144,6 +144,8 @@ let currentSession: OsSession = { authenticated: false, merchant_name: null, ver
 let studioAuthState: "idle" | "pending" | "active" | "failed" = "idle";
 let studioAuthNotice = "";
 let studioBootstrapInFlight: Window | null = null;
+let studioSyncInFlight: Window | null = null;
+let studioLogoutPending = true;
 const studioReadyFrames = new WeakSet<Window>();
 let pendingStudioLogout: { frameWindow: Window; resolve: (ok: boolean) => void; timer: number } | null = null;
 
@@ -212,6 +214,29 @@ export async function settleCoordinatedLogout(
   };
 }
 
+export async function reconcileStudioReadyState(
+  state: { engineAuthenticated: boolean; cleanupPending: boolean },
+  clearStudio: () => Promise<boolean>,
+  requestBootstrap: () => Promise<void>,
+): Promise<{ engineAuthenticated: boolean; cleanupPending: boolean; action: "cleanup" | "bootstrap" }> {
+  if (state.cleanupPending || !state.engineAuthenticated) {
+    const cleared = await clearStudio();
+    if (!cleared || !state.engineAuthenticated) {
+      return {
+        engineAuthenticated: state.engineAuthenticated,
+        cleanupPending: !cleared,
+        action: "cleanup",
+      };
+    }
+  }
+  await requestBootstrap();
+  return {
+    engineAuthenticated: state.engineAuthenticated,
+    cleanupPending: false,
+    action: "bootstrap",
+  };
+}
+
 function studioTarget(): StudioTarget | null {
   const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Yaatal Studio seller cockpit"]');
   if (!frame?.contentWindow) return null;
@@ -225,8 +250,9 @@ function setStudioAuthState(state: typeof studioAuthState, notice = ""): void {
   renderSession(currentSession);
 }
 
-async function requestStudioBootstrap(target = studioTarget()): Promise<void> {
+async function requestStudioBootstrap(target = studioTarget(), cleanupConfirmed = false): Promise<void> {
   if (!target || !currentSession.authenticated || !studioReadyFrames.has(target.frameWindow)) return;
+  if (studioLogoutPending && !cleanupConfirmed) return;
   if (studioBootstrapInFlight === target.frameWindow) return;
   studioBootstrapInFlight = target.frameWindow;
   setStudioAuthState("pending");
@@ -249,8 +275,7 @@ async function requestStudioBootstrap(target = studioTarget()): Promise<void> {
   }
 }
 
-function requestStudioLogout(): Promise<boolean> {
-  const target = studioTarget();
+function requestStudioLogout(target = studioTarget()): Promise<boolean> {
   if (!target) return Promise.resolve(false);
   pendingStudioLogout?.resolve(false);
   window.clearTimeout(pendingStudioLogout?.timer);
@@ -267,6 +292,29 @@ function requestStudioLogout(): Promise<boolean> {
   });
 }
 
+async function reconcileMountedStudio(target: StudioTarget): Promise<void> {
+  if (studioSyncInFlight === target.frameWindow) return;
+  studioSyncInFlight = target.frameWindow;
+  try {
+    const result = await reconcileStudioReadyState(
+      {
+        engineAuthenticated: currentSession.authenticated,
+        cleanupPending: studioLogoutPending,
+      },
+      () => requestStudioLogout(target),
+      () => requestStudioBootstrap(target, true),
+    );
+    studioLogoutPending = result.cleanupPending;
+    if (!currentSession.authenticated) {
+      studioAuthState = result.cleanupPending ? "failed" : "idle";
+      studioAuthNotice = result.cleanupPending ? "Signed out · Studio cleanup pending" : "";
+      renderSession(currentSession);
+    }
+  } finally {
+    if (studioSyncInFlight === target.frameWindow) studioSyncInFlight = null;
+  }
+}
+
 function handleStudioAuthMessage(event: MessageEvent): void {
   const target = studioTarget();
   if (!target || event.source !== target.frameWindow || event.origin !== target.origin) return;
@@ -274,7 +322,7 @@ function handleStudioAuthMessage(event: MessageEvent): void {
   if (!message) return;
   if (message.kind === "studio-auth-ready") {
     studioReadyFrames.add(target.frameWindow);
-    void requestStudioBootstrap(target);
+    void reconcileMountedStudio(target);
     return;
   }
   if (message.action === "bootstrap") {
@@ -285,6 +333,7 @@ function handleStudioAuthMessage(event: MessageEvent): void {
     const pending = pendingStudioLogout;
     pendingStudioLogout = null;
     window.clearTimeout(pending.timer);
+    studioLogoutPending = !message.ok;
     pending.resolve(message.ok);
   }
 }
@@ -318,6 +367,9 @@ async function initSession(): Promise<void> {
   window.addEventListener("message", handleStudioAuthMessage);
   try {
     const session = await invoke<OsSession>("os_session_status");
+    // A fresh renderer has no proof that an old HttpOnly Studio cookie was
+    // cleared, so the first mounted Studio must synchronize before unlock.
+    studioLogoutPending = true;
     renderSession(session);
   } catch {
     renderSession({ authenticated: false, merchant_name: null, verified: null });
@@ -335,11 +387,14 @@ async function initSession(): Promise<void> {
       // Signed in: the profile button becomes logout.
       const confirmed = window.confirm("Sign out of Yaatal OS?");
       if (!confirmed) return;
+      studioLogoutPending = true;
+      setStudioAuthState("pending", "Signing out Engine and Studio");
       let next: OsSession | null = null;
       const result = await settleCoordinatedLogout(
         async () => { next = await invoke<OsSession>("os_logout"); },
         requestStudioLogout,
       );
+      studioLogoutPending = !result.studioCleared;
       studioAuthState = "idle";
       if (result.engineCleared && next) {
         studioAuthNotice = result.studioCleared ? "" : "Engine signed out · Studio cleanup failed";
@@ -366,7 +421,10 @@ async function initSession(): Promise<void> {
       studioAuthNotice = "";
       renderSession(session);
       dialog.close();
-      await requestStudioBootstrap();
+      const mountedStudio = studioTarget();
+      if (mountedStudio && studioReadyFrames.has(mountedStudio.frameWindow)) {
+        await reconcileMountedStudio(mountedStudio);
+      }
     } catch (failure) {
       if (error) {
         error.textContent = String(failure).replace(/^"|"$/g, "");

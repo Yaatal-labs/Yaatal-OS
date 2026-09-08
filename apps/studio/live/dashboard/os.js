@@ -423,11 +423,14 @@ function renderSession(configured = true) {
   $('#voiceText').textContent = operatorAuthenticated ? 'Audio-device handoff is the next explicit integration seam.' : 'Unlock the local operator session to inspect governed controls.';
 }
 
-async function refreshSession() {
+async function refreshSession(acceptExistingSession = true) {
   try {
     const response = await fetch(SESSION_URL, { credentials: 'same-origin', cache: 'no-store' });
     const state = await response.json();
-    operatorAuthenticated = response.ok && Boolean(state.authenticated);
+    // An embedded Studio starts locked until the native shell explicitly
+    // synchronizes it.  This prevents an orphaned HttpOnly cookie from
+    // re-enabling controls after the Engine session has been cleared.
+    operatorAuthenticated = acceptExistingSession && response.ok && Boolean(state.authenticated);
     renderSession(state.configured !== false);
   } catch {
     operatorAuthenticated = false;
@@ -608,7 +611,7 @@ async function init() {
   renderSession(false);
   timer = setInterval(updateTimer, 1000);
   connectEvents();
-  await Promise.allSettled([loadCatalog(), refreshSession()]);
+  await Promise.allSettled([loadCatalog(), refreshSession(window.parent === window)]);
   postToNativeParent({
     version: OS_PROTOCOL_VERSION,
     kind: 'studio-auth-ready',
