@@ -56,6 +56,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--bronze); ou
 .quiet-action, .primary-action { min-height: 34px; padding: 7px 13px; border-radius: 8px; font-size: 12px; font-weight: 700; }
 .quiet-action { color: var(--ink); background: transparent; border: 1px solid var(--border-strong); }
 .quiet-action:hover { background: var(--raised); }
+.share-action { border-color: var(--forest); }
 .primary-action { color: #fff8e9; background: var(--forest); border: 1px solid var(--forest); }
 .preview { position: relative; min-height: 0; overflow: hidden; background-color: #24241e; background-position: center 28%; background-repeat: no-repeat; background-size: cover; border-radius: 10px; }
 .preview-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.08) 58%, rgba(0,0,0,.76)); }
@@ -106,6 +107,24 @@ dialog label { font-size: 11px; font-weight: 700; }
 dialog input { width: 100%; padding: 10px; background: var(--raised); border: 1px solid var(--border-strong); border-radius: 8px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .form-error { min-height: 18px; color: var(--live) !important; }
+.commerce-dialog { width: min(520px, calc(100vw - 32px)); padding: 0; overflow: hidden; }
+.commerce-sheet { display: grid; gap: 16px; padding: 22px; }
+.commerce-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.commerce-head h2 { margin: 3px 0 0; font-family: "Newsreader", Georgia, serif; font-size: 22px; }
+.dialog-close { display: grid; width: 32px; height: 32px; place-items: center; padding: 0; color: var(--muted); background: transparent; border: 1px solid var(--border); border-radius: 50%; font-size: 20px; line-height: 1; }
+.dialog-close:hover { color: var(--ink); background: var(--raised); }
+.commerce-state { min-height: 38px; margin: 0; padding: 11px 13px; color: var(--muted); background: var(--canvas); border-left: 3px solid var(--bronze); border-radius: 0 7px 7px 0; font-size: 12px; line-height: 1.45; }
+.commerce-state[data-state="error"] { color: var(--live); border-left-color: var(--live); }
+.commerce-state[data-state="ready"] { color: var(--ink); border-left-color: var(--forest); }
+.commerce-links { display: grid; gap: 13px; }
+.commerce-product { display: grid; gap: 3px; }
+.commerce-product strong { overflow: hidden; font-family: "Newsreader", Georgia, serif; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
+.commerce-channels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.channel-action { display: grid; gap: 3px; padding: 10px 12px; color: var(--ink); background: var(--raised); border: 1px solid var(--border); border-radius: 8px; text-align: left; }
+.channel-action:hover { border-color: var(--forest); }
+.channel-action span { color: var(--bronze); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.channel-action strong { font-size: 11px; }
+.commerce-open { justify-self: stretch; }
 .toast { position: fixed; right: 20px; bottom: 20px; max-width: 360px; padding: 10px 14px; color: #fff8e9; background: var(--forest); border-radius: 8px; opacity: 0; transform: translateY(8px); transition: 150ms ease; pointer-events: none; }
 .toast.show { opacity: 1; transform: translateY(0); }
 @keyframes pulse { 50% { opacity: .38; } }
@@ -146,6 +165,12 @@ dialog input { width: 100%; padding: 10px; background: var(--raised); border: 1p
   .studio-canvas { grid-template-columns: minmax(0, 1fr); }
   .assistant-panel { display: none; }
   .product { grid-template-columns: 64px minmax(0, 1fr); }
+}
+@media (max-width: 660px) {
+  .surface-head { align-items: flex-start; gap: 10px; }
+  .surface-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .surface-actions .quiet-action, .surface-actions .primary-action { padding-inline: 10px; }
+  .commerce-channels { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-height: 680px) {
   .studio-canvas { gap: 10px; padding: 10px; }

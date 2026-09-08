@@ -1,6 +1,7 @@
 /* Dedicated embedded SELL surface. Standalone Studio remains available at /. */
 const CATALOG_URL = '/api/studio/product-queue';
 const SESSION_URL = '/api/studio/operator/session';
+const COMMERCE_INTENT_URL = '/api/studio/poc/commerce-intents';
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const params = new URLSearchParams(location.search);
 let theme = params.get('theme') === 'dark' ? 'dark' : 'light';
@@ -10,8 +11,10 @@ let live = false;
 let startedAt = 0;
 let timer = 0;
 let operatorAuthenticated = false;
+let operatorConfigured = false;
 let toastTimer = 0;
 let socket = null;
+let currentCommerceIntent = null;
 
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
@@ -27,6 +30,14 @@ const safeImage = (value) => {
 // quotes terminate the attribute. Use single quotes around the URL instead.
 const cssUrl = (image) => image ? `url('${image.replace(/'/g, '%27')}')` : '';
 const price = (product) => product?.price_display || `${Number(product?.price_fcfa ?? product?.price_cents ?? 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ')} FCFA`;
+const safeCommerceUrl = (value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw, location.origin);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+  } catch { return ''; }
+};
 
 function applyTheme(next) {
   theme = next === 'dark' ? 'dark' : 'light';
@@ -66,6 +77,131 @@ function selectProduct(product, announce = true) {
   if (announce) {
     activity('Product selected', `${product.name} is ready for the live overlay.`);
     postProduct(product);
+  }
+}
+
+function selectedProductSnapshot() {
+  const productId = String(selected?.id ?? '').trim();
+  if (!ID_PATTERN.test(productId)) return null;
+  return products.find((item) => String(item.id) === productId) || null;
+}
+
+function setCommerceState(message, state = '') {
+  const root = $('#commerceState');
+  root.textContent = message;
+  root.dataset.state = state;
+}
+
+function showCommerceDialog() {
+  const dialog = $('#commerceDialog');
+  if (typeof dialog?.showModal !== 'function') {
+    notify('Checkout sharing is unavailable in this browser.');
+    return false;
+  }
+  if (!dialog.open) dialog.showModal();
+  return true;
+}
+
+function clearCommerceIntent() {
+  currentCommerceIntent = null;
+  $('#commerceLinks').hidden = true;
+  $('#commerceProduct').textContent = '';
+}
+
+function renderCommerceIntent(intent) {
+  const urls = {
+    copy: safeCommerceUrl(intent.public_url),
+    livestream: safeCommerceUrl(intent.livestream_url),
+    whatsapp: safeCommerceUrl(intent.share?.whatsapp),
+    telegram: safeCommerceUrl(intent.share?.telegram),
+  };
+  if (Object.values(urls).some((value) => !value)) {
+    throw new Error('Studio returned an incomplete checkout link set.');
+  }
+  currentCommerceIntent = { urls };
+  $('#commerceProduct').textContent = intent.product?.name || selected?.name || 'Selected product';
+  $('#commerceLinks').hidden = false;
+  setCommerceState('Commerce Sheet ready. Each action uses a server-attributed link.', 'ready');
+}
+
+function commerceFailure(message, clearIntent = true) {
+  if (clearIntent) clearCommerceIntent();
+  setCommerceState(message, 'error');
+  notify(message);
+}
+
+async function copyCommerceLink(channel, label) {
+  const value = currentCommerceIntent?.urls?.[channel];
+  if (!value) return commerceFailure(`${label} is unavailable.`);
+  if (typeof navigator.clipboard?.writeText !== 'function') {
+    return commerceFailure('Clipboard access is unavailable in this browser.', false);
+  }
+  try {
+    await navigator.clipboard.writeText(value);
+    setCommerceState(`${label} copied.`, 'ready');
+    notify(`${label} copied.`);
+  } catch {
+    commerceFailure('The browser could not copy this checkout link.', false);
+  }
+}
+
+function openCommerceLink(channel, label) {
+  const value = currentCommerceIntent?.urls?.[channel];
+  if (!value) return commerceFailure(`${label} is unavailable.`);
+  if (typeof window.open !== 'function') return commerceFailure('Opening links is unavailable in this browser.', false);
+  let popup = null;
+  try {
+    popup = window.open('', '_blank');
+    if (!popup) throw new Error('popup_blocked');
+    popup.opener = null;
+    popup.location.href = value;
+    setCommerceState(`${label} opened in a new tab.`, 'ready');
+  } catch {
+    try { popup?.close(); } catch {}
+    commerceFailure('The browser blocked this checkout link. Allow pop-ups and try again.', false);
+  }
+}
+
+async function createCommerceIntent() {
+  const product = selectedProductSnapshot();
+  if (!product) return commerceFailure('Choose a product before sharing checkout.');
+  if (!operatorAuthenticated) {
+    if (!operatorConfigured) return commerceFailure('Operator authorization is unavailable in this Studio.');
+    notify('Unlock operator controls before sharing checkout.');
+    $('#unlockDialog').showModal();
+    return;
+  }
+  if (!live) {
+    showCommerceDialog();
+    return commerceFailure('Arm the cockpit before sharing checkout.');
+  }
+  if (!showCommerceDialog()) return;
+  clearCommerceIntent();
+  setCommerceState('Creating portable, attributed checkout links…', 'loading');
+  try {
+    const response = await fetch(COMMERCE_INTENT_URL, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product }),
+      signal: AbortSignal.timeout(5000),
+    });
+    const intent = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 503 && intent.detail === 'commerce_poc_disabled') {
+        throw new Error('Social checkout is disabled for this Studio.');
+      }
+      if (response.status === 401 || response.status === 403) {
+        operatorAuthenticated = false;
+        renderSession(true);
+        throw new Error('Operator session expired. Unlock and try again.');
+      }
+      throw new Error(intent.message || intent.detail || `Checkout request failed (${response.status}).`);
+    }
+    renderCommerceIntent(intent);
+    activity('Checkout ready', `${product.name} has server-attributed social links.`);
+  } catch (error) {
+    commerceFailure(error?.message || 'Checkout links are unavailable.');
   }
 }
 
@@ -133,6 +269,7 @@ const MEDIA_LIBRARY = [
   { src: '/dashboard/img/bissap.webp', title: 'Bissap — bouteille', tag: 'Drinks' },
   { src: '/dashboard/img/thiote_mat.webp', title: 'Tapis thiote — texture', tag: 'Decor' },
   { src: '/dashboard/img/smartphone.webp', title: 'Smartphone — studio', tag: 'Tech' },
+  { src: '/dashboard/img/cosmetics.webp', title: 'Cosmetics — collection', tag: 'Beauty' },
 ];
 
 function renderMediaGrid() {
@@ -195,6 +332,7 @@ function renderSession(configured = true) {
   // The embedded surface does not own an audio-device session yet. Keep this
   // visibly unavailable instead of presenting a control that only looks live.
   $('#mic').disabled = true;
+  operatorConfigured = configured;
   $('#armLive').disabled = !operatorAuthenticated;
   $('#unlock').hidden = operatorAuthenticated || !configured;
   $('#governanceTitle').textContent = operatorAuthenticated ? 'Governance active' : configured ? 'Operator controls locked' : 'Operator token unavailable';
@@ -241,7 +379,7 @@ function connectEvents() {
   const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   socket = new WebSocket(`${protocol}://${location.host}/ws`);
   socket.onopen = () => { $('#assistantDot').classList.add('connected'); activity('Studio connected', 'The local event stream is ready.'); };
-  socket.onmessage = (event) => { try { const message = JSON.parse(event.data); if (message.type === 'governed_action') activity('Governed action', message.result?.allowed ? 'Harness allowed the proposal.' : 'Proposal was not applied.'); if (message.type === 'commerce_conversion') activity('Conversion recorded', `${message.source_channel || 'Social'} checkout confirmed.`); } catch {} };
+  socket.onmessage = (event) => { try { const message = JSON.parse(event.data); if (message.type === 'governed_action') activity('Governed action', message.result?.allowed ? 'Harness allowed the proposal.' : 'Proposal was not applied.'); if (message.type === 'commerce_conversion') { activity('Conversion recorded', `${message.source_channel || 'Social'} checkout confirmed.`); if (operatorAuthenticated) loadInsights(); } } catch {} };
   socket.onclose = () => { $('#assistantDot').classList.remove('connected'); setTimeout(connectEvents, 2000); };
 }
 
@@ -261,6 +399,13 @@ async function unlock(event) {
 function wire() {
   document.querySelectorAll('.view-tab').forEach((button) => button.addEventListener('click', () => switchView(button.dataset.view)));
   $('#openShop').addEventListener('click', () => selected ? postProduct(selected) : notify('Choose a product first.'));
+  $('#shareCheckout').addEventListener('click', createCommerceIntent);
+  $('#closeCommerce').addEventListener('click', () => $('#commerceDialog').close());
+  $('#commerceCopy').addEventListener('click', () => copyCommerceLink('copy', 'Checkout link'));
+  $('#commerceLivestream').addEventListener('click', () => copyCommerceLink('livestream', 'Livestream link'));
+  $('#commerceWhatsApp').addEventListener('click', () => openCommerceLink('whatsapp', 'WhatsApp share'));
+  $('#commerceTelegram').addEventListener('click', () => openCommerceLink('telegram', 'Telegram share'));
+  $('#commerceOpen').addEventListener('click', () => openCommerceLink('copy', 'Commerce Sheet'));
   $('#armLive').addEventListener('click', armLive);
   $('#unlock').addEventListener('click', () => $('#unlockDialog').showModal());
   $('#cancelUnlock').addEventListener('click', () => $('#unlockDialog').close());

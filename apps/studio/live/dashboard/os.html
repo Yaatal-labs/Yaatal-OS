@@ -23,6 +23,7 @@
         </div>
         <div class="surface-actions">
           <button type="button" class="quiet-action" id="openShop">Open in SHOP <span aria-hidden="true">→</span></button>
+          <button type="button" class="quiet-action share-action" id="shareCheckout" aria-controls="commerceDialog">Share checkout</button>
           <button type="button" class="primary-action" id="armLive">Arm cockpit</button>
         </div>
       </header>
@@ -112,7 +113,33 @@
     </form>
   </dialog>
 
+  <dialog class="commerce-dialog" id="commerceDialog" aria-labelledby="commerceTitle">
+    <section class="commerce-sheet">
+      <header class="commerce-head">
+        <div>
+          <span class="eyebrow">Server-attributed links</span>
+          <h2 id="commerceTitle">Share checkout</h2>
+        </div>
+        <button type="button" class="dialog-close" id="closeCommerce" aria-label="Close share checkout">×</button>
+      </header>
+      <p class="commerce-state" id="commerceState" role="status" aria-live="polite">Choose a product to create its Commerce Sheet links.</p>
+      <div class="commerce-links" id="commerceLinks" hidden>
+        <div class="commerce-product">
+          <span class="eyebrow">Selected product</span>
+          <strong id="commerceProduct"></strong>
+        </div>
+        <div class="commerce-channels" aria-label="Checkout share channels">
+          <button type="button" class="channel-action" id="commerceCopy"><span>Copy</span><strong>Checkout link</strong></button>
+          <button type="button" class="channel-action" id="commerceLivestream"><span>Livestream</span><strong>Copy overlay link</strong></button>
+          <button type="button" class="channel-action" id="commerceWhatsApp"><span>WhatsApp</span><strong>Open share</strong></button>
+          <button type="button" class="channel-action" id="commerceTelegram"><span>Telegram</span><strong>Open share</strong></button>
+        </div>
+        <button type="button" class="primary-action commerce-open" id="commerceOpen">Open Commerce Sheet <span aria-hidden="true">↗</span></button>
+      </div>
+    </section>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="/dashboard/os.js?v=6"></script>
+  <script src="/dashboard/os.js?v=7"></script>
 </body>
 </html>
