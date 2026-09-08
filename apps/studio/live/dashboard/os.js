@@ -440,6 +440,8 @@ async function refreshSession(acceptExistingSession = true) {
 
 function sanitizeNativeAuthMessage(value) {
   if (!value || value.version !== OS_PROTOCOL_VERSION || typeof value.kind !== 'string') return null;
+  if (!Number.isSafeInteger(value.lifecycle) || value.lifecycle < 1) return null;
+  if (!Number.isSafeInteger(value.requestId) || value.requestId < 1) return null;
   if (value.kind === 'studio-auth-bootstrap') {
     if (value.surface !== 'studio' || !BOOTSTRAP_NONCE_PATTERN.test(String(value.nonce ?? ''))) return null;
     if (!Number.isInteger(value.expiresInSeconds) || value.expiresInSeconds < 1 || value.expiresInSeconds > 90) return null;
@@ -447,18 +449,28 @@ function sanitizeNativeAuthMessage(value) {
       kind: value.kind,
       surface: 'studio',
       nonce: String(value.nonce),
+      lifecycle: value.lifecycle,
+      requestId: value.requestId,
     };
   }
-  if (value.kind === 'studio-auth-logout') return { kind: value.kind };
+  if (value.kind === 'studio-auth-logout') {
+    return {
+      kind: value.kind,
+      lifecycle: value.lifecycle,
+      requestId: value.requestId,
+    };
+  }
   return null;
 }
 
-function postNativeAuthStatus(action, ok, errorCode = '') {
+function postNativeAuthStatus(action, ok, correlation, errorCode = '') {
   const message = {
     version: OS_PROTOCOL_VERSION,
     kind: 'studio-auth-status',
     action,
     ok: Boolean(ok),
+    lifecycle: correlation.lifecycle,
+    requestId: correlation.requestId,
   };
   if (!ok) {
     message.errorCode = /^[a-z0-9_]{1,64}$/.test(errorCode) ? errorCode : 'studio_auth_failed';
@@ -488,21 +500,21 @@ async function redeemNativeBootstrap(message) {
     await refreshSession();
     if (!operatorAuthenticated) throw new Error('studio_session_missing');
     activity('Operator unlocked', 'Native Engine login established the Studio session.');
-    postNativeAuthStatus('bootstrap', true);
+    postNativeAuthStatus('bootstrap', true, message);
   } catch (error) {
     if (generation !== nativeBootstrapGeneration) return;
     operatorAuthenticated = false;
     renderSession(operatorConfigured);
     const code = controller.signal.aborted ? 'studio_bootstrap_timeout' : String(error?.message || 'studio_bootstrap_failed');
     notify('Native Studio unlock failed. Manual unlock remains available.');
-    postNativeAuthStatus('bootstrap', false, code);
+    postNativeAuthStatus('bootstrap', false, message, code);
   } finally {
     clearTimeout(timeout);
     if (nativeBootstrapController === controller) nativeBootstrapController = null;
   }
 }
 
-async function clearNativeStudioSession() {
+async function clearNativeStudioSession(message) {
   ++nativeBootstrapGeneration;
   nativeBootstrapController?.abort();
   nativeBootstrapController = null;
@@ -518,11 +530,12 @@ async function clearNativeStudioSession() {
     operatorAuthenticated = false;
     live = false;
     renderSession(operatorConfigured);
-    postNativeAuthStatus('logout', true);
+    postNativeAuthStatus('logout', true, message);
   } catch {
     postNativeAuthStatus(
       'logout',
       false,
+      message,
       controller.signal.aborted ? 'studio_logout_timeout' : 'studio_logout_failed',
     );
   } finally {
@@ -601,7 +614,7 @@ function wire() {
     }
     const authMessage = sanitizeNativeAuthMessage(event.data);
     if (authMessage?.kind === 'studio-auth-bootstrap') void redeemNativeBootstrap(authMessage);
-    if (authMessage?.kind === 'studio-auth-logout') void clearNativeStudioSession();
+    if (authMessage?.kind === 'studio-auth-logout') void clearNativeStudioSession(authMessage);
   });
 }
 

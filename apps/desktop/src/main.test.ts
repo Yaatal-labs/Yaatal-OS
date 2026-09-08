@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { sanitizeProductNavigation, sanitizeSidecarStatus } from "@yaatal/os-protocol";
 import {
+  deliverStudioBootstrapGrant,
   postStudioMessage,
   reconcileStudioReadyState,
   sanitizeStudioAuthMessage,
   sanitizeStudioBootstrapGrant,
   sanitizeStudioFrameOrigin,
   settleCoordinatedLogout,
+  StudioLifecycleGate,
   StudioSyncCoordinator,
 } from "./main";
 
@@ -55,12 +57,16 @@ describe("native Studio session bridge", () => {
       kind: "studio-auth-status",
       action: "bootstrap",
       ok: true,
+      lifecycle: 1,
+      requestId: 2,
     })).toMatchObject({ action: "bootstrap", ok: true });
     expect(sanitizeStudioAuthMessage({
       version: "yaatal-os.v1",
       kind: "studio-auth-status",
       action: "bootstrap",
       ok: true,
+      lifecycle: 1,
+      requestId: 2,
       nonce: "must-not-cross-back",
     })).toBeNull();
   });
@@ -134,5 +140,64 @@ describe("native Studio session bridge", () => {
     expect(engineAuthenticated).toBe(true);
     expect(cleanupPending).toBe(false);
     expect(synchronized).toBe(true);
+  });
+
+  it("invalidates a late grant response before logout transports start", async () => {
+    const gate = new StudioLifecycleGate();
+    gate.sessionChanged();
+    const lifecycle = gate.frameReady();
+    const ticket = gate.begin(lifecycle);
+    expect(Boolean(ticket)).toBe(true);
+
+    let releaseGrant: () => void = () => undefined;
+    const grantResponse = new Promise<void>((resolve) => { releaseGrant = resolve; });
+    let posted = 0;
+    let authenticated = true;
+    let cleanupPending = false;
+    const request = ticket && deliverStudioBootstrapGrant(
+      gate,
+      ticket,
+      async () => {
+        await grantResponse;
+        return { nonce: "A".repeat(43), surface: "studio", expiresInSeconds: 90 };
+      },
+      () => ({ authenticated, cleanupPending, lifecycle }),
+      () => { posted += 1; },
+    );
+
+    // This is the first operation at logout start in the renderer.
+    gate.sessionChanged();
+    cleanupPending = true;
+    authenticated = false;
+    releaseGrant();
+    expect(await request).toBe("stale");
+
+    expect(posted).toBe(0);
+  });
+
+  it("invalidates old pending status and issues one request for a remounted frame", async () => {
+    const gate = new StudioLifecycleGate();
+    gate.sessionChanged();
+    const firstLifecycle = gate.frameReady();
+    const oldTicket = gate.begin(firstLifecycle);
+    expect(Boolean(oldTicket)).toBe(true);
+
+    const nextLifecycle = gate.frameReady();
+    expect(oldTicket && gate.acceptsStatus(oldTicket.lifecycle, oldTicket.requestId)).toBe(false);
+
+    const freshTicket = gate.begin(nextLifecycle);
+    const duplicate = gate.begin(nextLifecycle);
+    expect(Boolean(freshTicket)).toBe(true);
+    expect(duplicate).toBeNull();
+    let posted = 0;
+    const outcome = freshTicket && await deliverStudioBootstrapGrant(
+      gate,
+      freshTicket,
+      async () => ({ nonce: "B".repeat(43), surface: "studio", expiresInSeconds: 90 }),
+      () => ({ authenticated: true, cleanupPending: false, lifecycle: nextLifecycle }),
+      () => { posted += 1; },
+    );
+    expect(outcome).toBe("posted");
+    expect(posted).toBe(1);
   });
 });

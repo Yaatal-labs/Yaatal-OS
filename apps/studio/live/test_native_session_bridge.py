@@ -33,7 +33,7 @@ class NativeSessionBridgeSourceTest(unittest.TestCase):
     def test_manual_unlock_and_coordinated_logout_remain_present(self):
         self.assertIn("async function unlock(event)", self.javascript)
         self.assertIn("Authorization: `Bearer ${token}`", self.javascript)
-        self.assertIn("async function clearNativeStudioSession()", self.javascript)
+        self.assertIn("async function clearNativeStudioSession(message)", self.javascript)
         self.assertIn("method: 'DELETE'", self.javascript)
         self.assertIn('@app.delete("/api/studio/operator/session")', self.server)
 

@@ -136,17 +136,113 @@ export interface StudioBootstrapGrant {
 
 type StudioAuthMessage =
   | { kind: "studio-auth-ready" }
-  | { kind: "studio-auth-status"; action: "bootstrap" | "logout"; ok: boolean; errorCode?: string };
+  | { kind: "studio-auth-status"; action: "bootstrap" | "logout"; ok: boolean; lifecycle: number; requestId: number; errorCode?: string };
 
 type StudioTarget = { frameWindow: Window; origin: string };
+type ReadyStudioTarget = StudioTarget & { lifecycle: number };
+
+export interface StudioBootstrapTicket {
+  sessionGeneration: number;
+  lifecycle: number;
+  requestId: number;
+}
+
+export class StudioLifecycleGate {
+  private sessionGeneration = 0;
+  private lifecycle = 0;
+  private requestGeneration = 0;
+  private pending: StudioBootstrapTicket | null = null;
+
+  sessionChanged(): void {
+    this.sessionGeneration += 1;
+    this.requestGeneration += 1;
+    this.pending = null;
+  }
+
+  frameReady(): number {
+    this.lifecycle += 1;
+    this.requestGeneration += 1;
+    this.pending = null;
+    return this.lifecycle;
+  }
+
+  begin(lifecycle: number): StudioBootstrapTicket | null {
+    if (lifecycle !== this.lifecycle) return null;
+    if (this.pending?.lifecycle === lifecycle) return null;
+    const ticket = {
+      sessionGeneration: this.sessionGeneration,
+      lifecycle,
+      requestId: ++this.requestGeneration,
+    };
+    this.pending = ticket;
+    return ticket;
+  }
+
+  canPost(
+    ticket: StudioBootstrapTicket,
+    state: { authenticated: boolean; cleanupPending: boolean; lifecycle: number },
+  ): boolean {
+    return state.authenticated
+      && !state.cleanupPending
+      && state.lifecycle === this.lifecycle
+      && this.matches(ticket);
+  }
+
+  acceptsStatus(lifecycle: number, requestId: number): boolean {
+    return Boolean(
+      this.pending
+      && this.pending.lifecycle === lifecycle
+      && this.pending.requestId === requestId
+      && lifecycle === this.lifecycle,
+    );
+  }
+
+  finish(ticket: StudioBootstrapTicket): void {
+    if (this.matches(ticket)) this.pending = null;
+  }
+
+  finishStatus(lifecycle: number, requestId: number): void {
+    if (this.acceptsStatus(lifecycle, requestId)) this.pending = null;
+  }
+
+  private matches(ticket: StudioBootstrapTicket): boolean {
+    return Boolean(
+      this.pending
+      && this.pending.sessionGeneration === ticket.sessionGeneration
+      && this.pending.lifecycle === ticket.lifecycle
+      && this.pending.requestId === ticket.requestId
+      && ticket.sessionGeneration === this.sessionGeneration
+      && ticket.lifecycle === this.lifecycle,
+    );
+  }
+}
+
+export async function deliverStudioBootstrapGrant(
+  gate: StudioLifecycleGate,
+  ticket: StudioBootstrapTicket,
+  loadGrant: () => Promise<unknown>,
+  readState: () => { authenticated: boolean; cleanupPending: boolean; lifecycle: number },
+  deliver: (grant: StudioBootstrapGrant, ticket: StudioBootstrapTicket) => void,
+): Promise<"posted" | "stale" | "invalid"> {
+  const raw = await loadGrant();
+  if (!gate.canPost(ticket, readState())) return "stale";
+  const grant = sanitizeStudioBootstrapGrant(raw);
+  if (!grant) {
+    gate.finish(ticket);
+    return "invalid";
+  }
+  deliver(grant, ticket);
+  return "posted";
+}
 
 let currentSession: OsSession = { authenticated: false, merchant_name: null, verified: null };
 let studioAuthState: "idle" | "pending" | "active" | "failed" = "idle";
 let studioAuthNotice = "";
-let studioBootstrapInFlight: Window | null = null;
 let studioLogoutPending = true;
-const studioReadyFrames = new WeakSet<Window>();
-let pendingStudioLogout: { frameWindow: Window; resolve: (ok: boolean) => void; timer: number } | null = null;
+let readyStudio: ReadyStudioTarget | null = null;
+const studioLifecycleGate = new StudioLifecycleGate();
+let studioLogoutRequestGeneration = 0;
+let pendingStudioLogout: { frameWindow: Window; lifecycle: number; requestId: number; resolve: (ok: boolean) => void; timer: number } | null = null;
 
 export function sanitizeStudioFrameOrigin(value: string): string | null {
   try {
@@ -184,6 +280,10 @@ export function sanitizeStudioAuthMessage(value: unknown): StudioAuthMessage | n
     message.kind !== "studio-auth-status"
     || !["bootstrap", "logout"].includes(String(message.action))
     || typeof message.ok !== "boolean"
+    || !Number.isSafeInteger(message.lifecycle)
+    || Number(message.lifecycle) < 1
+    || !Number.isSafeInteger(message.requestId)
+    || Number(message.requestId) < 1
   ) return null;
   const errorCode = typeof message.errorCode === "string" && /^[a-z0-9_]{1,64}$/.test(message.errorCode)
     ? message.errorCode
@@ -192,6 +292,8 @@ export function sanitizeStudioAuthMessage(value: unknown): StudioAuthMessage | n
     kind: "studio-auth-status",
     action: message.action as "bootstrap" | "logout",
     ok: message.ok,
+    lifecycle: Number(message.lifecycle),
+    requestId: Number(message.requestId),
     ...(errorCode ? { errorCode } : {}),
   };
 }
@@ -271,58 +373,98 @@ function setStudioAuthState(state: typeof studioAuthState, notice = ""): void {
   renderSession(currentSession);
 }
 
-async function requestStudioBootstrap(target = studioTarget(), cleanupConfirmed = false): Promise<void> {
-  if (!target || !currentSession.authenticated || !studioReadyFrames.has(target.frameWindow)) return;
-  if (studioLogoutPending && !cleanupConfirmed) return;
-  if (studioAuthState === "pending") return;
-  if (studioBootstrapInFlight === target.frameWindow) return;
-  studioBootstrapInFlight = target.frameWindow;
+function isCurrentReadyStudio(target: ReadyStudioTarget): boolean {
+  const current = studioTarget();
+  return Boolean(
+    current
+    && readyStudio
+    && current.frameWindow === target.frameWindow
+    && current.origin === target.origin
+    && readyStudio.frameWindow === target.frameWindow
+    && readyStudio.origin === target.origin
+    && readyStudio.lifecycle === target.lifecycle,
+  );
+}
+
+async function requestStudioBootstrap(target: ReadyStudioTarget): Promise<void> {
+  if (!currentSession.authenticated || studioLogoutPending || !isCurrentReadyStudio(target)) return;
+  const ticket = studioLifecycleGate.begin(target.lifecycle);
+  if (!ticket) return;
   setStudioAuthState("pending");
   try {
-    const grant = sanitizeStudioBootstrapGrant(await invoke<unknown>("os_studio_bootstrap_grant"));
-    const current = studioTarget();
-    if (!grant) throw new Error("invalid Studio bootstrap grant");
-    if (!current || current.frameWindow !== target.frameWindow || current.origin !== target.origin) return;
-    postStudioMessage(current.frameWindow, current.origin, {
-      version: "yaatal-os.v1",
-      kind: "studio-auth-bootstrap",
-      nonce: grant.nonce,
-      surface: grant.surface,
-      expiresInSeconds: grant.expiresInSeconds,
-    });
+    const outcome = await deliverStudioBootstrapGrant(
+      studioLifecycleGate,
+      ticket,
+      () => invoke<unknown>("os_studio_bootstrap_grant"),
+      () => ({
+        authenticated: currentSession.authenticated,
+        cleanupPending: studioLogoutPending,
+        lifecycle: isCurrentReadyStudio(target) ? target.lifecycle : 0,
+      }),
+      (grant, currentTicket) => {
+        postStudioMessage(target.frameWindow, target.origin, {
+          version: "yaatal-os.v1",
+          kind: "studio-auth-bootstrap",
+          nonce: grant.nonce,
+          surface: grant.surface,
+          expiresInSeconds: grant.expiresInSeconds,
+          lifecycle: currentTicket.lifecycle,
+          requestId: currentTicket.requestId,
+        });
+      },
+    );
+    if (outcome === "invalid") {
+      setStudioAuthState("failed", "Engine session active · Studio unlock failed");
+    }
   } catch {
-    setStudioAuthState("failed", "Engine session active · Studio unlock failed");
-  } finally {
-    if (studioBootstrapInFlight === target.frameWindow) studioBootstrapInFlight = null;
+    if (studioLifecycleGate.acceptsStatus(ticket.lifecycle, ticket.requestId)) {
+      studioLifecycleGate.finish(ticket);
+      setStudioAuthState("failed", "Engine session active · Studio unlock failed");
+    }
   }
 }
 
-function requestStudioLogout(target = studioTarget()): Promise<boolean> {
-  if (!target) return Promise.resolve(false);
+function requestStudioLogout(requestedTarget?: ReadyStudioTarget): Promise<boolean> {
+  const target = requestedTarget ?? readyStudio;
+  if (!target || !isCurrentReadyStudio(target)) return Promise.resolve(false);
   pendingStudioLogout?.resolve(false);
   window.clearTimeout(pendingStudioLogout?.timer);
   return new Promise((resolve) => {
+    const requestId = ++studioLogoutRequestGeneration;
     const timer = window.setTimeout(() => {
-      if (pendingStudioLogout?.frameWindow === target.frameWindow) pendingStudioLogout = null;
+      if (pendingStudioLogout?.requestId === requestId) pendingStudioLogout = null;
       resolve(false);
     }, 5000);
-    pendingStudioLogout = { frameWindow: target.frameWindow, resolve, timer };
+    pendingStudioLogout = {
+      frameWindow: target.frameWindow,
+      lifecycle: target.lifecycle,
+      requestId,
+      resolve,
+      timer,
+    };
     postStudioMessage(target.frameWindow, target.origin, {
       version: "yaatal-os.v1",
       kind: "studio-auth-logout",
+      lifecycle: target.lifecycle,
+      requestId,
     });
   });
 }
 
-async function reconcileMountedStudio(target: StudioTarget): Promise<void> {
+async function reconcileMountedStudio(target: ReadyStudioTarget): Promise<void> {
   const result = await reconcileStudioReadyState(
     {
       engineAuthenticated: currentSession.authenticated,
       cleanupPending: studioLogoutPending,
     },
-    () => requestStudioLogout(target),
-    () => requestStudioBootstrap(target, true),
+    async () => {
+      const cleared = await requestStudioLogout(target);
+      if (cleared && isCurrentReadyStudio(target)) studioLogoutPending = false;
+      return cleared;
+    },
+    () => requestStudioBootstrap(target),
   );
+  if (!isCurrentReadyStudio(target)) return;
   studioLogoutPending = result.cleanupPending;
   if (!currentSession.authenticated) {
     studioAuthState = result.cleanupPending ? "failed" : "idle";
@@ -333,8 +475,8 @@ async function reconcileMountedStudio(target: StudioTarget): Promise<void> {
 
 async function reconcileCurrentStudio(): Promise<void> {
   const target = studioTarget();
-  if (!target || !studioReadyFrames.has(target.frameWindow)) return;
-  await reconcileMountedStudio(target);
+  if (!target || !readyStudio || !isCurrentReadyStudio(readyStudio)) return;
+  await reconcileMountedStudio(readyStudio);
 }
 
 const studioSyncCoordinator = new StudioSyncCoordinator(reconcileCurrentStudio);
@@ -345,15 +487,32 @@ function handleStudioAuthMessage(event: MessageEvent): void {
   const message = sanitizeStudioAuthMessage(event.data);
   if (!message) return;
   if (message.kind === "studio-auth-ready") {
-    studioReadyFrames.add(target.frameWindow);
+    if (pendingStudioLogout) {
+      window.clearTimeout(pendingStudioLogout.timer);
+      pendingStudioLogout.resolve(false);
+      pendingStudioLogout = null;
+    }
+    const lifecycle = studioLifecycleGate.frameReady();
+    readyStudio = { ...target, lifecycle };
+    studioLogoutPending = true;
+    studioAuthState = "idle";
+    studioAuthNotice = "Studio session synchronizing";
+    renderSession(currentSession);
     void studioSyncCoordinator.request();
     return;
   }
   if (message.action === "bootstrap") {
+    if (!studioLifecycleGate.acceptsStatus(message.lifecycle, message.requestId)) return;
+    studioLifecycleGate.finishStatus(message.lifecycle, message.requestId);
     setStudioAuthState(message.ok ? "active" : "failed", message.ok ? "" : "Engine session active · Studio unlock failed");
     return;
   }
-  if (message.action === "logout" && pendingStudioLogout?.frameWindow === target.frameWindow) {
+  if (
+    message.action === "logout"
+    && pendingStudioLogout?.frameWindow === target.frameWindow
+    && pendingStudioLogout.lifecycle === message.lifecycle
+    && pendingStudioLogout.requestId === message.requestId
+  ) {
     const pending = pendingStudioLogout;
     pendingStudioLogout = null;
     window.clearTimeout(pending.timer);
@@ -391,12 +550,14 @@ async function initSession(): Promise<void> {
   window.addEventListener("message", handleStudioAuthMessage);
   try {
     const session = await invoke<OsSession>("os_session_status");
+    studioLifecycleGate.sessionChanged();
     // A fresh renderer has no proof that an old HttpOnly Studio cookie was
     // cleared, so the first mounted Studio must synchronize before unlock.
     studioLogoutPending = true;
     renderSession(session);
     await studioSyncCoordinator.request();
   } catch {
+    studioLifecycleGate.sessionChanged();
     renderSession({ authenticated: false, merchant_name: null, verified: null });
     await studioSyncCoordinator.request();
   }
@@ -413,6 +574,9 @@ async function initSession(): Promise<void> {
       // Signed in: the profile button becomes logout.
       const confirmed = window.confirm("Sign out of Yaatal OS?");
       if (!confirmed) return;
+      // Invalidate a grant request before either logout transport starts. Its
+      // late response can no longer satisfy the current session generation.
+      studioLifecycleGate.sessionChanged();
       studioLogoutPending = true;
       setStudioAuthState("pending", "Signing out Engine and Studio");
       let next: OsSession | null = null;
@@ -443,6 +607,7 @@ async function initSession(): Promise<void> {
     if (submit) submit.disabled = true;
     try {
       const session = await invoke<OsSession>("os_login", { email, password });
+      studioLifecycleGate.sessionChanged();
       studioAuthState = "idle";
       studioAuthNotice = "";
       renderSession(session);
