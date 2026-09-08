@@ -15,6 +15,10 @@ let operatorConfigured = false;
 let toastTimer = 0;
 let socket = null;
 let currentCommerceIntent = null;
+let commerceIntentController = null;
+let commerceIntentGeneration = 0;
+let insightsController = null;
+let insightsGeneration = 0;
 
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
@@ -108,6 +112,22 @@ function clearCommerceIntent() {
   $('#commerceProduct').textContent = '';
 }
 
+function cancelCommerceIntentRequest() {
+  commerceIntentGeneration += 1;
+  commerceIntentController?.abort();
+  commerceIntentController = null;
+}
+
+function commerceRequestOwnsView(generation, controller, productId) {
+  return generation === commerceIntentGeneration
+    && controller === commerceIntentController
+    && String(selectedProductSnapshot()?.id ?? '') === productId;
+}
+
+function commerceRequestIsCurrent(generation, controller, productId) {
+  return commerceRequestOwnsView(generation, controller, productId) && !controller.signal.aborted;
+}
+
 function renderCommerceIntent(intent) {
   const urls = {
     copy: safeCommerceUrl(intent.public_url),
@@ -176,6 +196,16 @@ async function createCommerceIntent() {
     return commerceFailure('Arm the cockpit before sharing checkout.');
   }
   if (!showCommerceDialog()) return;
+  cancelCommerceIntentRequest();
+  const generation = commerceIntentGeneration;
+  const productId = String(product.id);
+  const controller = new AbortController();
+  commerceIntentController = controller;
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 5000);
   clearCommerceIntent();
   setCommerceState('Creating portable, attributed checkout links…', 'loading');
   try {
@@ -184,9 +214,10 @@ async function createCommerceIntent() {
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ product }),
-      signal: AbortSignal.timeout(5000),
+      signal: controller.signal,
     });
     const intent = await response.json().catch(() => ({}));
+    if (!commerceRequestIsCurrent(generation, controller, productId)) return;
     if (!response.ok) {
       if (response.status === 503 && intent.detail === 'commerce_poc_disabled') {
         throw new Error('Social checkout is disabled for this Studio.');
@@ -201,7 +232,12 @@ async function createCommerceIntent() {
     renderCommerceIntent(intent);
     activity('Checkout ready', `${product.name} has server-attributed social links.`);
   } catch (error) {
+    if (!commerceRequestOwnsView(generation, controller, productId)) return;
+    if (timedOut) return commerceFailure('Checkout request timed out. Try again.');
     commerceFailure(error?.message || 'Checkout links are unavailable.');
+  } finally {
+    clearTimeout(timeout);
+    if (commerceIntentController === controller) commerceIntentController = null;
   }
 }
 
@@ -286,12 +322,25 @@ function renderMediaGrid() {
 let lastCatalogSource = '';
 
 async function loadInsights() {
+  insightsGeneration += 1;
+  const generation = insightsGeneration;
+  insightsController?.abort();
+  const controller = new AbortController();
+  insightsController = controller;
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 5000);
+  const requestOwnsView = () => generation === insightsGeneration && controller === insightsController;
+  const requestIsCurrent = () => requestOwnsView() && !controller.signal.aborted;
   const count = $('#conversionCount');
   const list = $('#conversionList');
   const empty = $('#insightEmpty');
   count.textContent = '…';
   try {
-    const response = await fetch('/api/studio/poc/conversions', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    const response = await fetch('/api/studio/poc/conversions', { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
+    if (!requestIsCurrent()) return;
     if (response.status === 401 || response.status === 403) {
       count.textContent = '—';
       list.hidden = true; empty.hidden = false;
@@ -300,6 +349,7 @@ async function loadInsights() {
     }
     if (!response.ok) throw new Error(String(response.status));
     const payload = await response.json();
+    if (!requestIsCurrent()) return;
     const rows = Array.isArray(payload.conversions) ? payload.conversions : [];
     count.textContent = String(payload.count ?? rows.length);
     empty.hidden = rows.length > 0;
@@ -311,9 +361,15 @@ async function loadInsights() {
     }).join('');
     list.hidden = rows.length === 0;
   } catch {
+    if (!requestOwnsView()) return;
     count.textContent = '—';
     list.hidden = true; empty.hidden = false;
-    empty.textContent = 'Commerce receipts are unavailable while the Studio POC store is unreachable.';
+    empty.textContent = timedOut
+      ? 'Commerce receipts timed out. Try refreshing the Insights view.'
+      : 'Commerce receipts are unavailable while the Studio POC store is unreachable.';
+  } finally {
+    clearTimeout(timeout);
+    if (insightsController === controller) insightsController = null;
   }
 }
 
@@ -400,7 +456,10 @@ function wire() {
   document.querySelectorAll('.view-tab').forEach((button) => button.addEventListener('click', () => switchView(button.dataset.view)));
   $('#openShop').addEventListener('click', () => selected ? postProduct(selected) : notify('Choose a product first.'));
   $('#shareCheckout').addEventListener('click', createCommerceIntent);
-  $('#closeCommerce').addEventListener('click', () => $('#commerceDialog').close());
+  $('#closeCommerce').addEventListener('click', () => {
+    cancelCommerceIntentRequest();
+    $('#commerceDialog').close();
+  });
   $('#commerceCopy').addEventListener('click', () => copyCommerceLink('copy', 'Checkout link'));
   $('#commerceLivestream').addEventListener('click', () => copyCommerceLink('livestream', 'Livestream link'));
   $('#commerceWhatsApp').addEventListener('click', () => openCommerceLink('whatsapp', 'WhatsApp share'));
@@ -427,5 +486,11 @@ async function init() {
   await Promise.allSettled([loadCatalog(), refreshSession()]);
 }
 
-window.addEventListener('beforeunload', () => { clearInterval(timer); socket?.close(); });
+window.addEventListener('beforeunload', () => {
+  cancelCommerceIntentRequest();
+  insightsGeneration += 1;
+  insightsController?.abort();
+  clearInterval(timer);
+  socket?.close();
+});
 document.addEventListener('DOMContentLoaded', init);

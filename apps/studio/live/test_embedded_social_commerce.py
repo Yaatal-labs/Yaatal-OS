@@ -1,6 +1,7 @@
 """Focused acceptance checks for embedded Studio social checkout."""
 
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -70,7 +71,26 @@ class EmbeddedSocialCommerceTest(unittest.TestCase):
         ]
         self.assertIn("message.type === 'commerce_conversion'", handler)
         self.assertIn("loadInsights()", handler)
-        self.assertIn("AbortSignal.timeout(5000)", self.javascript)
+        self.assertIn("insightsController?.abort()", self.javascript)
+
+    def test_async_request_races_execute_in_node(self):
+        result = subprocess.run(
+            ["node", str(Path(__file__).with_suffix(".mjs"))],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("embedded social commerce behavior: ok", result.stdout)
+
+    def test_commerce_dialog_remains_reachable_on_short_viewports(self):
+        stylesheet = (DASHBOARD / "os.css").read_text(encoding="utf-8")
+        commerce_rule = re.search(r"\.commerce-dialog\s*\{(?P<body>[^}]+)\}", stylesheet)
+        self.assertIsNotNone(commerce_rule)
+        body = commerce_rule.group("body")
+        self.assertIn("max-height: calc(100dvh - 32px)", body)
+        self.assertIn("overflow-y: auto", body)
 
     def test_failures_are_visible_and_manual_operator_unlock_is_preserved(self):
         for copy in (

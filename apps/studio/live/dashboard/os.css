@@ -107,7 +107,7 @@ dialog label { font-size: 11px; font-weight: 700; }
 dialog input { width: 100%; padding: 10px; background: var(--raised); border: 1px solid var(--border-strong); border-radius: 8px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .form-error { min-height: 18px; color: var(--live) !important; }
-.commerce-dialog { width: min(520px, calc(100vw - 32px)); padding: 0; overflow: hidden; }
+.commerce-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; overflow-x: hidden; overflow-y: auto; }
 .commerce-sheet { display: grid; gap: 16px; padding: 22px; }
 .commerce-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .commerce-head h2 { margin: 3px 0 0; font-family: "Newsreader", Georgia, serif; font-size: 22px; }
