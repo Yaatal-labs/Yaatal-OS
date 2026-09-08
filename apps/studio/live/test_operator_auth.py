@@ -23,6 +23,21 @@ class OperatorSessionStoreTest(unittest.TestCase):
         self.assertFalse(store.valid("made-up-session"))
         self.assertFalse(OperatorSessionStore("").configured)
 
+    def test_validated_engine_bootstrap_issues_without_manual_token(self):
+        store = OperatorSessionStore("")
+
+        self.assertIsNone(
+            store.issue_engine_bootstrap(authenticated=False, surface="studio")
+        )
+        self.assertIsNone(
+            store.issue_engine_bootstrap(authenticated=True, surface="shop")
+        )
+        issued = store.issue_engine_bootstrap(authenticated=True, surface="studio")
+
+        self.assertIsNotNone(issued)
+        raw_session, _ = issued
+        self.assertTrue(store.valid(raw_session))
+
 
 if __name__ == "__main__":
     unittest.main()

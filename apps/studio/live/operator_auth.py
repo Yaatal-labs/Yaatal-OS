@@ -36,6 +36,23 @@ class OperatorSessionStore:
         candidate = authorization.removeprefix("Bearer ")
         if not hmac.compare_digest(candidate, self._control_token):
             return None
+        return self._issue_opaque_session()
+
+    def issue_engine_bootstrap(
+        self, *, authenticated: bool, surface: str
+    ) -> tuple[str, int] | None:
+        """Issue a local cookie after a server-validated Engine redemption.
+
+        This is deliberately narrower than a generic trusted-session method.  The
+        caller must have validated Engine's sanitized proof and the only surface
+        accepted by this Studio process is ``studio``.  No Engine identity or token
+        is retained in the local session store.
+        """
+        if authenticated is not True or surface != "studio":
+            return None
+        return self._issue_opaque_session()
+
+    def _issue_opaque_session(self) -> tuple[str, int]:
         raw_session = secrets.token_urlsafe(32)
         expires_at = time.time() + self._ttl_seconds
         with self._lock:

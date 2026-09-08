@@ -125,6 +125,82 @@ except TurnLedgerError as exc:
 _governed_runtime: GovernedTurnRuntime | None = None
 COMMERCE_POC_STORE = CommercePocStore(YAATAL_COMMERCE_PUBLIC_BASE_URL)
 
+BOOTSTRAP_NONCE_LEN = 43
+BOOTSTRAP_NONCE_ALPHABET = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+)
+BOOTSTRAP_HTTP_TIMEOUT_SECONDS = 5.0
+
+
+class StudioBootstrapError(Exception):
+    """Sanitized bootstrap failure safe to return to the loopback browser."""
+
+    def __init__(self, code: str, status_code: int):
+        super().__init__(code)
+        self.code = code
+        self.status_code = status_code
+
+
+def _valid_bootstrap_nonce(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == BOOTSTRAP_NONCE_LEN
+        and all(character in BOOTSTRAP_NONCE_ALPHABET for character in value)
+    )
+
+
+def _validated_engine_bootstrap_identity(value: object) -> dict:
+    expected_fields = {"authenticated", "surface", "pid", "name", "is_verified"}
+    if not isinstance(value, dict) or set(value) != expected_fields:
+        raise StudioBootstrapError("engine_bootstrap_invalid", 502)
+    authenticated = value.get("authenticated")
+    surface = value.get("surface")
+    pid = value.get("pid")
+    name = value.get("name")
+    verified = value.get("is_verified")
+    if (
+        authenticated is not True
+        or surface != "studio"
+        or not isinstance(pid, str)
+        or not 1 <= len(pid) <= 128
+        or not isinstance(name, str)
+        or not 1 <= len(name.strip()) <= 256
+        or not isinstance(verified, bool)
+    ):
+        raise StudioBootstrapError("engine_bootstrap_invalid", 502)
+    return {
+        "authenticated": True,
+        "surface": "studio",
+        "pid": pid,
+        "name": name.strip(),
+        "is_verified": verified,
+    }
+
+
+async def redeem_engine_bootstrap(
+    nonce: str, *, transport: httpx.AsyncBaseTransport | None = None
+) -> dict:
+    """Redeem once against the fixed Engine URL and return sanitized identity."""
+    url = f"{ENGINE_API_URL.rstrip('/')}/api/auth/bootstrap"
+    timeout = httpx.Timeout(BOOTSTRAP_HTTP_TIMEOUT_SECONDS, connect=2.0)
+    try:
+        async with httpx.AsyncClient(timeout=timeout, transport=transport) as client:
+            response = await client.post(
+                url,
+                json={"nonce": nonce, "surface": "studio"},
+            )
+    except httpx.HTTPError as exc:
+        raise StudioBootstrapError("engine_bootstrap_unavailable", 503) from exc
+    if response.status_code in (401, 403):
+        raise StudioBootstrapError("engine_bootstrap_rejected", 401)
+    if not response.is_success:
+        raise StudioBootstrapError("engine_bootstrap_unavailable", 503)
+    try:
+        payload = response.json()
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise StudioBootstrapError("engine_bootstrap_invalid", 502) from exc
+    return _validated_engine_bootstrap_identity(payload)
+
 # ─── Live session state ─────────────────────────────────────────
 @dataclass
 class StudioSessionState:
@@ -165,11 +241,11 @@ _ws_clients: list[WebSocket] = []
 
 async def require_operator(request: Request) -> bool:
     """Protect state-changing and seller-data control-plane routes."""
+    if OPERATOR_SESSIONS.valid(request.cookies.get(SESSION_COOKIE)):
+        return True
     if not OPERATOR_SESSIONS.configured:
-        raise HTTPException(status_code=503, detail="Studio control token is not configured")
-    if not OPERATOR_SESSIONS.valid(request.cookies.get(SESSION_COOKIE)):
-        raise HTTPException(status_code=401, detail="Studio operator session required")
-    return True
+        raise HTTPException(status_code=503, detail="Studio operator authorization is unavailable")
+    raise HTTPException(status_code=401, detail="Studio operator session required")
 
 
 async def get_governed_runtime() -> GovernedTurnRuntime:
@@ -619,7 +695,10 @@ async def open_operator_session(request: Request):
             {"error": "operator_auth_unavailable" if status == 503 else "operator_auth_failed"},
             status_code=status,
         )
-    raw_session, ttl = issued
+    return _operator_session_response(*issued)
+
+
+def _operator_session_response(raw_session: str, ttl: int) -> JSONResponse:
     response = JSONResponse({"authenticated": True, "expires_in": ttl})
     response.set_cookie(
         SESSION_COOKIE,
@@ -633,11 +712,42 @@ async def open_operator_session(request: Request):
     return response
 
 
+@app.post("/api/studio/operator/bootstrap")
+async def bootstrap_operator_session(request: Request):
+    """Exchange one Engine-issued nonce for Studio's opaque HttpOnly cookie."""
+    try:
+        body = await request.json()
+    except (ValueError, json.JSONDecodeError):
+        return JSONResponse({"error": "bootstrap_shape_invalid"}, status_code=400)
+    if (
+        not isinstance(body, dict)
+        or set(body) != {"nonce", "surface"}
+        or body.get("surface") != "studio"
+        or not _valid_bootstrap_nonce(body.get("nonce"))
+    ):
+        return JSONResponse({"error": "bootstrap_shape_invalid"}, status_code=400)
+    try:
+        identity = await redeem_engine_bootstrap(body["nonce"])
+    except StudioBootstrapError as exc:
+        return JSONResponse({"error": exc.code}, status_code=exc.status_code)
+    issued = OPERATOR_SESSIONS.issue_engine_bootstrap(
+        authenticated=identity["authenticated"],
+        surface=identity["surface"],
+    )
+    if issued is None:
+        return JSONResponse({"error": "engine_bootstrap_invalid"}, status_code=502)
+    # Replace any previous browser-held Studio session after Engine has accepted
+    # the new one-time grant.  The raw nonce and identity are never retained.
+    OPERATOR_SESSIONS.revoke(request.cookies.get(SESSION_COOKIE))
+    return _operator_session_response(*issued)
+
+
 @app.get("/api/studio/operator/session")
 async def operator_session_status(request: Request):
+    authenticated = OPERATOR_SESSIONS.valid(request.cookies.get(SESSION_COOKIE))
     return {
-        "configured": OPERATOR_SESSIONS.configured,
-        "authenticated": OPERATOR_SESSIONS.valid(request.cookies.get(SESSION_COOKIE)),
+        "configured": OPERATOR_SESSIONS.configured or authenticated,
+        "authenticated": authenticated,
     }
 
 

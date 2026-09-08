@@ -11,7 +11,7 @@ const THEME_KEY = "yaatal-os-theme";
 const RAIL_KEY = "yaatal-os-rail";
 let activePane: Pane = "sell";
 let activeController: PaneController | null = null;
-let theme: Theme = readTheme();
+let theme: Theme = typeof window === "undefined" ? "light" : readTheme();
 let pendingProductId: string | null = null;
 let renderRevision = 0;
 
@@ -128,7 +128,169 @@ function setSidecarState(state: string): void {
 // ── UXR-04: OS session state (sanitized — no tokens here, ever) ──
 interface OsSession { authenticated: boolean; merchant_name: string | null; verified: boolean | null; }
 
+export interface StudioBootstrapGrant {
+  nonce: string;
+  surface: "studio";
+  expiresInSeconds: number;
+}
+
+type StudioAuthMessage =
+  | { kind: "studio-auth-ready" }
+  | { kind: "studio-auth-status"; action: "bootstrap" | "logout"; ok: boolean; errorCode?: string };
+
+type StudioTarget = { frameWindow: Window; origin: string };
+
+let currentSession: OsSession = { authenticated: false, merchant_name: null, verified: null };
+let studioAuthState: "idle" | "pending" | "active" | "failed" = "idle";
+let studioAuthNotice = "";
+let studioBootstrapInFlight: Window | null = null;
+const studioReadyFrames = new WeakSet<Window>();
+let pendingStudioLogout: { frameWindow: Window; resolve: (ok: boolean) => void; timer: number } | null = null;
+
+export function sanitizeStudioFrameOrigin(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    if (!['127.0.0.1', 'localhost'].includes(url.hostname)) return null;
+    if (url.username || url.password) return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+export function sanitizeStudioBootstrapGrant(value: unknown): StudioBootstrapGrant | null {
+  if (!value || typeof value !== "object") return null;
+  const grant = value as Record<string, unknown>;
+  if ("token" in grant) return null;
+  if (grant.surface !== "studio") return null;
+  if (typeof grant.nonce !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(grant.nonce)) return null;
+  if (!Number.isInteger(grant.expiresInSeconds) || Number(grant.expiresInSeconds) < 1 || Number(grant.expiresInSeconds) > 90) return null;
+  return {
+    nonce: grant.nonce,
+    surface: "studio",
+    expiresInSeconds: Number(grant.expiresInSeconds),
+  };
+}
+
+export function sanitizeStudioAuthMessage(value: unknown): StudioAuthMessage | null {
+  if (!value || typeof value !== "object") return null;
+  const message = value as Record<string, unknown>;
+  if (message.version !== "yaatal-os.v1") return null;
+  if ("nonce" in message) return null;
+  if (message.kind === "studio-auth-ready") return { kind: "studio-auth-ready" };
+  if (
+    message.kind !== "studio-auth-status"
+    || !["bootstrap", "logout"].includes(String(message.action))
+    || typeof message.ok !== "boolean"
+  ) return null;
+  const errorCode = typeof message.errorCode === "string" && /^[a-z0-9_]{1,64}$/.test(message.errorCode)
+    ? message.errorCode
+    : undefined;
+  return {
+    kind: "studio-auth-status",
+    action: message.action as "bootstrap" | "logout",
+    ok: message.ok,
+    ...(errorCode ? { errorCode } : {}),
+  };
+}
+
+export function postStudioMessage(target: Pick<Window, "postMessage">, origin: string, message: object): void {
+  const safeOrigin = sanitizeStudioFrameOrigin(origin);
+  if (!safeOrigin || safeOrigin !== origin) throw new Error("invalid Studio target origin");
+  target.postMessage(message, safeOrigin);
+}
+
+export async function settleCoordinatedLogout(
+  clearEngine: () => Promise<unknown>,
+  clearStudio: () => Promise<boolean>,
+): Promise<{ engineCleared: boolean; studioCleared: boolean }> {
+  const [engine, studio] = await Promise.allSettled([clearEngine(), clearStudio()]);
+  return {
+    engineCleared: engine.status === "fulfilled",
+    studioCleared: studio.status === "fulfilled" && studio.value,
+  };
+}
+
+function studioTarget(): StudioTarget | null {
+  const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Yaatal Studio seller cockpit"]');
+  if (!frame?.contentWindow) return null;
+  const origin = sanitizeStudioFrameOrigin(frame.src);
+  return origin ? { frameWindow: frame.contentWindow, origin } : null;
+}
+
+function setStudioAuthState(state: typeof studioAuthState, notice = ""): void {
+  studioAuthState = state;
+  studioAuthNotice = notice;
+  renderSession(currentSession);
+}
+
+async function requestStudioBootstrap(target = studioTarget()): Promise<void> {
+  if (!target || !currentSession.authenticated || !studioReadyFrames.has(target.frameWindow)) return;
+  if (studioBootstrapInFlight === target.frameWindow) return;
+  studioBootstrapInFlight = target.frameWindow;
+  setStudioAuthState("pending");
+  try {
+    const grant = sanitizeStudioBootstrapGrant(await invoke<unknown>("os_studio_bootstrap_grant"));
+    const current = studioTarget();
+    if (!grant) throw new Error("invalid Studio bootstrap grant");
+    if (!current || current.frameWindow !== target.frameWindow || current.origin !== target.origin) return;
+    postStudioMessage(current.frameWindow, current.origin, {
+      version: "yaatal-os.v1",
+      kind: "studio-auth-bootstrap",
+      nonce: grant.nonce,
+      surface: grant.surface,
+      expiresInSeconds: grant.expiresInSeconds,
+    });
+  } catch {
+    setStudioAuthState("failed", "Engine session active · Studio unlock failed");
+  } finally {
+    if (studioBootstrapInFlight === target.frameWindow) studioBootstrapInFlight = null;
+  }
+}
+
+function requestStudioLogout(): Promise<boolean> {
+  const target = studioTarget();
+  if (!target) return Promise.resolve(false);
+  pendingStudioLogout?.resolve(false);
+  window.clearTimeout(pendingStudioLogout?.timer);
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      if (pendingStudioLogout?.frameWindow === target.frameWindow) pendingStudioLogout = null;
+      resolve(false);
+    }, 5000);
+    pendingStudioLogout = { frameWindow: target.frameWindow, resolve, timer };
+    postStudioMessage(target.frameWindow, target.origin, {
+      version: "yaatal-os.v1",
+      kind: "studio-auth-logout",
+    });
+  });
+}
+
+function handleStudioAuthMessage(event: MessageEvent): void {
+  const target = studioTarget();
+  if (!target || event.source !== target.frameWindow || event.origin !== target.origin) return;
+  const message = sanitizeStudioAuthMessage(event.data);
+  if (!message) return;
+  if (message.kind === "studio-auth-ready") {
+    studioReadyFrames.add(target.frameWindow);
+    void requestStudioBootstrap(target);
+    return;
+  }
+  if (message.action === "bootstrap") {
+    setStudioAuthState(message.ok ? "active" : "failed", message.ok ? "" : "Engine session active · Studio unlock failed");
+    return;
+  }
+  if (message.action === "logout" && pendingStudioLogout?.frameWindow === target.frameWindow) {
+    const pending = pendingStudioLogout;
+    pendingStudioLogout = null;
+    window.clearTimeout(pending.timer);
+    pending.resolve(message.ok);
+  }
+}
+
 function renderSession(session: OsSession): void {
+  currentSession = session;
   const avatar = document.querySelector<HTMLElement>("#os-avatar");
   const name = document.querySelector<HTMLElement>("#os-profile-name");
   const sub = document.querySelector<HTMLElement>("#os-profile-sub");
@@ -138,17 +300,22 @@ function renderSession(session: OsSession): void {
     const merchant = session.merchant_name || "Merchant";
     avatar.textContent = merchant.trim().charAt(0).toUpperCase() || "Y";
     name.textContent = merchant;
-    sub.textContent = session.verified ? "Engine session active" : "Engine session active · unverified";
+    sub.textContent = studioAuthNotice || (studioAuthState === "active"
+      ? "Engine + Studio sessions active"
+      : studioAuthState === "pending"
+        ? "Engine active · unlocking Studio"
+        : session.verified ? "Engine session active" : "Engine session active · unverified");
     profile.dataset.session = "active";
   } else {
     avatar.textContent = "?";
     name.textContent = "Not signed in";
-    sub.textContent = "Sign in with your Engine account";
+    sub.textContent = studioAuthNotice || "Sign in with your Engine account";
     profile.dataset.session = "locked";
   }
 }
 
 async function initSession(): Promise<void> {
+  window.addEventListener("message", handleStudioAuthMessage);
   try {
     const session = await invoke<OsSession>("os_session_status");
     renderSession(session);
@@ -168,8 +335,19 @@ async function initSession(): Promise<void> {
       // Signed in: the profile button becomes logout.
       const confirmed = window.confirm("Sign out of Yaatal OS?");
       if (!confirmed) return;
-      const next = await invoke<OsSession>("os_logout").catch(() => null);
-      if (next) renderSession(next);
+      let next: OsSession | null = null;
+      const result = await settleCoordinatedLogout(
+        async () => { next = await invoke<OsSession>("os_logout"); },
+        requestStudioLogout,
+      );
+      studioAuthState = "idle";
+      if (result.engineCleared && next) {
+        studioAuthNotice = result.studioCleared ? "" : "Engine signed out · Studio cleanup failed";
+        renderSession(next);
+      } else {
+        studioAuthNotice = result.studioCleared ? "Engine sign-out failed" : "Engine and Studio sign-out failed";
+        renderSession(currentSession);
+      }
       return;
     }
     error?.setAttribute("hidden", "");
@@ -184,14 +362,19 @@ async function initSession(): Promise<void> {
     if (submit) submit.disabled = true;
     try {
       const session = await invoke<OsSession>("os_login", { email, password });
+      studioAuthState = "idle";
+      studioAuthNotice = "";
       renderSession(session);
       dialog.close();
+      await requestStudioBootstrap();
     } catch (failure) {
       if (error) {
         error.textContent = String(failure).replace(/^"|"$/g, "");
         error.removeAttribute("hidden");
       }
     } finally {
+      const passwordInput = document.querySelector<HTMLInputElement>("#os-login-password");
+      if (passwordInput) passwordInput.value = "";
       if (submit) submit.disabled = false;
     }
   });
@@ -264,4 +447,4 @@ async function bootstrap(): Promise<void> {
   await switchPane("sell");
 }
 
-void bootstrap();
+if (typeof document !== "undefined") void bootstrap();

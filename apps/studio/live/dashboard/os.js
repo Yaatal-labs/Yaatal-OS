@@ -1,8 +1,11 @@
 /* Dedicated embedded SELL surface. Standalone Studio remains available at /. */
 const CATALOG_URL = '/api/studio/product-queue';
 const SESSION_URL = '/api/studio/operator/session';
+const NATIVE_BOOTSTRAP_URL = '/api/studio/operator/bootstrap';
 const COMMERCE_INTENT_URL = '/api/studio/poc/commerce-intents';
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+const BOOTSTRAP_NONCE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const OS_PROTOCOL_VERSION = 'yaatal-os.v1';
 const params = new URLSearchParams(location.search);
 let theme = params.get('theme') === 'dark' ? 'dark' : 'light';
 let products = [];
@@ -19,6 +22,8 @@ let commerceIntentController = null;
 let commerceIntentGeneration = 0;
 let insightsController = null;
 let insightsGeneration = 0;
+let nativeBootstrapController = null;
+let nativeBootstrapGeneration = 0;
 
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
@@ -42,6 +47,27 @@ const safeCommerceUrl = (value) => {
     return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
   } catch { return ''; }
 };
+
+function trustedParentOrigin() {
+  if (window.parent === window) return '';
+  const ancestors = window.location.ancestorOrigins;
+  const raw = String(ancestors?.length ? ancestors[0] : '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    if (url.protocol === 'tauri:' && url.hostname === 'localhost') return 'tauri://localhost';
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    if (!['127.0.0.1', 'localhost', 'tauri.localhost'].includes(url.hostname)) return '';
+    return url.origin;
+  } catch { return ''; }
+}
+
+function postToNativeParent(message) {
+  const origin = trustedParentOrigin();
+  if (!origin) return false;
+  window.parent.postMessage(message, origin);
+  return true;
+}
 
 function applyTheme(next) {
   theme = next === 'dark' ? 'dark' : 'light';
@@ -67,7 +93,7 @@ function activity(title, detail) {
 function postProduct(product) {
   const productId = String(product?.id ?? '').trim();
   if (!ID_PATTERN.test(productId) || window.parent === window) return;
-  window.parent.postMessage({ version: 'yaatal-os.v1', kind: 'product-navigation', productId, source: 'studio' }, '*');
+  postToNativeParent({ version: OS_PROTOCOL_VERSION, kind: 'product-navigation', productId, source: 'studio' });
 }
 
 function selectProduct(product, announce = true) {
@@ -409,6 +435,98 @@ async function refreshSession() {
   }
 }
 
+function sanitizeNativeAuthMessage(value) {
+  if (!value || value.version !== OS_PROTOCOL_VERSION || typeof value.kind !== 'string') return null;
+  if (value.kind === 'studio-auth-bootstrap') {
+    if (value.surface !== 'studio' || !BOOTSTRAP_NONCE_PATTERN.test(String(value.nonce ?? ''))) return null;
+    if (!Number.isInteger(value.expiresInSeconds) || value.expiresInSeconds < 1 || value.expiresInSeconds > 90) return null;
+    return {
+      kind: value.kind,
+      surface: 'studio',
+      nonce: String(value.nonce),
+    };
+  }
+  if (value.kind === 'studio-auth-logout') return { kind: value.kind };
+  return null;
+}
+
+function postNativeAuthStatus(action, ok, errorCode = '') {
+  const message = {
+    version: OS_PROTOCOL_VERSION,
+    kind: 'studio-auth-status',
+    action,
+    ok: Boolean(ok),
+  };
+  if (!ok) {
+    message.errorCode = /^[a-z0-9_]{1,64}$/.test(errorCode) ? errorCode : 'studio_auth_failed';
+  }
+  postToNativeParent(message);
+}
+
+async function redeemNativeBootstrap(message) {
+  const generation = ++nativeBootstrapGeneration;
+  nativeBootstrapController?.abort();
+  const controller = new AbortController();
+  nativeBootstrapController = controller;
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(NATIVE_BOOTSTRAP_URL, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nonce: message.nonce, surface: 'studio' }),
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (generation !== nativeBootstrapGeneration || controller.signal.aborted) return;
+    if (!response.ok || payload.authenticated !== true) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'studio_bootstrap_failed');
+    }
+    await refreshSession();
+    if (!operatorAuthenticated) throw new Error('studio_session_missing');
+    activity('Operator unlocked', 'Native Engine login established the Studio session.');
+    postNativeAuthStatus('bootstrap', true);
+  } catch (error) {
+    if (generation !== nativeBootstrapGeneration) return;
+    operatorAuthenticated = false;
+    renderSession(operatorConfigured);
+    const code = controller.signal.aborted ? 'studio_bootstrap_timeout' : String(error?.message || 'studio_bootstrap_failed');
+    notify('Native Studio unlock failed. Manual unlock remains available.');
+    postNativeAuthStatus('bootstrap', false, code);
+  } finally {
+    clearTimeout(timeout);
+    if (nativeBootstrapController === controller) nativeBootstrapController = null;
+  }
+}
+
+async function clearNativeStudioSession() {
+  ++nativeBootstrapGeneration;
+  nativeBootstrapController?.abort();
+  nativeBootstrapController = null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(SESSION_URL, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error('studio_logout_failed');
+    operatorAuthenticated = false;
+    live = false;
+    renderSession(operatorConfigured);
+    postNativeAuthStatus('logout', true);
+  } catch {
+    postNativeAuthStatus(
+      'logout',
+      false,
+      controller.signal.aborted ? 'studio_logout_timeout' : 'studio_logout_failed',
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function armLive() {
   if (!operatorAuthenticated) return $('#unlockDialog').showModal();
   const endpoint = live ? '/api/studio/stop-stream' : '/api/studio/go-live';
@@ -472,8 +590,15 @@ function wire() {
   $('#refreshInsights').addEventListener('click', loadInsights);
   window.addEventListener('message', (event) => {
     if (event.source !== window.parent) return;
-    if (event.data?.version !== 'yaatal-os.v1' || event.data.kind !== 'theme-change') return;
-    if (event.data.theme === 'light' || event.data.theme === 'dark') applyTheme(event.data.theme);
+    const parentOrigin = trustedParentOrigin();
+    if (!parentOrigin || event.origin !== parentOrigin) return;
+    if (event.data?.version === OS_PROTOCOL_VERSION && event.data.kind === 'theme-change') {
+      if (event.data.theme === 'light' || event.data.theme === 'dark') applyTheme(event.data.theme);
+      return;
+    }
+    const authMessage = sanitizeNativeAuthMessage(event.data);
+    if (authMessage?.kind === 'studio-auth-bootstrap') void redeemNativeBootstrap(authMessage);
+    if (authMessage?.kind === 'studio-auth-logout') void clearNativeStudioSession();
   });
 }
 
@@ -484,12 +609,18 @@ async function init() {
   timer = setInterval(updateTimer, 1000);
   connectEvents();
   await Promise.allSettled([loadCatalog(), refreshSession()]);
+  postToNativeParent({
+    version: OS_PROTOCOL_VERSION,
+    kind: 'studio-auth-ready',
+  });
 }
 
 window.addEventListener('beforeunload', () => {
   cancelCommerceIntentRequest();
   insightsGeneration += 1;
   insightsController?.abort();
+  ++nativeBootstrapGeneration;
+  nativeBootstrapController?.abort();
   clearInterval(timer);
   socket?.close();
 });

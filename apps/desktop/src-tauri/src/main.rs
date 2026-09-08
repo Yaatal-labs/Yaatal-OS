@@ -498,6 +498,26 @@ fn os_session_status(state: State<'_, AppState>) -> Result<session::SanitizedSes
     Ok(session_state.sanitized())
 }
 
+#[tauri::command]
+fn os_studio_bootstrap_grant(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<session::StudioBootstrapGrant, String> {
+    authorize_action(PaneAction::SessionManagement)?;
+    // Clone only into Rust-owned memory and release the mutex before network I/O.
+    // The token is never part of the command response or an emitted event.
+    let token = state
+        .session
+        .lock()
+        .map_err(|_| "session state is unavailable".to_string())?
+        .engine_token()?
+        .to_owned();
+    let engine_url =
+        env::var("ENGINE_API_URL").unwrap_or_else(|_| "https://engine.njooba.com".to_string());
+    let body = session::engine_studio_bootstrap_start(&app, &engine_url, &token)?;
+    session::validate_studio_bootstrap_grant(&body)
+}
+
 fn sanitize_product_id(value: &str) -> Option<String> {
     let value = value.trim();
     if value.is_empty()
@@ -535,6 +555,7 @@ fn main() {
             os_login,
             os_logout,
             os_session_status,
+            os_studio_bootstrap_grant,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Yaatal OS");
