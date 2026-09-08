@@ -8,6 +8,7 @@ import {
   sanitizeStudioBootstrapGrant,
   sanitizeStudioFrameOrigin,
   settleCoordinatedLogout,
+  StudioSyncCoordinator,
 } from "./main";
 
 describe("shell-facing protocol use", () => {
@@ -94,5 +95,44 @@ describe("native Studio session bridge", () => {
       cleanupPending: false,
       action: "cleanup",
     });
+  });
+
+  it("reconciles ready-before-session-restore and requests one fresh grant", async () => {
+    let engineAuthenticated = false;
+    let cleanupPending = true;
+    let synchronized = false;
+    let cleanupCalls = 0;
+    let bootstrapCalls = 0;
+    let releaseCleanup: (value: boolean) => void = () => undefined;
+    let markCleanupStarted: () => void = () => undefined;
+    const cleanupStarted = new Promise<void>((resolve) => { markCleanupStarted = resolve; });
+    const cleanupResult = new Promise<boolean>((resolve) => { releaseCleanup = resolve; });
+
+    const coordinator = new StudioSyncCoordinator(async () => {
+      const result = await reconcileStudioReadyState(
+        { engineAuthenticated, cleanupPending },
+        async () => {
+          cleanupCalls += 1;
+          markCleanupStarted();
+          return cleanupResult;
+        },
+        async () => { bootstrapCalls += 1; },
+      );
+      cleanupPending = result.cleanupPending;
+      synchronized = result.action === "bootstrap";
+    });
+
+    const readyRun = coordinator.request();
+    await cleanupStarted;
+    engineAuthenticated = true;
+    const restoreRun = coordinator.request();
+    releaseCleanup(true);
+    await Promise.all([readyRun, restoreRun]);
+
+    expect(cleanupCalls).toBe(1);
+    expect(bootstrapCalls).toBe(1);
+    expect(engineAuthenticated).toBe(true);
+    expect(cleanupPending).toBe(false);
+    expect(synchronized).toBe(true);
   });
 });
