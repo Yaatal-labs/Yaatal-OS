@@ -1,6 +1,6 @@
 # Yaatal OS Symphony Board
 
-Updated: 2026-09-08
+Updated: 2026-09-09
 Execution handoff: [`OS-REAL-SURFACES-HANDOFF.md`](./OS-REAL-SURFACES-HANDOFF.md)
 
 ## Goal
@@ -152,7 +152,8 @@ displayed inside a wrapper.
 | UXR-01 — Pane lifecycle and trusted navigation | Ready | `apps/desktop/src/**` | OSR-04 | Repeated SELL/SHOP switching creates one poller and one listener per mounted pane; only the mounted Studio frame can trigger product navigation | Validated in `c90b3d1` (PaneController dispose, single poller/listener) |
 | UXR-02 — Unified shell design contract | Review | `docs/design/**`, shell tokens only | OSR-01 | Approved SELL/SHOP references exist in light and dark; palette, typography, ownership, density and responsive acceptance are documented | Validated — founder approved references 2026-09-03; contract at `docs/design/YAATAL-OS-UI-CONTRACT.md` |
 | UXR-03 — Embedded surface mode | Build | Studio dashboard and BOBO desktop adapters | UXR-02 | OS owns brand, primary navigation, language, theme, status, and account chrome; embedded Studio/BOBO do not render duplicate headers or navigation | Validated `9a6f9d1` — Studio embedded surface now page-level view strip, no brand/secondary rail; assistant panel Live-only; BOBO chrome suppressed via skin (`1b6c021`); browser-verified per contract |
-| UXR-04 — Native Engine session broker | Shape | Tauri Rust session state, Engine auth adapter, Studio/BOBO bootstrap adapters | UXR-01 | One login unlocks authorized SELL and SHOP routes; raw access/refresh tokens never enter iframe state or web `localStorage`; logout clears both surfaces | Implemented `19e171d` (contract `4fd2cb3`): os_login/os_logout/os_session_status, tokens Rust-process-only, sanitized session events, shell login dialog; SELL auto-unlock + BOBO nonce bootstrap remain |
+| UXR-04 — Native Engine session broker | Shape | Tauri Rust session state, Engine auth adapter, Studio/BOBO bootstrap adapters | UXR-01 | One login unlocks authorized SELL and SHOP routes; raw access/refresh tokens never enter iframe state or web `localStorage`; logout clears both surfaces | POC broker implemented `19e171d`; authenticated BOBO mutation delivery remains deferred because current SHOP and Commerce Sheet paths are public |
+| UXR-04B — Native Studio session delivery | Validated | Tauri session/grant command, shell lifecycle coordinator, Studio redemption and cookie session | UXR-04; Engine auth bootstrap `160524e9` | Native login obtains a single-use Studio grant without exposing the Engine JWT; Studio redeems it into an HttpOnly cookie; logout and remount fail closed | Code and security review validated through `8c95565`; full gates green; [checkpoint](./scopes/UXR-04B-NATIVE-STUDIO-SESSION.md); live acceptance waits on Engine deployment |
 | UXR-05 — Canonical demo catalog and media | Validated | Studio/BOBO catalog adapters, product assets, Shop build | OSR-03 | SELL and SHOP show the same IDs, names, prices, stock, and optimized 4:5 media; assets have provenance, alt text, and bounded size | Validated `d6eb509`: both panes consume the live Engine catalog; Shop mirrors Studio's fallback-only WebPs with visible labels and alt text; 20/20 live IDs and metadata matched; browser-verified at 1280×800 and 900×600. Heavy PNG duplicates removed. |
 | UXR-06A — Embedded SELL checkout launcher | Validated | Embedded Studio dashboard and focused tests | UXR-03, UXR-05, Track S | SELL creates server-attributed copy, livestream, WhatsApp and Telegram links for the selected canonical product; stale responses cannot replace the current product or Insights result | Validated `5f01acb` + hardening `26c97b9`; [checkpoint](./scopes/UXR-06A-EMBEDDED-SOCIAL-CHECKOUT.md) |
 | UXR-06 — Unified visual and commerce acceptance | Validate | Tests and evidence only | UXR-03, UXR-04, UXR-05, UXR-06A | Login → SELL → select product → SHOP detail → Commerce Sheet → sandbox receipt passes at 1280×800 and 900×600 without nested chrome | Pending; UXR-04B session bootstrap and real-browser run remain |
@@ -162,7 +163,7 @@ displayed inside a wrapper.
 ```text
 UXR-01 lifecycle fix ───────────────────────────────┐
 UXR-02 design contract ── UXR-03 embedded mode ────┼─ UXR-06 acceptance
-UXR-04 shared native session ───────────────────────┤
+UXR-04 shared native session ── UXR-04B Studio ────┤
 UXR-05 canonical catalog/media ── UXR-06A launcher ┘
 
 UXR-06 ── OSR-05 offline outbox ── OSR-07 review and ship
