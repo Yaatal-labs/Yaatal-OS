@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect } from 'react'
+import { Platform } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { useAuthStore } from '../store/authStore'
@@ -15,6 +16,7 @@ import { SignupScreen } from '../screens/auth/SignupScreen'
 // Main app navigators
 import { MerchantNavigator } from './MerchantNavigator'
 import { CustomerNavigator } from './CustomerNavigator'
+import { isEmbeddedWebGuestMode } from './embeddedWebGuestMode'
 
 const Stack = createNativeStackNavigator()
 
@@ -38,6 +40,10 @@ const linking = {
 
 export const RootNavigator = () => {
   const { isAuthenticated, profile, initialize } = useAuthStore()
+  const isEmbeddedGuest = isEmbeddedWebGuestMode(
+    Platform.OS,
+    typeof window === 'undefined' ? undefined : window.location,
+  )
 
   // Initialize auth state on app start
   useEffect(() => {
@@ -46,7 +52,7 @@ export const RootNavigator = () => {
 
   return (
     <NavigationContainer linking={linking as any}>
-      {!isAuthenticated ? (
+      {!isAuthenticated && !isEmbeddedGuest ? (
         // Auth Stack
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Login" component={LoginScreen} />
