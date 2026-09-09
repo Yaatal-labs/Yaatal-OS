@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { productPath, sanitizeNavigationEvent } from "./shop";
+import { productPath, sanitizeNavigationEvent, shopChromeCss } from "./shop";
 
 describe("shop navigation receiver", () => {
   it("accepts only bounded product identifiers from the host event", () => {
@@ -16,6 +16,14 @@ describe("shop navigation receiver", () => {
   it("maps a product identifier to the same-origin deep-link path", () => {
     expect(productPath("kaftan_42")).toBe("/product/kaftan_42");
     expect(productPath("a b")).toBe("/product/a%20b");
+  });
+
+  it("keeps the React Native Web root and its first navigation child stretched", () => {
+    const css = shopChromeCss();
+
+    expect(css).not.toMatch(/#root\s*>\s*div\s*\{/);
+    expect(css).toMatch(/input, textarea, select\s*\{\s*max-width:\s*420px;/);
+    expect(css).toMatch(/\[role="button"\], button\s*\{\s*max-width:\s*420px;/);
   });
 
   it("builds the generated Shop document before either OS launch mode", () => {

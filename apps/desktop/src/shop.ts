@@ -74,6 +74,20 @@ function focusProduct(productId: string): boolean {
  * `embedded=1` itself, as Studio does. Kept deliberately narrow - measure and centring
  * only - so it cannot fight BOBO's own visual decisions.
  */
+export function shopChromeCss(): string {
+  return `
+    /* A readable measure, centred, instead of the full pane width. */
+    input, textarea, select { max-width: 420px; }
+    input[type="email"], input[type="password"], input[type="text"] {
+      width: 100% !important;
+      max-width: 420px;
+      margin-inline: auto;
+    }
+    /* Any full-bleed primary action shrinks to the same measure. */
+    [role="button"], button { max-width: 420px; margin-inline: auto; }
+  `;
+}
+
 function applyShopChrome(target: HTMLIFrameElement | null): void {
   const doc = target?.contentDocument;
   if (!doc) return;
@@ -84,19 +98,7 @@ function applyShopChrome(target: HTMLIFrameElement | null): void {
     style.id = "yaatal-os-embed";
     doc.head.append(style);
   }
-  style.textContent = `
-    /* A readable measure, centred, instead of the full pane width. */
-    input, textarea, select { max-width: 420px; }
-    input[type="email"], input[type="password"], input[type="text"] {
-      width: 100% !important;
-      max-width: 420px;
-      margin-inline: auto;
-    }
-    /* Any full-bleed primary action shrinks to the same measure. */
-    [role="button"], button { max-width: 420px; margin-inline: auto; }
-    /* Centre the column the form sits in without assuming BOBO's class names. */
-    #root > div { align-items: center; }
-  `;
+  style.textContent = shopChromeCss();
 }
 
 function applyShopTheme(target: HTMLIFrameElement | null, theme: Theme): void {
