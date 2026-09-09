@@ -21,7 +21,7 @@ describe("shop navigation receiver", () => {
   it("keeps the React Native Web root and its first navigation child stretched", () => {
     const css = shopChromeCss();
 
-    expect(css).not.toMatch(/#root\s*>\s*div\s*\{/);
+    expect(/#root\s*>\s*div\s*\{/.test(css)).toBe(false);
     expect(css).toMatch(/input, textarea, select\s*\{\s*max-width:\s*420px;/);
     expect(css).toMatch(/\[role="button"\], button\s*\{\s*max-width:\s*420px;/);
   });
