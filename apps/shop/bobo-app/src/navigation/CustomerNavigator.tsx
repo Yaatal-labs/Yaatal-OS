@@ -45,6 +45,7 @@ const ProfileScreen = () => <PlaceholderScreen title="Profil" />
 
 const Tab = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()
+const EmbeddedStack = createNativeStackNavigator()
 
 // Discovery Stack (Home Feed)
 const DiscoveryStack = () => (
@@ -84,6 +85,39 @@ const DiscoveryStack = () => (
       name="OrderDetail"
       component={OrderDetailScreen}
       options={{ title: 'Commande' }}
+    />
+  </Stack.Navigator>
+)
+
+const EmbeddedProductDetailScreen = (props: any) => (
+  <ProductDetailScreen {...props} isReadOnly />
+)
+
+const EmbeddedDiscoveryScreen = (props: any) => (
+  <DiscoveryScreen {...props} isReadOnly />
+)
+
+/**
+ * The OS shell can browse the catalog and product details but deliberately has
+ * no checkout, payment, order, scanner, profile, or account routes.
+ */
+const EmbeddedDiscoveryStack = () => (
+  <Stack.Navigator
+    screenOptions={{
+      headerStyle: { backgroundColor: colors.background.main },
+      headerTintColor: colors.text.primary,
+      headerTitleStyle: theme.typography.h3,
+    }}
+  >
+    <Stack.Screen
+      name="DiscoveryFeed"
+      component={EmbeddedDiscoveryScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="ProductDetail"
+      component={EmbeddedProductDetailScreen}
+      options={{ title: 'Détails' }}
     />
   </Stack.Navigator>
 )
@@ -243,6 +277,12 @@ export const CustomerNavigator = () => {
     </Tab.Navigator>
   )
 }
+
+export const EmbeddedCustomerNavigator = () => (
+  <EmbeddedStack.Navigator screenOptions={{ headerShown: false }}>
+    <EmbeddedStack.Screen name="Discovery" component={EmbeddedDiscoveryStack} />
+  </EmbeddedStack.Navigator>
+)
 
 const styles = StyleSheet.create({
   // Container that handles the floating effect

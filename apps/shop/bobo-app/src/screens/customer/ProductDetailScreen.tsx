@@ -31,7 +31,7 @@ import { calculateLevel } from '../../constants/gamification'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
-export const ProductDetailScreen = ({ route, navigation }: any) => {
+export const ProductDetailScreen = ({ route, navigation, isReadOnly = false }: any) => {
   const { productId } = route.params
   const { profile } = useAuthStore()
   const videoRef = useRef<any>(null)
@@ -72,7 +72,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
   }
 
   const handleUpvote = async () => {
-    if (!profile || !product) return
+    if (isReadOnly || !profile || !product) return
 
     const result = await productsService.toggleUpvote(product.id, profile.id)
 
@@ -83,7 +83,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
   }
 
   const handleBuyNow = () => {
-    if (!product) return
+    if (isReadOnly || !product) return
 
     // Navigate to checkout with product and default quantity of 1
     navigation.navigate('Checkout', {
@@ -93,7 +93,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
   }
 
   const handleContactSeller = () => {
-    if (!product?.expand?.seller_id) return
+    if (isReadOnly || !product?.expand?.seller_id) return
 
     // Navigate to chat (to be implemented in Days 4-7)
     Alert.alert(
@@ -150,6 +150,25 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
   const videoUrl = product.video_url ? getFileUrl('videos', product.video_url) : null
   const seller = product.expand?.seller_id
   const sellerLevel = seller ? calculateLevel(seller.xp) : null
+  const SellerSummary = () => (
+    <>
+      <Image
+        source={{
+          uri: getAvatarUrl(seller?.avatar_url, 48) || 'https://via.placeholder.com/48',
+        }}
+        style={styles.sellerAvatar}
+      />
+      <View style={styles.sellerInfo}>
+        <Text style={styles.sellerName}>{seller?.username}</Text>
+        {sellerLevel && (
+          <View style={styles.sellerLevel}>
+            <Text style={styles.sellerLevelEmoji}>{sellerLevel.emoji}</Text>
+            <Text style={styles.sellerLevelText}>{sellerLevel.title}</Text>
+          </View>
+        )}
+      </View>
+    </>
+  )
 
   return (
     <View style={styles.container}>
@@ -234,32 +253,24 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
 
           {/* Seller Info */}
           {seller && (
-            <TouchableOpacity
-              style={styles.sellerCard}
-              onPress={() => {
-                // TODO: Navigate to seller profile
-                Alert.alert('Coming soon', 'Profil du vendeur bientôt disponible!')
-              }}
-            >
-              <Image
-                source={{
-                  uri: getAvatarUrl(seller.avatar_url, 48) || 'https://via.placeholder.com/48',
-                }}
-                style={styles.sellerAvatar}
-              />
-              <View style={styles.sellerInfo}>
-                <Text style={styles.sellerName}>{seller.username}</Text>
-                {sellerLevel && (
-                  <View style={styles.sellerLevel}>
-                    <Text style={styles.sellerLevelEmoji}>{sellerLevel.emoji}</Text>
-                    <Text style={styles.sellerLevelText}>{sellerLevel.title}</Text>
-                  </View>
-                )}
+            isReadOnly ? (
+              <View style={styles.sellerCard}>
+                <SellerSummary />
               </View>
-              <TouchableOpacity style={styles.contactButton} onPress={handleContactSeller}>
-                <Text style={styles.contactButtonText}>💬 Contacter</Text>
+            ) : (
+              <TouchableOpacity
+                style={styles.sellerCard}
+                onPress={() => {
+                  // TODO: Navigate to seller profile
+                  Alert.alert('Coming soon', 'Profil du vendeur bientôt disponible!')
+                }}
+              >
+                <SellerSummary />
+                <TouchableOpacity style={styles.contactButton} onPress={handleContactSeller}>
+                  <Text style={styles.contactButtonText}>💬 Contacter</Text>
+                </TouchableOpacity>
               </TouchableOpacity>
-            </TouchableOpacity>
+            )
           )}
 
           {/* Description */}
@@ -296,33 +307,42 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
             </View>
           </View>
 
-          {/* Social Stats */}
-          <View style={styles.section}>
-            <TouchableOpacity style={styles.upvoteButton} onPress={handleUpvote}>
-              <Text style={styles.upvoteIcon}>{isUpvoted ? '❤️' : '🤍'}</Text>
-              <Text style={[styles.upvoteText, isUpvoted && styles.upvoteTextActive]}>
-                {upvoteCount} j'aime
+          {isReadOnly ? (
+            <View style={styles.readOnlyNotice}>
+              <Text style={styles.readOnlyNoticeTitle}>Consultation uniquement</Text>
+              <Text style={styles.readOnlyNoticeText}>
+                Pour acheter, contacter le vendeur ou gérer une commande, ouvrez Commerce Sheet.
               </Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          ) : (
+            <View style={styles.section}>
+              <TouchableOpacity style={styles.upvoteButton} onPress={handleUpvote}>
+                <Text style={styles.upvoteIcon}>{isUpvoted ? '❤️' : '🤍'}</Text>
+                <Text style={[styles.upvoteText, isUpvoted && styles.upvoteTextActive]}>
+                  {upvoteCount} j'aime
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Spacer for bottom buttons */}
           <View style={styles.bottomSpacer} />
         </View>
       </ScrollView>
 
-      {/* Bottom Action Buttons */}
-      <View style={styles.bottomActions}>
-        <TouchableOpacity
-          style={[styles.buyButton, isOutOfStock && styles.buyButtonDisabled]}
-          onPress={handleBuyNow}
-          disabled={isOutOfStock}
-        >
-          <Text style={styles.buyButtonText}>
-            {isOutOfStock ? 'Rupture de stock' : `🛒 Acheter - ${formatCFA(displayPrice)}`}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {!isReadOnly && (
+        <View style={styles.bottomActions}>
+          <TouchableOpacity
+            style={[styles.buyButton, isOutOfStock && styles.buyButtonDisabled]}
+            onPress={handleBuyNow}
+            disabled={isOutOfStock}
+          >
+            <Text style={styles.buyButtonText}>
+              {isOutOfStock ? 'Rupture de stock' : `🛒 Acheter - ${formatCFA(displayPrice)}`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   )
 }
@@ -576,6 +596,23 @@ const styles = StyleSheet.create({
   },
   upvoteTextActive: {
     color: colors.error,
+  },
+  readOnlyNotice: {
+    backgroundColor: colors.background.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border.light,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  readOnlyNoticeTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+  },
+  readOnlyNoticeText: {
+    ...typography.body,
+    color: colors.text.secondary,
   },
   bottomSpacer: {
     height: spacing.xl,

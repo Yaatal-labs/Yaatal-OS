@@ -14,3 +14,33 @@ export const isEmbeddedWebGuestMode = (
 
   return new URLSearchParams(location.search).get('embedded') === '1'
 }
+
+export type RootNavigatorSurface =
+  | 'auth'
+  | 'merchant'
+  | 'customer'
+  | 'embedded-read-only'
+
+/**
+ * Choose the app surface without letting restored BOBO credentials escape the
+ * OS shell's read-only boundary.
+ */
+export const selectRootNavigatorSurface = ({
+  isAuthenticated,
+  isMerchant,
+  isEmbedded,
+}: {
+  isAuthenticated: boolean
+  isMerchant: boolean
+  isEmbedded: boolean
+}): RootNavigatorSurface => {
+  if (isEmbedded) {
+    return 'embedded-read-only'
+  }
+
+  if (!isAuthenticated) {
+    return 'auth'
+  }
+
+  return isMerchant ? 'merchant' : 'customer'
+}

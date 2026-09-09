@@ -64,7 +64,7 @@ const CATEGORIES = [
   { value: 'home', label: 'Maison', icon: 'home-outline' },
 ]
 
-export const DiscoveryScreen = ({ navigation }: any) => {
+export const DiscoveryScreen = ({ navigation, isReadOnly = false }: any) => {
   const insets = useSafeAreaInsets()
   
   // State
@@ -200,18 +200,22 @@ export const DiscoveryScreen = ({ navigation }: any) => {
           onSubmitEditing={handleSearch}
           returnKeyType="search"
         />
-        {/* Voice Button */}
-        <TouchableOpacity onPress={handleVoiceSearch} style={styles.iconButton}>
-          <Ionicons 
-            name={isRecording ? "mic" : "mic-outline"} 
-            size={22} 
-            color={isRecording ? colors.error : colors.primary} 
-          />
-        </TouchableOpacity>
-        {/* Camera Button */}
-        <TouchableOpacity onPress={() => navigation.navigate('Scanner')} style={styles.iconButton}>
-          <Ionicons name="camera-outline" size={22} color={colors.primary} />
-        </TouchableOpacity>
+        {!isReadOnly && (
+          <>
+            {/* Voice Button */}
+            <TouchableOpacity onPress={handleVoiceSearch} style={styles.iconButton}>
+              <Ionicons
+                name={isRecording ? "mic" : "mic-outline"}
+                size={22}
+                color={isRecording ? colors.error : colors.primary}
+              />
+            </TouchableOpacity>
+            {/* Camera Button */}
+            <TouchableOpacity onPress={() => navigation.navigate('Scanner')} style={styles.iconButton}>
+              <Ionicons name="camera-outline" size={22} color={colors.primary} />
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   )

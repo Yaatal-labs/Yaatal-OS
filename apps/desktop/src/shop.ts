@@ -40,7 +40,7 @@ export function sanitizeNavigationEvent(value: unknown): string | null {
 
 /** Pure: the same-origin history path react-navigation web matches. */
 export function productPath(productId: string): string {
-  return `${PRODUCT_PATH_PREFIX}${encodeURIComponent(productId)}`;
+  return `${PRODUCT_PATH_PREFIX}${encodeURIComponent(productId)}?embedded=1`;
 }
 
 let frame: HTMLIFrameElement | null = null;

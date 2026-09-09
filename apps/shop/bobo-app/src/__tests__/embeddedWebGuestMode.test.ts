@@ -1,4 +1,7 @@
-import { isEmbeddedWebGuestMode } from '../navigation/embeddedWebGuestMode'
+import {
+  isEmbeddedWebGuestMode,
+  selectRootNavigatorSurface,
+} from '../navigation/embeddedWebGuestMode'
 
 describe('isEmbeddedWebGuestMode', () => {
   it('enables the public buyer surface only for the embedded web query flag', () => {
@@ -16,5 +19,23 @@ describe('isEmbeddedWebGuestMode', () => {
     expect(isEmbeddedWebGuestMode('ios', { search: '?embedded=1' })).toBe(false)
     expect(isEmbeddedWebGuestMode('android', { search: '?embedded=1' })).toBe(false)
     expect(isEmbeddedWebGuestMode('web')).toBe(false)
+  })
+})
+
+describe('selectRootNavigatorSurface', () => {
+  it('gives embedded mode priority over restored customer or merchant authentication', () => {
+    expect(selectRootNavigatorSurface({ isAuthenticated: true, isMerchant: true, isEmbedded: true }))
+      .toBe('embedded-read-only')
+    expect(selectRootNavigatorSurface({ isAuthenticated: true, isMerchant: false, isEmbedded: true }))
+      .toBe('embedded-read-only')
+  })
+
+  it('preserves standalone authentication routing when not embedded', () => {
+    expect(selectRootNavigatorSurface({ isAuthenticated: false, isMerchant: false, isEmbedded: false }))
+      .toBe('auth')
+    expect(selectRootNavigatorSurface({ isAuthenticated: true, isMerchant: true, isEmbedded: false }))
+      .toBe('merchant')
+    expect(selectRootNavigatorSurface({ isAuthenticated: true, isMerchant: false, isEmbedded: false }))
+      .toBe('customer')
   })
 })

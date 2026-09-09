@@ -13,9 +13,9 @@ describe("shop navigation receiver", () => {
     expect(sanitizeNavigationEvent(null)).toBeNull();
   });
 
-  it("maps a product identifier to the same-origin deep-link path", () => {
-    expect(productPath("kaftan_42")).toBe("/product/kaftan_42");
-    expect(productPath("a b")).toBe("/product/a%20b");
+  it("preserves the embedded boundary from the catalog to a product deep link", () => {
+    expect(productPath("kaftan_42")).toBe("/product/kaftan_42?embedded=1");
+    expect(productPath("a b")).toBe("/product/a%20b?embedded=1");
   });
 
   it("does not constrain the React Native Web root while bounding form controls", () => {
