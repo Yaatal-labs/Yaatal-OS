@@ -23,7 +23,11 @@ describe("shop navigation receiver", () => {
       readFileSync(new URL("../package.json", import.meta.url), "utf8"),
     ) as { scripts: Record<string, string> };
 
-    expect(packageJson.scripts.dev).toContain("node ../../scripts/build-shop.mjs");
-    expect(packageJson.scripts.build).toContain("node ../../scripts/build-shop.mjs");
+    expect(packageJson.scripts.dev).toBe(
+      "node ../../scripts/build-shop.mjs && vite --host 127.0.0.1",
+    );
+    expect(packageJson.scripts.build).toBe(
+      "node ../../scripts/build-shop.mjs && tsc --noEmit && vite build",
+    );
   });
 });
