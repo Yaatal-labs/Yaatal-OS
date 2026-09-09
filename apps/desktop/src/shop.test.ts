@@ -18,10 +18,10 @@ describe("shop navigation receiver", () => {
     expect(productPath("a b")).toBe("/product/a%20b");
   });
 
-  it("keeps the React Native Web root and its first navigation child stretched", () => {
+  it("does not constrain the React Native Web root while bounding form controls", () => {
     const css = shopChromeCss();
 
-    expect(/#root\s*>\s*div\s*\{/.test(css)).toBe(false);
+    expect(css.includes("#root")).toBe(false);
     expect(css).toMatch(/input, textarea, select\s*\{\s*max-width:\s*420px;/);
     expect(css).toMatch(/\[role="button"\], button\s*\{\s*max-width:\s*420px;/);
   });
