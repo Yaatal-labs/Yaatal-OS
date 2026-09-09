@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit && vite build",
+    "build": "node ../../scripts/build-shop.mjs && tsc --noEmit && vite build",
     "check": "tsc --noEmit",
-    "dev": "vite --host 127.0.0.1",
+    "dev": "node ../../scripts/build-shop.mjs && vite --host 127.0.0.1",
     "tauri": "tauri",
     "test": "vitest run"
   },

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { productPath, sanitizeNavigationEvent } from "./shop";
@@ -14,5 +16,14 @@ describe("shop navigation receiver", () => {
   it("maps a product identifier to the same-origin deep-link path", () => {
     expect(productPath("kaftan_42")).toBe("/product/kaftan_42");
     expect(productPath("a b")).toBe("/product/a%20b");
+  });
+
+  it("builds the generated Shop document before either OS launch mode", () => {
+    const packageJson = JSON.parse(
+      readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+    ) as { scripts: Record<string, string> };
+
+    expect(packageJson.scripts.dev).toContain("node ../../scripts/build-shop.mjs");
+    expect(packageJson.scripts.build).toContain("node ../../scripts/build-shop.mjs");
   });
 });
