@@ -1245,9 +1245,7 @@ async def studio_voice(ws: WebSocket):
     the stable turn UUID, Harness governance, and the digest-only action
     receipt; the public ``/ws`` channel never sees speech or subtitle text.
     """
-    if not OPERATOR_SESSIONS.configured or not OPERATOR_SESSIONS.valid(
-        ws.cookies.get(SESSION_COOKIE)
-    ):
+    if not OPERATOR_SESSIONS.valid(ws.cookies.get(SESSION_COOKIE)):
         await ws.close(code=4401)
         return
     await ws.accept()

@@ -24,6 +24,7 @@ let insightsController = null;
 let insightsGeneration = 0;
 let nativeBootstrapController = null;
 let nativeBootstrapGeneration = 0;
+let sessionRefreshGeneration = 0;
 
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
@@ -416,6 +417,7 @@ function renderSession(configured = true) {
   $('#mic').disabled = true;
   operatorConfigured = configured;
   $('#armLive').disabled = !operatorAuthenticated;
+  $('#shareCheckout').disabled = !operatorAuthenticated;
   $('#unlock').hidden = operatorAuthenticated || !configured;
   $('#governanceTitle').textContent = operatorAuthenticated ? 'Governance active' : configured ? 'Operator controls locked' : 'Operator token unavailable';
   $('#governanceText').textContent = operatorAuthenticated ? 'Harness approval remains required before state changes.' : 'Product preview works; governed live and voice actions remain locked.';
@@ -423,18 +425,28 @@ function renderSession(configured = true) {
   $('#voiceText').textContent = operatorAuthenticated ? 'Audio-device handoff is the next explicit integration seam.' : 'Unlock the local operator session to inspect governed controls.';
 }
 
-async function refreshSession(acceptExistingSession = true) {
+async function refreshSession(
+  acceptExistingSession = true,
+  expectedNativeGeneration = nativeBootstrapGeneration,
+) {
+  const generation = ++sessionRefreshGeneration;
+  const ownsAuthState = () => generation === sessionRefreshGeneration
+    && expectedNativeGeneration === nativeBootstrapGeneration;
   try {
     const response = await fetch(SESSION_URL, { credentials: 'same-origin', cache: 'no-store' });
     const state = await response.json();
+    if (!ownsAuthState()) return false;
     // An embedded Studio starts locked until the native shell explicitly
     // synchronizes it.  This prevents an orphaned HttpOnly cookie from
     // re-enabling controls after the Engine session has been cleared.
     operatorAuthenticated = acceptExistingSession && response.ok && Boolean(state.authenticated);
     renderSession(state.configured !== false);
+    return operatorAuthenticated;
   } catch {
+    if (!ownsAuthState()) return false;
     operatorAuthenticated = false;
     renderSession(false);
+    return false;
   }
 }
 
@@ -497,7 +509,8 @@ async function redeemNativeBootstrap(message) {
     if (!response.ok || payload.authenticated !== true) {
       throw new Error(typeof payload.error === 'string' ? payload.error : 'studio_bootstrap_failed');
     }
-    await refreshSession();
+    await refreshSession(true, generation);
+    if (generation !== nativeBootstrapGeneration || controller.signal.aborted) return;
     if (!operatorAuthenticated) throw new Error('studio_session_missing');
     activity('Operator unlocked', 'Native Engine login established the Studio session.');
     postNativeAuthStatus('bootstrap', true, message);
@@ -516,8 +529,25 @@ async function redeemNativeBootstrap(message) {
 
 async function clearNativeStudioSession(message) {
   ++nativeBootstrapGeneration;
+  ++sessionRefreshGeneration;
   nativeBootstrapController?.abort();
   nativeBootstrapController = null;
+  // Logout is a local fail-closed transition.  Revoke visual and behavioural
+  // authority before the cleanup request starts; transport failure must never
+  // make the child look armed again.
+  operatorAuthenticated = false;
+  live = false;
+  startedAt = 0;
+  cancelCommerceIntentRequest();
+  clearCommerceIntent();
+  insightsGeneration += 1;
+  insightsController?.abort();
+  insightsController = null;
+  $('#liveState').textContent = 'Preview';
+  $('#previewState').textContent = 'Preview';
+  $('#armLive').textContent = 'Arm cockpit';
+  $('.live-state').dataset.live = 'false';
+  renderSession(operatorConfigured);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   try {
@@ -527,11 +557,9 @@ async function clearNativeStudioSession(message) {
       signal: controller.signal,
     });
     if (!response.ok) throw new Error('studio_logout_failed');
-    operatorAuthenticated = false;
-    live = false;
-    renderSession(operatorConfigured);
     postNativeAuthStatus('logout', true, message);
   } catch {
+    notify('Studio sign-out cleanup failed. Controls remain locked; retry sign-out.');
     postNativeAuthStatus(
       'logout',
       false,

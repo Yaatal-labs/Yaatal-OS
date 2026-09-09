@@ -1,5 +1,6 @@
 """Focused security contract checks for the embedded native session bridge."""
 
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -40,6 +41,17 @@ class NativeSessionBridgeSourceTest(unittest.TestCase):
     def test_embedded_reload_starts_locked_until_native_sync(self):
         self.assertIn("refreshSession(window.parent === window)", self.javascript)
         self.assertIn("acceptExistingSession && response.ok", self.javascript)
+
+    def test_logout_and_refresh_race_executes_in_node(self):
+        result = subprocess.run(
+            ["node", str(ROOT / "test_native_session_behavior.mjs")],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("native session behavior: ok", result.stdout)
 
 
 if __name__ == "__main__":

@@ -366,6 +366,44 @@ class StudioControlPlaneTest(unittest.TestCase):
                 pass
         self.assertEqual(error.exception.code, 4401)
 
+    def test_voice_socket_accepts_engine_bootstrap_session_without_manual_token(self):
+        server.OPERATOR_SESSIONS = OperatorSessionStore("")
+        issued = server.OPERATOR_SESSIONS.issue_engine_bootstrap(
+            authenticated=True,
+            surface="studio",
+        )
+        self.assertIsNotNone(issued)
+        raw_session, _ = issued
+        self.client.cookies.set(server.SESSION_COOKIE, raw_session)
+
+        class AcceptingGateway:
+            def __init__(self, **_kwargs):
+                pass
+
+            async def serve(self, websocket):
+                await websocket.send_json({"type": "voice_session_accepted"})
+
+        with (
+            patch.object(server, "StudioVoiceGateway", AcceptingGateway),
+            patch.object(
+                server,
+                "get_engine_client",
+                new=AsyncMock(return_value=object()),
+            ),
+        ):
+            with self.client.websocket_connect("/api/studio/voice") as socket:
+                self.assertEqual(
+                    socket.receive_json(),
+                    {"type": "voice_session_accepted"},
+                )
+
+    def test_voice_socket_rejects_invalid_operator_session(self):
+        self.client.cookies.set(server.SESSION_COOKIE, "invalid-session")
+        with self.assertRaises(WebSocketDisconnect) as error:
+            with self.client.websocket_connect("/api/studio/voice"):
+                pass
+        self.assertEqual(error.exception.code, 4401)
+
     def test_public_update_socket_accepts_only_ping(self):
         with self.client.websocket_connect("/ws") as socket:
             self.assertEqual(socket.receive_json()["type"], "connected")
