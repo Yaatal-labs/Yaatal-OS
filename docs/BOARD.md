@@ -1,6 +1,6 @@
 # Yaatal OS Symphony Board
 
-Updated: 2026-09-09
+Updated: 2026-09-10
 Execution handoff: [`OS-REAL-SURFACES-HANDOFF.md`](./OS-REAL-SURFACES-HANDOFF.md)
 
 ## Goal
@@ -8,6 +8,21 @@ Execution handoff: [`OS-REAL-SURFACES-HANDOFF.md`](./OS-REAL-SURFACES-HANDOFF.md
 Deliver a functional and testable Windows POC with one unified native window,
 Sell and Shop workspaces, a supervised Studio sidecar, narrow capabilities,
 and one governed cross-pane commerce flow.
+
+## Parallel unified UI lane
+
+The iframe POC remains runnable on `yaatal/poc-demo-closure`. The direct
+TypeScript/CSS renderer is isolated on `yaatal/unified-ui-poc` from base
+`5587306f9dba9e5a047a359b431676632af1679b`.
+
+Execution contract and card ownership:
+[`UIR-01-UNIFIED-TYPESCRIPT-UI.md`](./scopes/UIR-01-UNIFIED-TYPESCRIPT-UI.md)
+([Français](./scopes/UIR-01-UNIFIED-TYPESCRIPT-UI.fr.md)).
+
+The only required non-UI seam is a narrow native Studio gateway. It keeps the
+Engine JWT and Studio cookie in Rust while the renderer receives typed,
+sanitized results. The lane does not rewrite Engine, Harness, Studio business
+logic, BOBO services, or payments.
 
 ## Build tracks
 
