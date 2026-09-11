@@ -11,7 +11,7 @@ import {
   settleCoordinatedLogout,
   StudioLifecycleGate,
   StudioSyncCoordinator,
-} from "./main";
+} from "./legacy";
 
 describe("shell-facing protocol use", () => {
   it("does not accept a token-bearing product URL as a navigation identifier", () => {
