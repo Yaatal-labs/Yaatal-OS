@@ -19,6 +19,10 @@ import type {
 import type { Product, Profile } from '../types/models'
 import { analyticsService } from './analytics.service.engine'
 import { getYaatalClient } from './engine.client'
+import {
+  resolveCatalogMedia as resolveCatalogMediaPolicy,
+  type ResolvedCatalogMedia,
+} from './catalog-media'
 
 const CATEGORIES: Product['category'][] = [
   'fashion',
@@ -47,101 +51,14 @@ const ENGINE_CATEGORY_TO_PRODUCT: Record<string, Product['category']> = {
   home: 'home',
 }
 
-type DemoCatalogMedia = {
-  filename: string
-  alt: string
-}
-
-// Keep this category contract aligned with Studio's _DEMO_CATEGORY_IMAGES.
-// It is deliberately a fallback, never a replacement for merchant media.
-const DEMO_MEDIA_BY_CATEGORY: Record<string, DemoCatalogMedia> = {
-  tech: {
-    filename: 'smartphone.webp',
-    alt: 'Generic smartphone on cream studio backdrop',
-  },
-  phone: {
-    filename: 'smartphone.webp',
-    alt: 'Generic smartphone on cream studio backdrop',
-  },
-  fashion: {
-    filename: 'bazin_robe.webp',
-    alt: 'Indigo bazin robe with gold embroidery',
-  },
-  clothing: {
-    filename: 'bazin_robe.webp',
-    alt: 'Indigo bazin robe with gold embroidery',
-  },
-  leather: {
-    filename: 'leather_bag.webp',
-    alt: 'Cognac leather satchel with brass clasp',
-  },
-  bags: {
-    filename: 'leather_bag.webp',
-    alt: 'Cognac leather satchel with brass clasp',
-  },
-  jewelry: {
-    filename: 'gold_earrings.webp',
-    alt: 'Sablé gold filigree earrings on silk',
-  },
-  drinks: {
-    filename: 'bissap.webp',
-    alt: 'Bissap hibiscus bottle with dried flowers',
-  },
-  food: {
-    filename: 'bissap.webp',
-    alt: 'Bissap hibiscus bottle with dried flowers',
-  },
-  decor: {
-    filename: 'thiote_mat.webp',
-    alt: 'Woven thiote mat with geometric pattern',
-  },
-  home: {
-    filename: 'thiote_mat.webp',
-    alt: 'Woven thiote mat with geometric pattern',
-  },
-  cosmetics: {
-    filename: 'cosmetics.webp',
-    alt: 'Natural cosmetics: black soap serum, shea balm, hibiscus',
-  },
-  beauty: {
-    filename: 'cosmetics.webp',
-    alt: 'Natural cosmetics: black soap serum, shea balm, hibiscus',
-  },
-  skincare: {
-    filename: 'cosmetics.webp',
-    alt: 'Natural cosmetics: black soap serum, shea balm, hibiscus',
-  },
-}
-
-export type ResolvedCatalogMedia = {
-  images: string[]
-  demoVisual: boolean
-  imageAlt: string | null
-}
+export type { ResolvedCatalogMedia } from './catalog-media'
 
 export const resolveCatalogMedia = (
   category: string,
   sourceImages: string[] | null | undefined,
   mediaBaseUrl = process.env.EXPO_PUBLIC_CATALOG_MEDIA_BASE_URL
 ): ResolvedCatalogMedia => {
-  const realImages = (sourceImages || []).filter(
-    (image): image is string => typeof image === 'string' && image.trim().length > 0
-  )
-  if (realImages.length > 0) {
-    return { images: realImages, demoVisual: false, imageAlt: null }
-  }
-
-  const baseUrl = mediaBaseUrl?.trim().replace(/\/+$/, '')
-  const fallback = DEMO_MEDIA_BY_CATEGORY[String(category || '').toLowerCase()]
-  if (!baseUrl || !fallback) {
-    return { images: [], demoVisual: false, imageAlt: null }
-  }
-
-  return {
-    images: [`${baseUrl}/${fallback.filename}`],
-    demoVisual: true,
-    imageAlt: fallback.alt,
-  }
+  return resolveCatalogMediaPolicy(category, sourceImages, mediaBaseUrl)
 }
 
 // The mapped storefront product keeps the existing `Product` UI shape and carries
