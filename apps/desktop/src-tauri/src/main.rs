@@ -14,6 +14,9 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 
+#[cfg(feature = "unified-ui")]
+mod gateway;
+mod http;
 mod session;
 
 const PROTOCOL_VERSION: &str = "yaatal-os.v1";
@@ -163,7 +166,7 @@ fn default_studio_dir() -> PathBuf {
 }
 
 /// Load `apps/desktop/.env` (KEY=VALUE lines). Existing process env wins:
-/// the file only fills gaps, it never overrides. Server-owned values only —
+/// the file only fills gaps, it never overrides. Server-owned values only.
 /// nothing here is serialized to a renderer.
 fn load_dotenv() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".env");
@@ -397,6 +400,8 @@ fn start_sidecar(
     state: State<'_, AppState>,
 ) -> Result<SanitizedSidecarStatus, String> {
     authorize_action(PaneAction::SidecarStart)?;
+    #[cfg(feature = "unified-ui")]
+    gateway::invalidate_if_restart(&app, &state)?;
     let status = with_supervisor(&state, SidecarSupervisor::start)?;
     emit_status(&app, &status);
     Ok(status)
@@ -408,6 +413,8 @@ fn stop_sidecar(
     state: State<'_, AppState>,
 ) -> Result<SanitizedSidecarStatus, String> {
     authorize_action(PaneAction::SidecarStop)?;
+    #[cfg(feature = "unified-ui")]
+    gateway::invalidate_session(&app, &state)?;
     let status = with_supervisor(&state, SidecarSupervisor::stop)?;
     emit_status(&app, &status);
     Ok(status)
@@ -449,7 +456,7 @@ fn request_shop_refresh(app: AppHandle, scope: String) -> Result<(), String> {
         .map_err(|_| "could not deliver shop refresh request".to_string())
 }
 
-// ── UXR-04: OS session broker ─────────────────────────────────────────
+// UXR-04: OS session broker.
 
 #[tauri::command]
 fn os_login(
@@ -459,16 +466,21 @@ fn os_login(
     password: String,
 ) -> Result<session::SanitizedSession, String> {
     authorize_action(PaneAction::SessionManagement)?;
-    if email.trim().is_empty() || password.is_empty() || email.len() > 254 {
-        return Err("invalid credentials shape".to_string());
-    }
+    session::validate_login_credentials(&email, &password)?;
     let engine_url =
         env::var("ENGINE_API_URL").unwrap_or_else(|_| "https://engine.njooba.com".to_string());
+    let generation = {
+        let mut current = state.session.lock().map_err(|_| "session_unavailable")?;
+        current.invalidate();
+        let _ = session::emit_session(&app, &current);
+        current.generation
+    };
     let body = session::engine_login(&app, &engine_url, email.trim(), &password)?;
     let mut session_state = state
         .session
         .lock()
         .map_err(|_| "session state is unavailable".to_string())?;
+    session_state.check_generation(generation)?;
     let sanitized = session::apply_login(&mut session_state, &body)?;
     let _ = session::emit_session(&app, &session_state);
     Ok(sanitized)
@@ -484,9 +496,17 @@ fn os_logout(
         .session
         .lock()
         .map_err(|_| "session state is unavailable".to_string())?;
-    *session_state = session::SessionState::logged_out();
+    #[cfg(feature = "unified-ui")]
+    let old_client = session_state.studio_client.take();
+    session_state.invalidate();
     let _ = session::emit_session(&app, &session_state);
-    Ok(session_state.sanitized())
+    let sanitized = session_state.sanitized();
+    drop(session_state);
+    #[cfg(feature = "unified-ui")]
+    if let Some(client) = old_client {
+        let _ = gateway::revoke(&state, &client);
+    }
+    Ok(sanitized)
 }
 
 #[tauri::command]
@@ -498,6 +518,7 @@ fn os_session_status(state: State<'_, AppState>) -> Result<session::SanitizedSes
     Ok(session_state.sanitized())
 }
 
+#[cfg(not(feature = "unified-ui"))]
 #[tauri::command]
 fn os_studio_bootstrap_grant(
     app: AppHandle,
@@ -535,28 +556,59 @@ const STARTUP_TIMEOUT: Duration = Duration::from_secs(15);
 const PROBE_INTERVAL: Duration = Duration::from_millis(200);
 const PRODUCT_ID_MAX: usize = 128;
 
+#[derive(Serialize)]
+struct RuntimeMode {
+    unified: bool,
+}
+
+#[tauri::command]
+fn os_runtime_mode() -> RuntimeMode {
+    RuntimeMode {
+        unified: cfg!(feature = "unified-ui"),
+    }
+}
+
 fn main() {
     let config = match SidecarConfig::from_env() {
         Ok(config) => config,
         Err(error) => panic!("invalid Yaatal OS configuration: {error}"),
     };
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
         .manage(AppState {
             supervisor: Mutex::new(SidecarSupervisor::new(config)),
             session: Mutex::new(session::SessionState::logged_out()),
-        })
-        .invoke_handler(tauri::generate_handler![
-            sidecar_status,
-            start_sidecar,
-            stop_sidecar,
-            request_product_navigation,
-            request_shop_refresh,
-            os_login,
-            os_logout,
-            os_session_status,
-            os_studio_bootstrap_grant,
-        ])
+        });
+    #[cfg(feature = "unified-ui")]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        sidecar_status,
+        start_sidecar,
+        stop_sidecar,
+        request_product_navigation,
+        request_shop_refresh,
+        os_login,
+        os_logout,
+        os_session_status,
+        os_runtime_mode,
+        gateway::studio_session_bootstrap,
+        gateway::studio_session_state,
+        gateway::studio_go_live,
+        gateway::studio_stop_stream,
+    ]);
+    #[cfg(not(feature = "unified-ui"))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        sidecar_status,
+        start_sidecar,
+        stop_sidecar,
+        request_product_navigation,
+        request_shop_refresh,
+        os_login,
+        os_logout,
+        os_session_status,
+        os_studio_bootstrap_grant,
+        os_runtime_mode,
+    ]);
+    builder
         .run(tauri::generate_context!())
         .expect("error while running Yaatal OS");
 }

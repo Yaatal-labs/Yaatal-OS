@@ -1,7 +1,7 @@
 //! OS-level session broker (UXR-04).
 //!
 //! One Engine login unlocks SELL and SHOP. Raw tokens live only in this
-//! Rust process — never serialized to a renderer, never in a URL. Panes
+//! Rust process; it is never serialized to a renderer or placed in a URL. Panes
 //! receive a sanitized session event (merchant name, verification state)
 //! through the bounded OS protocol.
 
@@ -29,24 +29,67 @@ struct EngineLoginResponse {
 const STUDIO_SURFACE: &str = "studio";
 const BOOTSTRAP_NONCE_LEN: usize = 43;
 const BOOTSTRAP_TTL_MAX_SECONDS: i64 = 90;
+/// Keep credential payloads bounded before they become JSON request bodies.
+pub const MAX_PASSWORD_BYTES: usize = 4096;
+
+pub fn validate_login_credentials(email: &str, password: &str) -> Result<(), String> {
+    if email.trim().is_empty()
+        || password.is_empty()
+        || email.len() > 254
+        || password.len() > MAX_PASSWORD_BYTES
+    {
+        return Err("invalid credentials shape".into());
+    }
+    Ok(())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct StudioBootstrapGrant {
-    nonce: String,
-    surface: String,
+    pub(crate) nonce: String,
+    pub(crate) surface: String,
     #[serde(rename(serialize = "expiresInSeconds", deserialize = "expires_in_seconds"))]
     expires_in_seconds: i64,
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct SessionState {
+    pub(crate) generation: u64,
+    #[cfg(feature = "unified-ui")]
+    pub(crate) studio_client: Option<tauri_plugin_http::reqwest::Client>,
+    #[cfg(feature = "unified-ui")]
+    pub(crate) commerce_links: std::collections::HashMap<String, crate::gateway::CommerceIntent>,
     token: Option<String>,
     merchant_name: Option<String>,
     verified: Option<bool>,
 }
 
 impl SessionState {
+    pub fn invalidate(&mut self) {
+        let generation = self.generation.wrapping_add(1);
+        *self = Self {
+            generation,
+            ..Self::default()
+        };
+    }
+
+    pub fn check_generation(&self, generation: u64) -> Result<(), String> {
+        if self.generation == generation {
+            Ok(())
+        } else {
+            Err("session_changed".into())
+        }
+    }
+
+    /// A Studio process restart invalidates its loopback cookie jar, but does
+    /// not turn a successful Engine login into a renderer-visible logout.
+    #[cfg(feature = "unified-ui")]
+    pub fn invalidate_studio(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+        self.studio_client = None;
+        self.commerce_links.clear();
+    }
+
     pub fn sanitized(&self) -> SanitizedSession {
         SanitizedSession {
             authenticated: self.token.is_some(),
@@ -71,7 +114,7 @@ pub fn emit_session(app: &tauri::AppHandle, state: &SessionState) -> Result<(), 
     app.emit_to(MAIN_WINDOW, "yaatal://session", session_event(state))
 }
 
-/// Session event shape crossing to panes — versioned, sanitized.
+/// Session event shape crossing to panes; versioned and sanitized.
 #[derive(Debug, Clone, Serialize)]
 pub struct SessionEvent {
     pub version: &'static str,
@@ -96,44 +139,17 @@ pub fn engine_login(
     email: &str,
     password: &str,
 ) -> Result<String, String> {
-    use tauri_plugin_http::reqwest;
-
-    let base = base_url.trim().trim_end_matches('/').to_string();
-    if base.is_empty() {
-        return Err("Engine URL is not configured".to_string());
-    }
-    let url = format!("{base}/api/auth/login");
-    let _ = app; // authorization is enforced at the command layer
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| format!("HTTP client error: {e}"))?;
-    let body = format!(
-        "{{\"email\":{},\"password\":{}}}",
-        json_escape(email),
-        json_escape(password)
-    );
-
-    // The HTTP plugin's reqwest is async; run it on a blocking thread so the
-    // command layer stays synchronous and simple.
-    let handle = tauri::async_runtime::handle();
-    let result = handle.block_on(async move {
-        client
-            .post(&url)
-            .header("Content-Type", "application/json")
-            .body(body)
-            .send()
-            .await
-    });
-    let response = result.map_err(|e| format!("Engine unreachable: {e}"))?;
-    let status = response.status();
-    let text = handle
-        .block_on(async move { response.text().await })
-        .map_err(|e| format!("Engine response read failed: {e}"))?;
-    if !status.is_success() {
-        return Err(format!("Engine rejected login ({status})"));
-    }
-    Ok(text)
+    let _ = app;
+    let base = crate::http::engine_base(base_url)?;
+    let body = serde_json::json!({"email":email,"password":password});
+    crate::http::request_text(
+        &crate::http::client(false)?,
+        tauri_plugin_http::reqwest::Method::POST,
+        base.join("api/auth/login")
+            .map_err(|_| "engine_configuration_invalid")?,
+        Some(body),
+        None,
+    )
 }
 
 /// Mint a one-use Studio grant while keeping the Engine JWT inside Rust.
@@ -142,37 +158,16 @@ pub fn engine_studio_bootstrap_start(
     base_url: &str,
     token: &str,
 ) -> Result<String, String> {
-    use tauri_plugin_http::reqwest;
-
-    let base = base_url.trim().trim_end_matches('/').to_string();
-    if base.is_empty() {
-        return Err("Engine URL is not configured".to_string());
-    }
-    let url = format!("{base}/api/auth/bootstrap/start");
-    let _ = app; // authorization is enforced at the command layer
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .map_err(|_| "bootstrap HTTP client unavailable".to_string())?;
-    let handle = tauri::async_runtime::handle();
-    let result = handle.block_on(async move {
-        client
-            .post(&url)
-            .bearer_auth(token)
-            .header("Content-Type", "application/json")
-            .body(r#"{"surface":"studio"}"#)
-            .send()
-            .await
-    });
-    let response = result.map_err(|_| "Engine bootstrap unavailable".to_string())?;
-    let status = response.status();
-    let text = handle
-        .block_on(async move { response.text().await })
-        .map_err(|_| "Engine bootstrap response unreadable".to_string())?;
-    if !status.is_success() {
-        return Err(format!("Engine rejected Studio bootstrap ({status})"));
-    }
-    Ok(text)
+    let _ = app;
+    let base = crate::http::engine_base(base_url)?;
+    crate::http::request_text(
+        &crate::http::client(false)?,
+        tauri_plugin_http::reqwest::Method::POST,
+        base.join("api/auth/bootstrap/start")
+            .map_err(|_| "engine_configuration_invalid")?,
+        Some(serde_json::json!({"surface":"studio"})),
+        Some(token),
+    )
 }
 
 pub fn validate_studio_bootstrap_grant(body: &str) -> Result<StudioBootstrapGrant, String> {
@@ -191,27 +186,16 @@ pub fn validate_studio_bootstrap_grant(body: &str) -> Result<StudioBootstrapGran
     Ok(grant)
 }
 
-fn json_escape(value: &str) -> String {
-    let mut out = String::with_capacity(value.len() + 2);
-    out.push('"');
-    for ch in value.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-    out
-}
-
 pub fn apply_login(state: &mut SessionState, body: &str) -> Result<SanitizedSession, String> {
     let response: EngineLoginResponse =
         ::serde_json::from_str(body).map_err(|_| "unexpected Engine login payload".to_string())?;
+    if response.token.is_empty()
+        || response.token.len() > 8192
+        || response.name.len() > 200
+        || response.name.chars().any(char::is_control)
+    {
+        return Err("unexpected Engine login payload".into());
+    }
     state.token = Some(response.token);
     state.merchant_name = Some(response.name);
     state.verified = Some(response.is_verified);
@@ -251,5 +235,30 @@ mod tests {
         assert!(validate_studio_bootstrap_grant(&grant_json("studio", &invalid, 90)).is_err());
         assert!(validate_studio_bootstrap_grant(&grant_json("studio", &nonce, 0)).is_err());
         assert!(validate_studio_bootstrap_grant(&grant_json("studio", &nonce, 91)).is_err());
+    }
+
+    #[test]
+    fn oversized_password_is_rejected_before_request_serialization() {
+        assert_eq!(
+            validate_login_credentials("seller@example.com", &"a".repeat(MAX_PASSWORD_BYTES + 1)),
+            Err("invalid credentials shape".into())
+        );
+        assert!(
+            validate_login_credentials("seller@example.com", &"a".repeat(MAX_PASSWORD_BYTES))
+                .is_ok()
+        );
+    }
+
+    #[cfg(feature = "unified-ui")]
+    #[test]
+    fn logout_invalidates_an_in_flight_studio_bootstrap() {
+        let mut state = SessionState::default();
+        let bootstrap_generation = state.generation.wrapping_add(1);
+        state.generation = bootstrap_generation;
+        state.invalidate();
+        assert_eq!(
+            state.check_generation(bootstrap_generation),
+            Err("session_changed".into())
+        );
     }
 }

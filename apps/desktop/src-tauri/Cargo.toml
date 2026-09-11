@@ -4,6 +4,10 @@ version = "0.1.0"
 description = "Yaatal OS Windows POC shell"
 edition = "2021"
 
+[features]
+default = []
+unified-ui = []
+
 [workspace]
 
 [build-dependencies]
