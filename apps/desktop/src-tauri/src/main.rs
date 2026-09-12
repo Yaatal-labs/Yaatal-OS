@@ -6,7 +6,7 @@ use std::{
     net::{IpAddr, SocketAddr, TcpStream},
     path::PathBuf,
     process::{Child, Command, Stdio},
-    sync::Mutex,
+    sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
@@ -369,9 +369,10 @@ fn probe_health(host: IpAddr, port: u16, timeout: Duration) -> bool {
     false
 }
 
+#[derive(Clone)]
 struct AppState {
-    supervisor: Mutex<SidecarSupervisor>,
-    session: Mutex<session::SessionState>,
+    supervisor: Arc<Mutex<SidecarSupervisor>>,
+    session: Arc<Mutex<session::SessionState>>,
 }
 fn with_supervisor<T>(
     state: &State<'_, AppState>,
@@ -458,8 +459,48 @@ fn request_shop_refresh(app: AppHandle, scope: String) -> Result<(), String> {
 
 // UXR-04: OS session broker.
 
+fn owned_app_state(state: &State<'_, AppState>) -> AppState {
+    AppState {
+        supervisor: Arc::clone(&state.supervisor),
+        session: Arc::clone(&state.session),
+    }
+}
+
+async fn run_blocking<T: Send + 'static>(
+    operation: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(operation)
+        .await
+        .map_err(|_| "native_task_unavailable".to_string())?
+}
+
+fn os_login_blocking(
+    app: &AppHandle,
+    state: &AppState,
+    email: String,
+    password: String,
+) -> Result<session::SanitizedSession, String> {
+    let engine_url =
+        env::var("ENGINE_API_URL").unwrap_or_else(|_| "https://engine.njooba.com".to_string());
+    let generation = {
+        let mut current = state.session.lock().map_err(|_| "session_unavailable")?;
+        current.invalidate();
+        let _ = session::emit_session(app, &current);
+        current.generation
+    };
+    let body = session::engine_login(app, &engine_url, email.trim(), &password)?;
+    let mut session_state = state
+        .session
+        .lock()
+        .map_err(|_| "session state is unavailable".to_string())?;
+    session_state.check_generation(generation)?;
+    let sanitized = session::apply_login(&mut session_state, &body)?;
+    let _ = session::emit_session(app, &session_state);
+    Ok(sanitized)
+}
+
 #[tauri::command]
-fn os_login(
+async fn os_login(
     app: AppHandle,
     state: State<'_, AppState>,
     email: String,
@@ -467,31 +508,14 @@ fn os_login(
 ) -> Result<session::SanitizedSession, String> {
     authorize_action(PaneAction::SessionManagement)?;
     session::validate_login_credentials(&email, &password)?;
-    let engine_url =
-        env::var("ENGINE_API_URL").unwrap_or_else(|_| "https://engine.njooba.com".to_string());
-    let generation = {
-        let mut current = state.session.lock().map_err(|_| "session_unavailable")?;
-        current.invalidate();
-        let _ = session::emit_session(&app, &current);
-        current.generation
-    };
-    let body = session::engine_login(&app, &engine_url, email.trim(), &password)?;
-    let mut session_state = state
-        .session
-        .lock()
-        .map_err(|_| "session state is unavailable".to_string())?;
-    session_state.check_generation(generation)?;
-    let sanitized = session::apply_login(&mut session_state, &body)?;
-    let _ = session::emit_session(&app, &session_state);
-    Ok(sanitized)
+    let state = owned_app_state(&state);
+    run_blocking(move || os_login_blocking(&app, &state, email, password)).await
 }
 
-#[tauri::command]
-fn os_logout(
-    app: AppHandle,
-    state: State<'_, AppState>,
+fn os_logout_blocking(
+    app: &AppHandle,
+    state: &AppState,
 ) -> Result<session::SanitizedSession, String> {
-    authorize_action(PaneAction::SessionManagement)?;
     let mut session_state = state
         .session
         .lock()
@@ -499,7 +523,7 @@ fn os_logout(
     #[cfg(feature = "unified-ui")]
     let old_client = session_state.studio_client.take();
     session_state.invalidate();
-    let _ = session::emit_session(&app, &session_state);
+    let _ = session::emit_session(app, &session_state);
     let sanitized = session_state.sanitized();
     drop(session_state);
     #[cfg(feature = "unified-ui")]
@@ -507,6 +531,16 @@ fn os_logout(
         let _ = gateway::revoke(&state, &client);
     }
     Ok(sanitized)
+}
+
+#[tauri::command]
+async fn os_logout(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<session::SanitizedSession, String> {
+    authorize_action(PaneAction::SessionManagement)?;
+    let state = owned_app_state(&state);
+    run_blocking(move || os_logout_blocking(&app, &state)).await
 }
 
 #[tauri::command]
@@ -568,6 +602,49 @@ fn os_runtime_mode() -> RuntimeMode {
     }
 }
 
+#[cfg(feature = "unified-ui")]
+macro_rules! with_unified_commands {
+    ($callback:ident) => {
+        $callback!(
+            sidecar_status => sidecar_status,
+            start_sidecar => start_sidecar,
+            stop_sidecar => stop_sidecar,
+            request_product_navigation => request_product_navigation,
+            request_shop_refresh => request_shop_refresh,
+            os_login => os_login,
+            os_logout => os_logout,
+            os_session_status => os_session_status,
+            os_runtime_mode => os_runtime_mode,
+            gateway::studio_session_bootstrap => studio_session_bootstrap,
+            gateway::studio_session_state => studio_session_state,
+            gateway::studio_go_live => studio_go_live,
+            gateway::studio_stop_stream => studio_stop_stream,
+            gateway::catalog_list => catalog_list,
+            gateway::catalog_product => catalog_product,
+            gateway::studio_status => studio_status,
+            gateway::studio_product_queue => studio_product_queue,
+            gateway::studio_create_commerce_intent => studio_create_commerce_intent,
+            gateway::studio_conversions => studio_conversions,
+            gateway::open_commerce_link => open_commerce_link,
+        )
+    };
+}
+
+#[cfg(feature = "unified-ui")]
+macro_rules! make_unified_handler {
+    ($($command:path => $name:ident),+ $(,)?) => {
+        tauri::generate_handler![$($command),+]
+    };
+}
+
+#[cfg(feature = "unified-ui")]
+#[allow(unused_macros)]
+macro_rules! unified_command_names {
+    ($($command:path => $name:ident),+ $(,)?) => {
+        &[$(stringify!($name)),+]
+    };
+}
+
 fn main() {
     let config = match SidecarConfig::from_env() {
         Ok(config) => config,
@@ -576,25 +653,11 @@ fn main() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
         .manage(AppState {
-            supervisor: Mutex::new(SidecarSupervisor::new(config)),
-            session: Mutex::new(session::SessionState::logged_out()),
+            supervisor: Arc::new(Mutex::new(SidecarSupervisor::new(config))),
+            session: Arc::new(Mutex::new(session::SessionState::logged_out())),
         });
     #[cfg(feature = "unified-ui")]
-    let builder = builder.invoke_handler(tauri::generate_handler![
-        sidecar_status,
-        start_sidecar,
-        stop_sidecar,
-        request_product_navigation,
-        request_shop_refresh,
-        os_login,
-        os_logout,
-        os_session_status,
-        os_runtime_mode,
-        gateway::studio_session_bootstrap,
-        gateway::studio_session_state,
-        gateway::studio_go_live,
-        gateway::studio_stop_stream,
-    ]);
+    let builder = builder.invoke_handler(with_unified_commands!(make_unified_handler));
     #[cfg(not(feature = "unified-ui"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         sidecar_status,
@@ -625,6 +688,38 @@ mod tests {
         );
         assert_eq!(sanitize_product_id("https://shop/?token=secret"), None);
         assert_eq!(sanitize_product_id("-starts-with-separator"), None);
+    }
+
+    #[cfg(feature = "unified-ui")]
+    #[test]
+    fn unified_registry_has_every_commerce_command_and_no_legacy_grant() {
+        let commands = with_unified_commands!(unified_command_names);
+        assert_eq!(
+            *commands,
+            [
+                "sidecar_status",
+                "start_sidecar",
+                "stop_sidecar",
+                "request_product_navigation",
+                "request_shop_refresh",
+                "os_login",
+                "os_logout",
+                "os_session_status",
+                "os_runtime_mode",
+                "studio_session_bootstrap",
+                "studio_session_state",
+                "studio_go_live",
+                "studio_stop_stream",
+                "catalog_list",
+                "catalog_product",
+                "studio_status",
+                "studio_product_queue",
+                "studio_create_commerce_intent",
+                "studio_conversions",
+                "open_commerce_link",
+            ]
+        );
+        assert!(!commands.contains(&"os_studio_bootstrap_grant"));
     }
 
     #[test]

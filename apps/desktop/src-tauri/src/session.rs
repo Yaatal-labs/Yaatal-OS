@@ -65,12 +65,19 @@ pub struct SessionState {
 }
 
 impl SessionState {
+    #[cfg(feature = "unified-ui")]
+    fn discard_studio_access(&mut self) {
+        self.studio_client = None;
+        self.commerce_links.clear();
+    }
+
     pub fn invalidate(&mut self) {
-        let generation = self.generation.wrapping_add(1);
-        *self = Self {
-            generation,
-            ..Self::default()
-        };
+        self.generation = self.generation.wrapping_add(1);
+        #[cfg(feature = "unified-ui")]
+        self.discard_studio_access();
+        self.token = None;
+        self.merchant_name = None;
+        self.verified = None;
     }
 
     pub fn check_generation(&self, generation: u64) -> Result<(), String> {
@@ -86,8 +93,7 @@ impl SessionState {
     #[cfg(feature = "unified-ui")]
     pub fn invalidate_studio(&mut self) {
         self.generation = self.generation.wrapping_add(1);
-        self.studio_client = None;
-        self.commerce_links.clear();
+        self.discard_studio_access();
     }
 
     pub fn sanitized(&self) -> SanitizedSession {
@@ -260,5 +266,16 @@ mod tests {
             state.check_generation(bootstrap_generation),
             Err("session_changed".into())
         );
+    }
+
+    #[cfg(feature = "unified-ui")]
+    #[test]
+    fn studio_restart_discards_the_cookie_client() {
+        let mut state = SessionState::default();
+        state.studio_client = Some(crate::http::client(true).expect("cookie client"));
+        let generation = state.generation;
+        state.invalidate_studio();
+        assert_ne!(state.generation, generation);
+        assert!(state.studio_client.is_none());
     }
 }
