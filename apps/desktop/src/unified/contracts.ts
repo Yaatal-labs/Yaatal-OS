@@ -58,6 +58,12 @@ export interface CommerceIntent {
 
 export type CommerceChannel = "copy" | "livestream" | "telegram" | "whatsapp";
 
+/** A validated public URL retained by native after an optional external open. */
+export interface OpenCommerceLinkResult {
+  publicUrl: string;
+  opened: boolean;
+}
+
 export interface Conversion {
   version: "yaatal.commerce-receipt.v1";
   orderId: string;
@@ -86,5 +92,5 @@ export interface CommerceWorkspaceAdapter {
   status(): Promise<StudioStatus>;
   createIntent(productId: string): Promise<CommerceIntent>;
   conversions(liveSessionId: string): Promise<Conversion[]>;
-  openLink(intentId: string, channel: CommerceChannel): Promise<void>;
+  openLink(intentId: string, channel: CommerceChannel): Promise<OpenCommerceLinkResult>;
 }

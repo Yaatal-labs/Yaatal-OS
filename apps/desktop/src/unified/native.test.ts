@@ -8,7 +8,7 @@ describe("native adapter", () => {
     const call = vi.fn(); const adapter = createNativeAdapter(call, false);
     expect(await adapter.runtimeMode()).toBe("preview");
     await expect(adapter.login("email", "password")).rejects.toThrow("desktop app");
-    expect(call).not.toHaveBeenCalled();
+    expect(call).toHaveBeenCalledTimes(0);
   });
   it("requires the native unified flag and rejects unsupported mode payloads", async () => {
     await expect(createNativeAdapter(vi.fn().mockResolvedValue({ unified: false }), true).runtimeMode()).rejects.toThrow("does not support");
@@ -25,7 +25,9 @@ describe("native adapter", () => {
   it("does not expose arbitrary native transport error contents", async () => {
     const adapter = createNativeAdapter(vi.fn().mockRejectedValue(new Error("secret-token")), true);
     await expect(adapter.sessionStatus()).rejects.toThrow("could not complete");
-    await expect(adapter.sessionStatus()).rejects.not.toThrow("secret-token");
+    let message = "";
+    try { await adapter.sessionStatus(); } catch (error) { message = error instanceof Error ? error.message : String(error); }
+    expect(message.includes("secret-token")).toBe(false);
   });
   it("sanitizes either event-registration failure and cleans up a partial subscription", async () => {
     const subscribe = createNativeAdapter(vi.fn(), true).subscribe;
@@ -34,13 +36,13 @@ describe("native adapter", () => {
     let firstMessage = "";
     try { await subscribe(onSidecar, onProduct); } catch (error) { firstMessage = error instanceof Error ? error.message : String(error); }
     expect(firstMessage).toContain("event service could not start");
-    expect(firstMessage).not.toContain("first-registration-token");
+    expect(firstMessage.includes("first-registration-token")).toBe(false);
     const stopSidecar = vi.fn();
     listener.mockResolvedValueOnce(stopSidecar).mockRejectedValueOnce(new Error("second-registration-token"));
     let message = "";
     try { await subscribe(onSidecar, onProduct); } catch (error) { message = error instanceof Error ? error.message : String(error); }
     expect(message).toContain("event service could not start");
-    expect(message).not.toContain("second-registration-token");
+    expect(message.includes("second-registration-token")).toBe(false);
     expect(stopSidecar).toHaveBeenCalledOnce();
   });
   it("normalizes bounded catalog data and preserves the distinction between absent and empty variants", () => {
@@ -64,13 +66,13 @@ describe("native adapter", () => {
         case "studio_status": return { health: "ok", ledgerAvailable: true, readiness: { status: "passed", steps: [{ name: "studio.ready", status: "passed", durationMs: 25 }] } };
         case "studio_create_commerce_intent": return { intentId: "intent-1", liveSessionId: "live-1", productId: "robe-wax", publicUrl: "https://shop.example/b/abc?src=copy", livestreamUrl: "https://shop.example/b/abc?src=livestream", whatsappUrl: "https://wa.me/?text=hello", telegramUrl: "https://t.me/share/url?url=https%3A%2F%2Fshop.example%2Fb%2Fabc&text=hello" };
         case "studio_conversions": return [{ version: "yaatal.commerce-receipt.v1", orderId: "order-1", productId: "robe-wax", productName: "Robe Wax Bleue", totalFcfa: 12500, paymentProvider: "wave", paymentStatus: "sandbox_paid", liveSessionId: "live-1", sourceChannel: "copy", deduplicated: false, quantity: 1, createdAt: "2026-09-10T00:00:00Z" }];
-        case "open_commerce_link": return { nativeResultMayChange: true };
+        case "open_commerce_link": return { publicUrl: "https://shop.example/b/abc", opened: true };
         default: throw new Error(`unexpected ${command}`);
       }
     });
     const adapter = createWorkspaceAdapter(call, true);
     expect(await adapter.catalog.list({ page: 2, category: "robes" })).toMatchObject({ total: 1, products: [{ variants: ["S", "M"] }] });
-    await adapter.catalog.product("robe-wax"); await adapter.bootstrap(); await adapter.sessionState(); await adapter.goLive(); await adapter.stopStream(); await adapter.productQueue(); await adapter.status(); await adapter.createIntent("robe-wax"); expect(await adapter.conversions("live-1")).toHaveLength(1); await adapter.openLink("intent-1", "copy");
+    await adapter.catalog.product("robe-wax"); await adapter.bootstrap(); await adapter.sessionState(); await adapter.goLive(); await adapter.stopStream(); await adapter.productQueue(); await adapter.status(); await adapter.createIntent("robe-wax"); expect(await adapter.conversions("live-1")).toHaveLength(1); expect(await adapter.openLink("intent-1", "copy")).toEqual({ publicUrl: "https://shop.example/b/abc", opened: true });
     expect(call).toHaveBeenCalledWith("catalog_list", { page: 2, category: "robes" });
     expect(call).toHaveBeenCalledWith("catalog_product", { productId: "robe-wax" });
     expect(call).toHaveBeenCalledWith("studio_session_bootstrap", undefined);
@@ -86,6 +88,14 @@ describe("native adapter", () => {
   it("rejects malformed workspace payloads without passing raw data to callers", async () => {
     const adapter = createWorkspaceAdapter(vi.fn().mockResolvedValue({ products: [], total: 1.5, page: 1, perPage: 20, token: "secret" }), true);
     await expect(adapter.catalog.list()).rejects.toThrow("unsupported response");
-    await expect(adapter.catalog.list()).rejects.not.toThrow("secret");
+    let message = "";
+    try { await adapter.catalog.list(); } catch (error) { message = error instanceof Error ? error.message : String(error); }
+    expect(message.includes("secret")).toBe(false);
+  });
+  it("rejects malformed or credential-bearing native link results", async () => {
+    const malformed = createWorkspaceAdapter(vi.fn().mockResolvedValue({ publicUrl: "https://user:secret@shop.example/item", opened: "yes", extra: true }), true);
+    await expect(malformed.openLink("intent-1", "telegram")).rejects.toThrow("unsupported response");
+    const extra = createWorkspaceAdapter(vi.fn().mockResolvedValue({ publicUrl: "https://shop.example/item", opened: false, token: "secret" }), true);
+    await expect(extra.openLink("intent-1", "livestream")).rejects.toThrow("unsupported response");
   });
 });

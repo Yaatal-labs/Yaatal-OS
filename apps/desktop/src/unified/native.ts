@@ -1,7 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { sanitizeSidecarStatus, sanitizeProductNavigation, type SidecarStatus, type ProductNavigationRequest } from "@yaatal/os-protocol";
-import type { CatalogPage, CatalogProduct, CommerceChannel, CommerceIntent, CommerceWorkspaceAdapter, Conversion, ProductQueue, StudioSessionState, StudioStatus } from "./contracts";
+import type { CatalogPage, CatalogProduct, CommerceChannel, CommerceIntent, CommerceWorkspaceAdapter, Conversion, OpenCommerceLinkResult, ProductQueue, StudioSessionState, StudioStatus } from "./contracts";
 
 export interface SanitizedSession { authenticated: boolean; merchant_name: string | null; verified: boolean | null }
 export const signedOut: SanitizedSession = { authenticated: false, merchant_name: null, verified: null };
@@ -80,6 +80,12 @@ function sanitizeIntent(value: unknown): CommerceIntent | null {
   const intentId = id(v.intentId); const liveSessionId = id(v.liveSessionId); const productId = id(v.productId); const publicUrl = safeUrl(v.publicUrl); const livestreamUrl = safeUrl(v.livestreamUrl); const whatsappUrl = safeUrl(v.whatsappUrl); const telegramUrl = safeUrl(v.telegramUrl);
   return intentId && liveSessionId && productId && publicUrl && livestreamUrl && whatsappUrl && telegramUrl ? { intentId, liveSessionId, productId, publicUrl, livestreamUrl, whatsappUrl, telegramUrl } : null;
 }
+function sanitizeOpenCommerceLink(value: unknown): OpenCommerceLinkResult | null {
+  const v = record(value);
+  if (!v || !exact(v, ["publicUrl", "opened"]) || typeof v.opened !== "boolean") return null;
+  const publicUrl = safeUrl(v.publicUrl);
+  return publicUrl ? { publicUrl, opened: v.opened } : null;
+}
 function sanitizeConversion(value: unknown): Conversion | null {
   const v = record(value);
   if (!v || !exact(v, ["version", "orderId", "productId", "productName", "totalFcfa", "paymentProvider", "paymentStatus", "liveSessionId", "sourceChannel", "deduplicated", "quantity", "createdAt"]) || v.version !== "yaatal.commerce-receipt.v1" || v.paymentStatus !== "sandbox_paid" || typeof v.deduplicated !== "boolean") return null;
@@ -130,7 +136,8 @@ export function createWorkspaceAdapter(call: Invoke = invoke, native = isTauri()
       product: productId => request("catalog_product", sanitizeCatalogProduct, { productId: requestedId(productId, "product") }),
     },
     bootstrap: () => request("studio_session_bootstrap", sanitizeBootstrap), sessionState: () => request("studio_session_state", sanitizeStudioSession), goLive: () => request("studio_go_live", sanitizeStudioSession), stopStream: () => request("studio_stop_stream", sanitizeStudioSession), productQueue: () => request("studio_product_queue", sanitizeQueue), status: () => request("studio_status", sanitizeStatus), createIntent: productId => request("studio_create_commerce_intent", sanitizeIntent, { productId: requestedId(productId, "product") }), conversions: liveSessionId => request("studio_conversions", sanitizeConversions, { liveSessionId: requestedId(liveSessionId, "live session") }),
-    // The native opener result is intentionally opaque until UIR-01B finalizes it; errors still use the shared sanitized request path.
-    openLink: async (intentId, channel) => { const validChannels: CommerceChannel[] = ["copy", "livestream", "telegram", "whatsapp"]; if (!validChannels.includes(channel)) throw new Error("The requested commerce channel is invalid."); await request("open_commerce_link", () => true, { intentId: requestedId(intentId, "commerce link"), channel }); },
+    // Native validates the stored intent URL and performs any external open. The renderer
+    // never supplies a URL; for copy it receives this retained, validated public URL.
+    openLink: (intentId, channel) => { const validChannels: CommerceChannel[] = ["copy", "livestream", "telegram", "whatsapp"]; if (!validChannels.includes(channel)) throw new Error("The requested commerce channel is invalid."); return request("open_commerce_link", sanitizeOpenCommerceLink, { intentId: requestedId(intentId, "commerce link"), channel }); },
   };
 }

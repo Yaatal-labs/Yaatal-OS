@@ -29,6 +29,37 @@ describe("ShopWorkspace", () => {
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Robe Wax Bleue" })).toBeNull());
   });
 
+  it("clears and rejects stale catalog and detail work when the account epoch changes", async () => {
+    const oldList = deferred<CatalogPage>(); const newList = deferred<CatalogPage>(); const oldDetail = deferred<CatalogProduct>(); const newDetail = deferred<CatalogProduct>();
+    const catalog = { list: vi.fn().mockReturnValueOnce(oldList.promise).mockReturnValueOnce(newList.promise), product: vi.fn().mockReturnValueOnce(oldDetail.promise).mockReturnValueOnce(newDetail.promise) };
+    const view = render(<ShopWorkspace {...props({ catalog, accountEpoch: 1, selectedProductId: "robe" })} />);
+    await waitFor(() => expect(catalog.product).toHaveBeenCalledWith("robe"));
+    view.rerender(<ShopWorkspace {...props({ catalog, accountEpoch: 2, selectedProductId: "bissap" })} />);
+    await waitFor(() => expect(catalog.product).toHaveBeenCalledWith("bissap"));
+    newList.resolve(page([bissap])); newDetail.resolve(bissap);
+    expect(await screen.findByRole("heading", { name: "Bissap" })).toBeTruthy();
+    oldList.resolve(page([robe])); oldDetail.resolve(robe);
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Robe Wax Bleue" })).toBeNull());
+    expect(screen.queryByRole("button", { name: "Open Robe Wax Bleue" })).toBeNull();
+  });
+
+  it("clears account A's search, category, and category metadata before loading account B", async () => {
+    const bProduct = { ...bag, id: "b-bag", name: "Binta bag", category: "Binta" };
+    const catalog = { list: vi.fn().mockImplementation(({ category }: { category?: string } = {}) => Promise.resolve(category === "Food" ? page([bissap]) : page(catalog.list.mock.calls.length > 2 ? [bProduct] : [robe, bissap]))), product: vi.fn().mockResolvedValue(robe) };
+    const view = render(<ShopWorkspace {...props({ catalog, accountEpoch: 1 })} />);
+    await screen.findByRole("button", { name: "Open Robe Wax Bleue" });
+    await userEvent.type(screen.getByLabelText("Search loaded products"), "bissap");
+    await userEvent.selectOptions(screen.getByLabelText("Category"), "Food");
+    await screen.findByRole("button", { name: "Open Bissap" });
+    view.rerender(<ShopWorkspace {...props({ catalog, accountEpoch: 2 })} />);
+    expect(await screen.findByRole("button", { name: "Open Binta bag" })).toBeTruthy();
+    expect(catalog.list).toHaveBeenLastCalledWith({ page: 1 });
+    expect((screen.getByLabelText("Search loaded products") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Category") as HTMLSelectElement).value).toBe("");
+    expect(screen.queryByRole("option", { name: "Mode" })).toBeNull();
+    expect(screen.getByRole("option", { name: "Binta" })).toBeTruthy();
+  });
+
   it("searches only loaded products and paginates explicitly", async () => {
     const catalog = { list: vi.fn().mockImplementation(({ page: requested = 1 }: { page?: number } = {}) => Promise.resolve(requested === 1 ? page([robe, bissap], 1, 3) : page([bag], 2, 3))), product: vi.fn().mockResolvedValue(robe) };
     render(<ShopWorkspace {...props({ catalog })} />);
@@ -78,15 +109,15 @@ describe("ShopWorkspace", () => {
     expect(await screen.findByRole("heading", { name: "Sac cuir" })).toBeTruthy();
     expect(screen.getAllByText("Out of stock").length).toBeGreaterThan(0);
     expect((screen.getByRole("button", { name: "Share product" }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getAllByText("Out of stock").length).toBeGreaterThan(1);
-    expect(onShare).not.toHaveBeenCalled();
+    expect(screen.getByText("This product is out of stock and cannot be shared.")).toBeTruthy();
+    expect(onShare).toHaveBeenCalledTimes(0);
   });
 
   it("does not manufacture catalog data in browser preview", async () => {
     const catalog = { list: vi.fn(), product: vi.fn() };
     render(<ShopWorkspace {...props({ mode: "preview", catalog })} />);
     expect(await screen.findByText(/Catalog browsing is unavailable in browser preview/)).toBeTruthy();
-    expect(catalog.list).not.toHaveBeenCalled();
-    expect(catalog.product).not.toHaveBeenCalled();
+    expect(catalog.list).toHaveBeenCalledTimes(0);
+    expect(catalog.product).toHaveBeenCalledTimes(0);
   });
 });

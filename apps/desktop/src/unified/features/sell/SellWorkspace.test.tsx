@@ -38,7 +38,7 @@ describe("SellWorkspace", () => {
     resolve({ authenticated: true });
     expect(await screen.findByText("Sign in to prepare your Studio session.")).toBeTruthy();
     expect(screen.queryByText("Awa")).toBeNull();
-    expect(native.sessionState).not.toHaveBeenCalled();
+    expect(native.sessionState).toHaveBeenCalledTimes(0);
   });
   it("only enables sharing while the authoritative session is live and reports session changes", async () => {
     const changed = vi.fn(); const shared = vi.fn(); const native = adapter({ productQueue: vi.fn().mockResolvedValue({ ...queue, products: [queuedProduct] }) });
