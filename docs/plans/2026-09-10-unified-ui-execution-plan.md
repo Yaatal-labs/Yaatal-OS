@@ -1,13 +1,13 @@
 # Unified UI execution plan
 
 Date: 10 September 2026
-Status: migration planned; earlier shell, protocol, session, catalog and commerce work exists; unified React acceptance has not started
+Status: React foundation reviewed and committed at c1268a1; native gateway in progress; unified commerce acceptance has not started
 Repository: Yaatal-labs/Yaatal-OS
 Branch: yaatal/unified-ui-poc
 Reviewed HEAD: 68044e440952b9442c38d539763542946dbdad19
 Base: 5587306f9dba9e5a047a359b431676632af1679b
 
-This execution supplement follows [UIR-01](../scopes/UIR-01-UNIFIED-TYPESCRIPT-UI.md) and the [approved UI contract](../design/YAATAL-OS-UI-CONTRACT.md). The user selected React + shadcn/ui on 10 September. That decision supersedes the plain TypeScript component examples in UIR-01; it preserves Vite, Tauri 2, native session ownership, and the approved visual direction. This document plans work only.
+This execution supplement follows [UIR-01](../scopes/UIR-01-UNIFIED-TYPESCRIPT-UI.md) and the [approved UI contract](../design/YAATAL-OS-UI-CONTRACT.md). The user selected React + shadcn/ui on 10 September. That decision supersedes the plain TypeScript component examples in UIR-01; it preserves Vite, Tauri 2, native session ownership, and the approved visual direction. This document tracks the agreed implementation sequence; completed checkpoints are recorded under docs/evidence.
 
 ## Outcome and scope
 
@@ -117,7 +117,7 @@ All package paths below are repository-relative. Shared-file ownership is exclus
 
 Native subcards run sequentially because they share command registration and Cargo configuration. SELL and SHOP are independent after contracts and adapters pass, but use one implementation subagent at a time under the requested Subagent-Driven Development workflow. Independent read-only review/research may run alongside useful work.
 
-For each execution card: provide a fresh implementer with complete task text and exclusive write set; require them to preserve others' edits; inspect the resulting diff and tests; run spec review, fix findings, then code-quality review and fixes. Mark the card complete only after both reviews pass. Stage shared manifests only through their owner. Create focused commits with gate evidence during implementation; this planning task creates no source commit.
+For each execution card: provide a fresh implementer with complete task text and exclusive write set; require them to preserve others' edits; inspect the resulting diff and tests; run spec review, fix findings, then code-quality review and fixes. Mark the card complete only after both reviews pass. Stage shared manifests only through their owner. Create focused commits with gate evidence during implementation; implementation commits are recorded after review.
 
 ## Verification strategy
 
@@ -161,11 +161,12 @@ The following is the intended unified development command after UIR-02B passes; 
 Set-Location C:/Users/momo-/OneDrive/Desktop/YAATAL/Yaatal-Engine/.worktrees/Yaatal-OS/unified-ui-poc
 pnpm install --frozen-lockfile
 $env:VITE_YAATAL_UNIFIED_UI = "1"
-$env:ENGINE_API_URL = "http://127.0.0.1:5150"
+$env:ENGINE_API_URL = "http://localhost:5150"
 $env:STUDIO_COOKIE_SECURE = "0"
 $env:YAATAL_COMMERCE_POC = "1"
 $env:YAATAL_OS_STUDIO_DIR = (Resolve-Path apps/studio).Path
-$env:YAATAL_COMMERCE_PUBLIC_BASE_URL = "http://127.0.0.1:8484"
+$env:YAATAL_OS_STUDIO_PORT = "8485"
+$env:YAATAL_COMMERCE_PUBLIC_BASE_URL = "http://127.0.0.1:8485"
 pnpm --filter @yaatal/os-shell tauri dev --features unified-ui --no-watch
 ~~~
 

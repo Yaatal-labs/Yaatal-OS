@@ -1,6 +1,6 @@
 # Yaatal OS Symphony Board
 
-Updated: 2026-09-10
+Updated: 2026-09-11
 Execution handoff: [`OS-REAL-SURFACES-HANDOFF.md`](./OS-REAL-SURFACES-HANDOFF.md)
 
 ## Goal
@@ -12,7 +12,7 @@ and one governed cross-pane commerce flow.
 ## Parallel unified UI lane
 
 The iframe POC remains runnable on `yaatal/poc-demo-closure`. The direct
-TypeScript/CSS renderer is isolated on `yaatal/unified-ui-poc` from base
+React + TypeScript + Tailwind + shadcn/ui renderer is isolated on `yaatal/unified-ui-poc` from base
 `5587306f9dba9e5a047a359b431676632af1679b`.
 
 Execution contract and card ownership:
@@ -23,6 +23,23 @@ The only required non-UI seam is a narrow native Studio gateway. It keeps the
 Engine JWT and Studio cookie in Rust while the renderer receives typed,
 sanitized results. The lane does not rewrite Engine, Harness, Studio business
 logic, BOBO services, or payments.
+
+The React foundation was reviewed and committed at c1268a1. Native integration is in progress; unified commerce and physical-phone acceptance remain open. See the [execution supplement](./plans/2026-09-10-unified-ui-execution-plan.md) and [foundation evidence](./evidence/UIR-02A-REACT-FOUNDATION.md).
+
+## Unified UI checkpoint — 2026-09-11
+
+Execution uses Terra High workers with separate file ownership, per user instruction. Root coordinates integration and the board. Checkpoint completion requires implementation, focused validation, spec review, then quality review; started work is not accepted work.
+
+| Card | Worker | Exclusive ownership | Current checkpoint |
+|---|---|---|---|
+| React foundation | completed | existing shell and primitives | Reviewed, committed c1268a1; 33 tests passed |
+| Native session gateway | terra_gateway; Sol review | desktop src-tauri source and Cargo manifests | Request-size review fix complete; default 8 / unified 13 tests pass; Sol re-review pending |
+| SHOP workspace | Terra fix; Sol review | unified/features/shop; pure BOBO media helper extraction and existing wrapper | Initial 4 tests and desktop check passed; fixing retry and sold-out sharing findings |
+| Frontend typed adapter | Terra fix; Sol review | unified/contracts.ts, native.ts and their tests | Initial 7 tests pass; sanitizing subscription errors from Sol review |
+| SELL cockpit | terra_adapter (Terra High) | unified/features/sell only | Implementing with existing injected adapter; shell and commerce wiring remain pending |
+| Native and phone acceptance | integration/review | evidence and targeted acceptance | Pending; canonical variants have no authoritative source |
+
+The three active cards may run in parallel because their write sets do not overlap. This user-authorized arrangement supersedes the earlier sequential-implementer note in the execution plan. Shared-file changes require an explicit ownership handoff; tests are coordinated to avoid duplicate broad runs. Keep the legacy renderer available through acceptance.
 
 ## Build tracks
 

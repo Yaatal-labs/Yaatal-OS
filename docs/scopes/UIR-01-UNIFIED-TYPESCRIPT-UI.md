@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Status | ready for execution |
+| Status | React foundation reviewed; native integration in progress |
 | Date | 10 September 2026 |
 | Repo | `Yaatal-OS` |
 | Branch | `yaatal/unified-ui-poc` |
@@ -13,7 +13,7 @@
 
 ## Goal
 
-Build one Vite TypeScript and CSS frontend inside the existing Tauri 2 window. SELL and SHOP become two workspaces in the same application, with one login, one navigation model, one theme, and one product state.
+Build one Vite React + TypeScript frontend with Tailwind and shadcn/ui inside the existing Tauri 2 window. SELL and SHOP become two workspaces in the same application, with one login, one navigation model, one theme, and one product state.
 
 This is a UI consolidation. Engine, Harness, Studio, BOBO services, PI-SPI, and the public Commerce Sheet remain the system of record. The branch may run beside the current iframe POC until the new UI passes the full acceptance flow.
 
@@ -50,7 +50,7 @@ The existing HTTP POC has already proven this commerce flow. The native visual f
 
 ## Design choice
 
-Use Vite, TypeScript, and CSS for the Tauri renderer. Do not carry the Expo web export into the desktop shell.
+Use React, TypeScript, Tailwind, and Radix-based shadcn/ui within the existing Vite/Tauri shell, as selected by the user on 10 September. Preserve the Expo web export for the legacy renderer until acceptance. The [execution supplement](../plans/2026-09-10-unified-ui-execution-plan.md) supersedes the plain TypeScript component examples below and records reuse, native feature gating, and review requirements.
 
 HTMX may be useful later for the server-rendered public Commerce Sheet. It does not simplify the main Tauri UI, which needs native IPC, shared client state, WebSocket events, theme persistence, and responsive SELL and SHOP workspaces. Alpine is not required.
 
