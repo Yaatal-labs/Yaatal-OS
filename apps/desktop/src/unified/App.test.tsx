@@ -4,7 +4,7 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { App } from "./App";
-import { signedOut, type NativeAdapter } from "./native";
+import { signedOut, type NativeAdapter, type StudioPublicEvent } from "./native";
 import type { CommerceWorkspaceAdapter } from "./contracts";
 import { OS_PROTOCOL_VERSION, type SidecarStatus } from "@yaatal/os-protocol";
 const active = { authenticated: true, merchant_name: "Awa", verified: true };
@@ -219,7 +219,7 @@ describe("unified workspace", () => {
     render(<App adapter={native} workspaceAdapter={commerce} />);
     await userEvent.click(await screen.findByRole("button", { name: "Robe Wax Bleue 12,500 FCFA" })); await userEvent.click(screen.getByRole("button", { name: "Share" })); expect(await screen.findByRole("dialog")).toBeTruthy();
     await act(async () => { onSidecar?.({ version: OS_PROTOCOL_VERSION, kind: "sidecar-status", state: "stopped", isRunning: false, port: 0 }); onSidecar?.({ version: OS_PROTOCOL_VERSION, kind: "sidecar-status", state: "ready", isRunning: true, port: 8484 }); await Promise.resolve(); });
-    await waitFor(() => expect(screen.getAllByText("Binta").length).toBeGreaterThan(0)); expect(screen.queryByRole("dialog")).toBeNull(); expect(screen.getByRole("button", { name: "Binta dress 12,500 FCFA" }).closest("li")?.className.includes("is-selected")).toBe(false); expect(bootstrap).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(screen.getAllByText("Binta").length).toBeGreaterThan(0)); expect(screen.queryByRole("dialog")).toBeNull(); expect((await screen.findByRole("button", { name: "Binta dress 12,500 FCFA" })).closest("li")?.className.includes("is-selected")).toBe(false); expect(bootstrap).toHaveBeenCalledTimes(2);
     await act(async () => { oldConversions.resolve([{ version: "yaatal.commerce-receipt.v1", orderId: "old-receipt", productId: product.id, productName: "Old A receipt", totalFcfa: product.priceFcfa, paymentProvider: "wave", paymentStatus: "sandbox_paid", liveSessionId: "live-1", sourceChannel: "copy", deduplicated: false, quantity: 1, createdAt: "2026-09-10T00:00:00Z" }]); await Promise.resolve(); });
     await waitFor(() => expect(screen.queryByText("Old A receipt")).toBeNull()); expect(screen.getAllByText("Binta dress").length).toBeGreaterThan(0);
   });
@@ -308,6 +308,60 @@ describe("unified workspace", () => {
     await userEvent.click(screen.getByRole("button", { name: "SHOP" })); await userEvent.click(screen.getByRole("button", { name: "Use dark theme" })); await userEvent.click(screen.getByRole("button", { name: "Français" })); await userEvent.click(screen.getByRole("button", { name: "VENDRE" }));
     expect(await screen.findByText("Dernière session")).toBeTruthy(); expect(screen.getAllByText("Robe Wax Bleue").length).toBeGreaterThan(0);
     expect(bootstrap).toHaveBeenCalledTimes(bootstrapCalls); expect(sessionState).toHaveBeenCalledTimes(sessionCalls); expect(conversions).toHaveBeenCalledTimes(conversionCalls); expect(conversions).toHaveBeenLastCalledWith("live-1");
+  });
+  it("uses Studio state events only to trigger one authoritative Studio hydrate", async () => {
+    let onStudio: ((event: StudioPublicEvent) => void) | undefined;
+    const commerce = workspace();
+    const native = adapter({ sessionStatus: vi.fn().mockResolvedValue(active), subscribe: vi.fn().mockImplementation((_sidecar, _product, studio) => { onStudio = studio; return Promise.resolve(() => {}); }) });
+    render(<App adapter={native} workspaceAdapter={commerce} />);
+    await screen.findByRole("button", { name: "Stop stream" });
+    expect(commerce.bootstrap).toHaveBeenCalledTimes(1);
+    await act(async () => { onStudio?.({ version: "yaatal.studio.event.v1", kind: "session-state", isLive: true, sessionId: "live-1" }); await Promise.resolve(); });
+    await waitFor(() => expect(commerce.bootstrap).toHaveBeenCalledTimes(2));
+    expect(commerce.sessionState).toHaveBeenCalledTimes(2); expect(commerce.status).toHaveBeenCalledTimes(2); expect(commerce.productQueue).toHaveBeenCalledTimes(2);
+  });
+  it("keeps the just-ended session and receipts when the real stop event rehydrates Studio", async () => {
+    let onStudio: ((event: StudioPublicEvent) => void) | undefined;
+    const stopped = { ...live, isLive: false, sessionId: null, startedAt: 0 };
+    const receipt = { version: "yaatal.commerce-receipt.v1" as const, orderId: "receipt-stop", productId: product.id, productName: product.name, totalFcfa: product.priceFcfa, paymentProvider: "wave", paymentStatus: "sandbox_paid" as const, liveSessionId: "live-1", sourceChannel: "copy", deduplicated: false, quantity: 1, createdAt: "2026-09-10T00:00:00Z" };
+    const sessionState = vi.fn().mockResolvedValueOnce(live).mockResolvedValueOnce(stopped);
+    const conversions = vi.fn().mockResolvedValue([receipt]);
+    const commerce = workspace({ sessionState, conversions, stopStream: vi.fn().mockResolvedValue(stopped) });
+    const native = adapter({ sessionStatus: vi.fn().mockResolvedValue(active), subscribe: vi.fn().mockImplementation((_sidecar, _product, studio) => { onStudio = studio; return Promise.resolve(() => {}); }) });
+    render(<App adapter={native} workspaceAdapter={commerce} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Stop stream" }));
+    expect(await screen.findByText("Last session")).toBeTruthy();
+    await act(async () => { onStudio?.({ version: "yaatal.studio.event.v1", kind: "session-state", isLive: false }); await Promise.resolve(); });
+    await waitFor(() => expect(sessionState).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Last session")).toBeTruthy(); expect(screen.getByText("receipt-stop", { exact: false })).toBeTruthy();
+    expect(conversions).toHaveBeenLastCalledWith("live-1");
+  });
+  it("refreshes only matching authoritative conversions and keeps receipt deduplication", async () => {
+    let onStudio: ((event: StudioPublicEvent) => void) | undefined;
+    const receipt = { version: "yaatal.commerce-receipt.v1" as const, orderId: "receipt-1", productId: product.id, productName: product.name, totalFcfa: product.priceFcfa, paymentProvider: "wave", paymentStatus: "sandbox_paid" as const, liveSessionId: "live-1", sourceChannel: "copy", deduplicated: false, quantity: 1, createdAt: "2026-09-10T00:00:00Z" };
+    const conversions = vi.fn().mockResolvedValueOnce([]).mockResolvedValue([receipt, { ...receipt, deduplicated: true }]);
+    const commerce = workspace({ conversions });
+    const native = adapter({ sessionStatus: vi.fn().mockResolvedValue(active), subscribe: vi.fn().mockImplementation((_sidecar, _product, studio) => { onStudio = studio; return Promise.resolve(() => {}); }) });
+    render(<App adapter={native} workspaceAdapter={commerce} />);
+    await waitFor(() => expect(conversions).toHaveBeenCalledTimes(1));
+    await act(async () => { onStudio?.({ version: "yaatal.studio.event.v1", kind: "conversions-changed", liveSessionId: "other-live" }); await Promise.resolve(); });
+    expect(conversions).toHaveBeenCalledTimes(1);
+    await act(async () => { onStudio?.({ version: "yaatal.studio.event.v1", kind: "conversions-changed", liveSessionId: "live-1" }); await Promise.resolve(); });
+    await waitFor(() => expect(conversions).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByText("receipt-1", { exact: false })).toHaveLength(1);
+    expect(commerce.bootstrap).toHaveBeenCalledTimes(1);
+  });
+  it("drops stale Studio events as soon as logout invalidates the account", async () => {
+    let onStudio: ((event: StudioPublicEvent) => void) | undefined;
+    const logout = deferred<typeof signedOut>(); const commerce = workspace();
+    const native = adapter({ sessionStatus: vi.fn().mockResolvedValue(active), logout: vi.fn().mockReturnValue(logout.promise), subscribe: vi.fn().mockImplementation((_sidecar, _product, studio) => { onStudio = studio; return Promise.resolve(() => {}); }) });
+    render(<App adapter={native} workspaceAdapter={commerce} />);
+    await screen.findByRole("button", { name: "Stop stream" });
+    await userEvent.click(screen.getByRole("button", { name: "Awa" })); await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await act(async () => { onStudio?.({ version: "yaatal.studio.event.v1", kind: "session-state", isLive: true, sessionId: "live-1" }); onStudio?.({ version: "yaatal.studio.event.v1", kind: "conversions-changed", liveSessionId: "live-1" }); await Promise.resolve(); });
+    expect(commerce.bootstrap).toHaveBeenCalledTimes(1); expect(commerce.conversions).toHaveBeenCalledTimes(1);
+    await act(async () => { logout.resolve(signedOut); await Promise.resolve(); });
+    expect(screen.queryByRole("button", { name: "Awa" })).toBeNull();
   });
   it("follows system theme changes until an explicit preference wins, while locale persists across navigation", async () => {
     let dark = true; const listeners = new Set<(event: MediaQueryListEvent) => void>();

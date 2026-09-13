@@ -30,6 +30,15 @@ describe("SellWorkspace", () => {
     expect(native.conversions).toHaveBeenCalledWith("live-1");
     expect(screen.getAllByText("Robe Wax Bleue")).toHaveLength(1);
   });
+  it("refreshes receipts for an invalidated retained stopped session without polling", async () => {
+    const conversions = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([conversion, { ...conversion, deduplicated: true }]);
+    const native = adapter({ conversions }); const base = props({ adapter: native }); const view = render(<SellWorkspace {...base} />);
+    await screen.findByRole("button", { name: "Stop stream" }); await userEvent.click(screen.getByRole("button", { name: "Stop stream" }));
+    await screen.findByText("Last session");
+    view.rerender(<SellWorkspace {...base} conversionInvalidation={{ liveSessionId: "live-1", epoch: 1 }} />);
+    await waitFor(() => expect(conversions).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByText("Robe Wax Bleue")).toHaveLength(1);
+  });
   it("discards a bootstrap response that arrives after sign-out", async () => {
     let resolve!: (value: { authenticated: boolean }) => void;
     const native = adapter({ bootstrap: vi.fn(() => new Promise<{ authenticated: boolean }>(res => { resolve = res; })) });

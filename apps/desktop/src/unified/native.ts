@@ -6,6 +6,11 @@ import type { CatalogPage, CatalogProduct, CommerceChannel, CommerceIntent, Comm
 export interface SanitizedSession { authenticated: boolean; merchant_name: string | null; verified: boolean | null }
 export const signedOut: SanitizedSession = { authenticated: false, merchant_name: null, verified: null };
 export type RuntimeMode = "native" | "preview";
+export type StudioPublicEvent =
+  | { version: "yaatal.studio.event.v1"; kind: "studio-invalidated" }
+  | { version: "yaatal.studio.event.v1"; kind: "session-state"; isLive: boolean; sessionId?: string }
+  | { version: "yaatal.studio.event.v1"; kind: "conversions-changed"; liveSessionId: string }
+  | { version: "yaatal.studio.event.v1"; kind: "governed-action"; decision: "allow" | "deny" | "noop"; turnId: string; action: "studio.update_price_overlay" | "studio.mark_sold_out_overlay" | "studio.switch_product" };
 
 const idPattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const readinessStatuses = new Set(["pending", "running", "passed", "failed", "skipped", "not_run"]);
@@ -29,6 +34,30 @@ export function sanitizeSession(value: unknown): SanitizedSession | null {
   const v = record(value);
   if (!v || !exact(v, ["authenticated", "merchant_name", "verified"]) || typeof v.authenticated !== "boolean" || !(v.merchant_name === null || text(v.merchant_name, 200, true) !== null) || !(v.verified === null || typeof v.verified === "boolean")) return null;
   return { authenticated: v.authenticated, merchant_name: v.merchant_name as string | null, verified: v.verified as boolean | null };
+}
+
+export function sanitizeStudioEvent(value: unknown): StudioPublicEvent | null {
+  const v = record(value);
+  if (!v || v.version !== "yaatal.studio.event.v1" || typeof v.kind !== "string") return null;
+  if (v.kind === "studio-invalidated") return exact(v, ["version", "kind"]) ? { version: "yaatal.studio.event.v1", kind: "studio-invalidated" } : null;
+  if (v.kind === "session-state") {
+    if (!exact(v, ["version", "kind", "isLive", "sessionId"]) || typeof v.isLive !== "boolean") return null;
+    const sessionId = "sessionId" in v ? id(v.sessionId) : null;
+    if (("sessionId" in v && !sessionId) || (v.isLive && !sessionId)) return null;
+    return { version: "yaatal.studio.event.v1", kind: "session-state", isLive: v.isLive, ...(sessionId ? { sessionId } : {}) };
+  }
+  if (v.kind === "conversions-changed" && exact(v, ["version", "kind", "liveSessionId"])) {
+    const liveSessionId = id(v.liveSessionId);
+    return liveSessionId ? { version: "yaatal.studio.event.v1", kind: "conversions-changed", liveSessionId } : null;
+  }
+  if (v.kind === "governed-action" && exact(v, ["version", "kind", "decision", "turnId", "action"])) {
+    const turnId = id(v.turnId);
+    const decisions = ["allow", "deny", "noop"] as const;
+    const actions = ["studio.update_price_overlay", "studio.mark_sold_out_overlay", "studio.switch_product"] as const;
+    if (!turnId || !decisions.includes(v.decision as typeof decisions[number]) || !actions.includes(v.action as typeof actions[number])) return null;
+    return { version: "yaatal.studio.event.v1", kind: "governed-action", decision: v.decision as typeof decisions[number], turnId, action: v.action as typeof actions[number] };
+  }
+  return null;
 }
 
 export function sanitizeCatalogProduct(value: unknown): CatalogProduct | null {
@@ -95,7 +124,7 @@ function sanitizeConversion(value: unknown): Conversion | null {
 function sanitizeConversions(value: unknown): Conversion[] | null { if (!Array.isArray(value) || value.length > 1_000) return null; const conversions = value.map(sanitizeConversion); return conversions.every((conversion): conversion is Conversion => conversion !== null) ? conversions : null; }
 
 export interface NativeAdapter {
-  runtimeMode(): Promise<RuntimeMode>; sessionStatus(): Promise<SanitizedSession>; login(email: string, password: string): Promise<SanitizedSession>; logout(): Promise<SanitizedSession>; sidecarStatus(): Promise<SidecarStatus>; startSidecar(): Promise<SidecarStatus>; subscribe(onSidecar: (status: SidecarStatus) => void, onProduct: (event: ProductNavigationRequest) => void): Promise<() => void>;
+  runtimeMode(): Promise<RuntimeMode>; sessionStatus(): Promise<SanitizedSession>; login(email: string, password: string): Promise<SanitizedSession>; logout(): Promise<SanitizedSession>; sidecarStatus(): Promise<SidecarStatus>; startSidecar(): Promise<SidecarStatus>; subscribe(onSidecar: (status: SidecarStatus) => void, onProduct: (event: ProductNavigationRequest) => void, onStudio?: (event: StudioPublicEvent) => void): Promise<() => void>;
 }
 type Invoke = (command: string, args?: Record<string, unknown>) => Promise<unknown>;
 type Request = <T>(command: string, parse: (value: unknown) => T | null, args?: Record<string, unknown>) => Promise<T>;
@@ -116,12 +145,14 @@ export function createNativeAdapter(call: Invoke = invoke, native = isTauri()): 
       if (!result) throw new Error("This desktop build does not support the unified UI. Start a desktop build with unified mode enabled."); return "native";
     },
     sessionStatus: () => request("os_session_status", sanitizeSession), login: (email, password) => request("os_login", sanitizeSession, { email, password }), logout: () => request("os_logout", sanitizeSession), sidecarStatus: () => request("sidecar_status", sanitizeSidecarStatus), startSidecar: () => request("start_sidecar", sanitizeSidecarStatus),
-    async subscribe(onSidecar, onProduct) {
+    async subscribe(onSidecar, onProduct, onStudio = () => {}) {
       if (!native) return () => {};
       const failure = () => new Error("The desktop event service could not start. Check the connection and try again.");
       let stopSidecar: () => void;
       try { stopSidecar = await listen("yaatal://sidecar-status", event => { const v = sanitizeSidecarStatus(event.payload); if (v) onSidecar(v); }); } catch { throw failure(); }
-      try { const stopProduct = await listen("yaatal://product-navigation", event => { const v = sanitizeProductNavigation(event.payload); if (v) onProduct(v); }); return () => { stopSidecar(); stopProduct(); }; } catch { stopSidecar(); throw failure(); }
+      let stopProduct: () => void;
+      try { stopProduct = await listen("yaatal://product-navigation", event => { const v = sanitizeProductNavigation(event.payload); if (v) onProduct(v); }); } catch { stopSidecar(); throw failure(); }
+      try { const stopStudio = await listen("yaatal://studio-event", event => { const v = sanitizeStudioEvent(event.payload); if (v) onStudio(v); }); return () => { stopSidecar(); stopProduct(); stopStudio(); }; } catch { stopSidecar(); stopProduct(); throw failure(); }
     },
   };
 }

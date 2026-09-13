@@ -1060,18 +1060,28 @@ pub async fn studio_conversions(
     run_blocking(move || studio_conversions_blocking(&state, live_session_id)).await
 }
 
-#[allow(dead_code)] // Public event transport is deferred to UIR-01B.
 const EVENT_VERSION: &str = "yaatal.studio.event.v1";
-#[allow(dead_code)] // Public event transport is deferred to UIR-01B.
 pub fn project_event(value: &Value) -> Option<Value> {
     let kind = value["type"].as_str()?;
     let mut event = json!({"version":EVENT_VERSION});
     match kind {
+        "connected" => {
+            event["kind"] = json!("studio-invalidated");
+        }
         "session_state" => {
             event["kind"] = json!("session-state");
-            event["isLive"] = json!(value["is_live"].as_bool()?);
-            if !value["session_id"].is_null() {
-                event["sessionId"] = json!(id(&value["session_id"]).ok()?);
+            let is_live = value["is_live"].as_bool()?;
+            event["isLive"] = json!(is_live);
+            let session_id = if value["session_id"].is_null() {
+                None
+            } else {
+                Some(id(&value["session_id"]).ok()?)
+            };
+            if is_live && session_id.is_none() {
+                return None;
+            }
+            if let Some(session_id) = session_id {
+                event["sessionId"] = json!(session_id);
             }
         }
         "commerce_conversion" => {
@@ -1079,20 +1089,23 @@ pub fn project_event(value: &Value) -> Option<Value> {
             event["liveSessionId"] = json!(id(&value["live_session_id"]).ok()?);
         }
         "commerce_intent_created" => {
-            event["kind"] = json!("catalog-changed");
-            event["productId"] = json!(id(&value["product_id"]).ok()?);
+            // Intent creation does not mutate the Engine catalog. It can still
+            // invalidate Studio state, but must not claim a SHOP catalog change.
+            id(&value["product_id"]).ok()?;
+            event["kind"] = json!("studio-invalidated");
         }
         "governed_action" => {
             event["kind"] = json!("governed-action");
-            let decision = value["decision"].as_str()?;
+            let payload = value.get("result").unwrap_or(value);
+            let decision = payload["decision"].as_str()?;
             if !matches!(decision, "allow" | "deny" | "noop") {
                 return None;
             }
             event["decision"] = json!(decision);
-            event["turnId"] = json!(id(&value["turn_id"]).ok()?);
-            let action = value
+            event["turnId"] = json!(id(&payload["turn_id"]).ok()?);
+            let action = payload
                 .get("action")
-                .or_else(|| value["proposal"].get("tool"))?
+                .or_else(|| payload["proposal"].get("tool"))?
                 .as_str()?;
             if !matches!(
                 action,

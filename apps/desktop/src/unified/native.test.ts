@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
-import { createNativeAdapter, createWorkspaceAdapter, sanitizeCatalogProduct, sanitizeSession } from "./native";
+import { createNativeAdapter, createWorkspaceAdapter, sanitizeCatalogProduct, sanitizeSession, sanitizeStudioEvent } from "./native";
 
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 describe("native adapter", () => {
@@ -32,6 +32,7 @@ describe("native adapter", () => {
   it("sanitizes either event-registration failure and cleans up a partial subscription", async () => {
     const subscribe = createNativeAdapter(vi.fn(), true).subscribe;
     const onSidecar = vi.fn(); const onProduct = vi.fn(); const listener = vi.mocked(listen);
+    listener.mockReset();
     listener.mockRejectedValueOnce(new Error("first-registration-token"));
     let firstMessage = "";
     try { await subscribe(onSidecar, onProduct); } catch (error) { firstMessage = error instanceof Error ? error.message : String(error); }
@@ -44,6 +45,24 @@ describe("native adapter", () => {
     expect(message).toContain("event service could not start");
     expect(message.includes("second-registration-token")).toBe(false);
     expect(stopSidecar).toHaveBeenCalledOnce();
+    listener.mockReset();
+    const firstStop = vi.fn(); const secondStop = vi.fn();
+    listener.mockResolvedValueOnce(firstStop).mockResolvedValueOnce(secondStop).mockRejectedValueOnce(new Error("third-registration-token"));
+    await expect(subscribe(onSidecar, onProduct, vi.fn())).rejects.toThrow("event service could not start");
+    expect(firstStop).toHaveBeenCalledOnce(); expect(secondStop).toHaveBeenCalledOnce();
+  });
+  it("accepts only the exact projected Studio event schema and dispatches sanitized invalidations", async () => {
+    expect(sanitizeStudioEvent({ version: "yaatal.studio.event.v1", kind: "session-state", isLive: true, sessionId: "live-1" })).toEqual({ version: "yaatal.studio.event.v1", kind: "session-state", isLive: true, sessionId: "live-1" });
+    expect(sanitizeStudioEvent({ version: "yaatal.studio.event.v1", kind: "session-state", isLive: true })).toBeNull();
+    expect(sanitizeStudioEvent({ version: "yaatal.studio.event.v1", kind: "conversions-changed", liveSessionId: "live-1", buyer: "private" })).toBeNull();
+    expect(sanitizeStudioEvent({ version: "yaatal.studio.event.v1", kind: "audio", transcript: "private" })).toBeNull();
+    const callbacks = new Map<string, (event: { payload: unknown }) => void>(); const stops = [vi.fn(), vi.fn(), vi.fn()];
+    vi.mocked(listen).mockReset().mockImplementation(async (name, callback) => { callbacks.set(name, callback as (event: { payload: unknown }) => void); return stops[callbacks.size - 1]; });
+    const onStudio = vi.fn(); const unsubscribe = await createNativeAdapter(vi.fn(), true).subscribe(vi.fn(), vi.fn(), onStudio);
+    callbacks.get("yaatal://studio-event")?.({ payload: { version: "yaatal.studio.event.v1", kind: "conversions-changed", liveSessionId: "live-1" } });
+    callbacks.get("yaatal://studio-event")?.({ payload: { version: "yaatal.studio.event.v1", kind: "conversions-changed", liveSessionId: "live-1", raw: "private" } });
+    expect(onStudio).toHaveBeenCalledOnce();
+    unsubscribe(); stops.forEach(stop => expect(stop).toHaveBeenCalledOnce());
   });
   it("normalizes bounded catalog data and preserves the distinction between absent and empty variants", () => {
     const base = { id: "robe-wax", name: "Robe Wax Bleue", priceFcfa: 12500, priceDisplay: "12,500 FCFA", stock: 4, stockStatus: "low_stock", images: ["https://media.example/robe.webp"] };

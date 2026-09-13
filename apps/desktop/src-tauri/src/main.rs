@@ -12,12 +12,16 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "unified-ui")]
+use tauri::Manager;
 use tauri::{AppHandle, Emitter, State};
 
 #[cfg(feature = "unified-ui")]
 mod gateway;
 mod http;
 mod session;
+#[cfg(feature = "unified-ui")]
+mod studio_events;
 
 const PROTOCOL_VERSION: &str = "yaatal-os.v1";
 const MAIN_WINDOW: &str = "main";
@@ -650,12 +654,23 @@ fn main() {
         Ok(config) => config,
         Err(error) => panic!("invalid Yaatal OS configuration: {error}"),
     };
+    #[cfg(feature = "unified-ui")]
+    let event_endpoint = (config.host, config.port);
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
         .manage(AppState {
             supervisor: Arc::new(Mutex::new(SidecarSupervisor::new(config))),
             session: Arc::new(Mutex::new(session::SessionState::logged_out())),
         });
+    #[cfg(feature = "unified-ui")]
+    let builder = builder.setup(move |app| {
+        app.manage(studio_events::StudioEventBridge::start(
+            app.handle().clone(),
+            event_endpoint.0,
+            event_endpoint.1,
+        ));
+        Ok(())
+    });
     #[cfg(feature = "unified-ui")]
     let builder = builder.invoke_handler(with_unified_commands!(make_unified_handler));
     #[cfg(not(feature = "unified-ui"))]

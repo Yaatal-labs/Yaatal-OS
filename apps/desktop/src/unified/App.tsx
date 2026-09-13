@@ -73,6 +73,8 @@ export function App({ adapter = defaultAdapter, workspaceAdapter = defaultWorksp
   const [shareProductId, setShareProductId] = useState<string | null>(null);
   const [accountEpoch, setAccountEpoch] = useState(0);
   const [recoveryEpoch, setRecoveryEpoch] = useState(0);
+  const [studioResetEpoch, setStudioResetEpoch] = useState(0);
+  const [conversionInvalidation, setConversionInvalidation] = useState<{ liveSessionId: string; epoch: number } | null>(null);
   const main = useRef<HTMLElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const mounted = useRef(true);
@@ -88,12 +90,13 @@ export function App({ adapter = defaultAdapter, workspaceAdapter = defaultWorksp
   const applySession = useCallback((next: SanitizedSession) => {
     const current = accountRef.current;
     const changed = current.authenticated !== next.authenticated || (next.authenticated && current.merchant !== next.merchant_name);
-    if (changed) { const epoch = current.epoch + 1; accountRef.current = { authenticated: next.authenticated, merchant: next.merchant_name, epoch }; setSelectedProductId(null); setLiveSession(null); setShareProductId(null); setAccountEpoch(epoch); }
+    if (changed) { const epoch = current.epoch + 1; accountRef.current = { authenticated: next.authenticated, merchant: next.merchant_name, epoch }; setSelectedProductId(null); setLiveSession(null); setShareProductId(null); setConversionInvalidation(null); setAccountEpoch(epoch); }
     setSession(next);
   }, []);
   const applySidecar = useCallback((next: SidecarStatus) => {
-    const becameReady = next.state === "ready" && sidecarRef.current?.state !== "ready";
-    if (next.state !== "ready") recoveryRequest.current += 1;
+    const previous = sidecarRef.current;
+    const becameReady = next.state === "ready" && previous?.state !== "ready";
+    if (next.state !== "ready") { recoveryRequest.current += 1; setConversionInvalidation(null); if (previous?.state === "ready") setStudioResetEpoch(value => value + 1); }
     sidecarRef.current = next; setSidecar(next);
     return becameReady;
   }, []);
@@ -152,6 +155,10 @@ export function App({ adapter = defaultAdapter, workspaceAdapter = defaultWorksp
           if (becameReady) void refreshRecovery();
         }, event => {
           if (active && accountRef.current.authenticated) { selectProduct(event.productId); setWorkspace("shop"); }
+        }, event => {
+          if (!active || !accountRef.current.authenticated || sidecarRef.current?.state !== "ready") return;
+          if (event.kind === "conversions-changed") setConversionInvalidation(current => ({ liveSessionId: event.liveSessionId, epoch: (current?.epoch ?? 0) + 1 }));
+          else setRecoveryEpoch(value => value + 1);
         });
         if (!active) cleanup();
         else { setServiceError(""); setServiceRetry(null); setInitializing(false); }
@@ -193,7 +200,7 @@ export function App({ adapter = defaultAdapter, workspaceAdapter = defaultWorksp
     const previous = session;
     const revokedEpoch = accountRef.current.epoch + 1;
     accountRef.current = { authenticated: false, merchant: null, epoch: revokedEpoch };
-    setAccountEpoch(revokedEpoch); setSession(signedOut); selectProduct(null); setLiveSession(null); setShareProductId(null); setWorkspace("sell");
+    setAccountEpoch(revokedEpoch); setSession(signedOut); selectProduct(null); setLiveSession(null); setShareProductId(null); setConversionInvalidation(null); setWorkspace("sell");
     try {
       const next = await adapter.logout();
       if (!mounted.current || accountOperation.current !== operation || accountRef.current.epoch !== revokedEpoch) return;
@@ -221,7 +228,7 @@ export function App({ adapter = defaultAdapter, workspaceAdapter = defaultWorksp
   const sessionChanged = useCallback((next: StudioSessionState | null) => setLiveSession(next), []);
   const closeShare = useCallback((open: boolean) => { if (!open) setShareProductId(null); }, []);
   const canShare = mode === "native" && session.authenticated && Boolean(liveSession?.isLive);
-  const sellView = context && <SellWorkspace adapter={workspaceAdapter} authenticated={session.authenticated} accountEpoch={accountEpoch} recoveryEpoch={recoveryEpoch} mode={workspaceMode} selectedProductId={selectedProductId} onSelectProduct={selectProduct} onOpenShop={openShop} onShare={openShare} onSessionChange={sessionChanged} locale={locale} />;
+  const sellView = context && <SellWorkspace adapter={workspaceAdapter} authenticated={session.authenticated} accountEpoch={accountEpoch} recoveryEpoch={recoveryEpoch} studioResetEpoch={studioResetEpoch} studioReady={sidecar?.state === "ready"} conversionInvalidation={conversionInvalidation} mode={workspaceMode} selectedProductId={selectedProductId} onSelectProduct={selectProduct} onOpenShop={openShop} onShare={openShare} onSessionChange={sessionChanged} locale={locale} />;
   const shopView = context && <ShopWorkspace catalog={workspaceAdapter.catalog} authenticated={session.authenticated} accountEpoch={accountEpoch} selectedProductId={selectedProductId} onSelectProduct={selectProduct} onReturnToLive={returnToLive} onShare={openShare} canShare={canShare} mode={workspaceMode} locale={locale} />;
   return <div className="unified-app" data-rail={collapsed ? "collapsed" : "expanded"}>
     <a className="skip-link" href="#workspace">{copy.skipToWorkspace}</a>

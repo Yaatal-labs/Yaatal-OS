@@ -6,7 +6,7 @@ edition = "2021"
 
 [features]
 default = []
-unified-ui = []
+unified-ui = ["dep:tungstenite"]
 
 [workspace]
 
@@ -18,6 +18,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2.5.1", features = [] }
 tauri-plugin-http = "2.6.0"
+tungstenite = { version = "0.28", default-features = false, features = ["handshake"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"
