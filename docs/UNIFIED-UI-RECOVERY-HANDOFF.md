@@ -10,6 +10,9 @@ Pushed base before this documentation commit: `8b7b307`
 
 ## NEXT PICKUP — FULL MOCK-TO-UI TRANSFER
 
+For the concrete five-repetition Ship-Learn-Next delivery plan, start with
+[Ship-Learn-Next Plan - Complete Unified UI](./Ship-Learn-Next%20Plan%20-%20Complete%20Unified%20UI.md).
+
 **Current code is not full visual parity.** The recovery is functional, not
 visual acceptance: `check`, the full suite (**84/84**), and production build
 pass, but populated native SELL/SHOP parity is unproven. Tests alone do not close
@@ -256,8 +259,8 @@ The useful implementation sequence is:
 
 The final quality fixes landed after the preceding handoff corrections. Record
 them in the acceptance evidence rather than overwriting or reverting them. The
-branch was pushed to `origin/yaatal/unified-ui-poc` through recovery handoff
-commit `64aaec6`.
+pushed implementation/quality base before these documentation commits is
+`8b7b307` on `origin/yaatal/unified-ui-poc`.
 
 ## What passed
 
