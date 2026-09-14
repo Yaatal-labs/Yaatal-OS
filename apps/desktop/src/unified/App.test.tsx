@@ -88,8 +88,23 @@ describe("unified workspace", () => {
     expect(screen.getByRole("button", { name: "Open SHOP workspace" }).getAttribute("aria-current")).toBe("page");
     screen.getByRole("button", { name: "Open SELL workspace" }).focus();
     await user.keyboard("{Enter}");
-    expect(await screen.findByText("Sell shell")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Open SELL workspace" }).getAttribute("aria-current")).toBe("page");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Open SELL workspace" }).getAttribute("aria-current")).toBe("page"));
+  });
+  it("keeps theme and locale controls reachable at a narrow viewport", async () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 320 });
+    try {
+      const user = userEvent.setup();
+      render(<App adapter={adapter()} renderSell={() => <p>Sell shell</p>} renderShop={() => <p>Shop shell</p>} />);
+      expect(await screen.findByText("Sell shell")).toBeTruthy();
+      await user.click(screen.getByRole("button", { name: "Use dark theme" }));
+      expect(document.documentElement.dataset.theme).toBe("dark");
+      await user.click(screen.getByRole("button", { name: "Français" }));
+      expect(document.documentElement.lang).toBe("fr");
+      expect(screen.getByRole("button", { name: "VENDRE" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "BOUTIQUE" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Se connecter" })).toBeTruthy();
+    } finally { Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth }); }
   });
   it("logs in once, keeps sessions through navigation, and clears selection on logout", async () => {
     const native = adapter();
