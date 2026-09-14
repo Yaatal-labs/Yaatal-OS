@@ -6,20 +6,96 @@ Repository: `C:\Users\momo-\OneDrive\Desktop\YAATAL\Yaatal-Engine\.worktrees\Yaa
 
 Branch: `yaatal/unified-ui-poc`
 
-HEAD at handoff: `2e6664a` (before this documentation correction)
+Pushed base before this documentation commit: `8b7b307`
+
+## NEXT PICKUP — FULL MOCK-TO-UI TRANSFER
+
+**Current code is not full visual parity.** The recovery is functional, not
+visual acceptance: `check`, the full suite (**84/84**), and production build
+pass, but populated native SELL/SHOP parity is unproven. Tests alone do not close
+this work.
+
+### References and screenshot evidence
+
+Use `docs/design/YAATAL-OS-UI-CONTRACT.md` and all four approved images:
+`docs/design/yaatal-os-sell-light.png`, `yaatal-os-sell-dark.png`,
+`yaatal-os-shop-light.png`, and `yaatal-os-shop-dark.png`.
+
+Capture populated, signed-in native state beside the matching PNG. Every capture
+records commit, theme, viewport, native/signed-in state, and live product ID.
+
+| Workspace | 1280x800 | 900x600 | Narrow |
+|---|---|---|---|
+| SELL | light + dark | light + dark | when a SELL breakpoint changes composition |
+| SHOP | light + dark | light + dark | light + dark with product-first purchase path and Commerce Sheet entry |
+
+### Exact remaining visual transfer
+
+**SELL** — edit `apps/desktop/src/unified/features/sell/SellWorkspace.tsx` and
+`SellWorkspace.css`. Transfer the live-room hierarchy: dominant real product/live
+media with honest live badge, elapsed status, and product truth; dense horizontal
+selected-product strip; right Studio activity/governance rail with real or
+explicitly unavailable state; and compact bottom dock for live, share, SHOP, and
+honest microphone/voice availability. Remove generic-card gaps so stage, strip,
+rail, and dock stay one dense operational surface at 900x600. Do not fabricate
+viewers, microphone authority, assistant output, or live state.
+
+**SHOP** — edit `apps/desktop/src/unified/features/shop/ShopWorkspace.tsx` and
+`ShopWorkspace.css`. Transfer three desktop regions: product media/gallery and
+seller context, product identity/price/stock/options, and
+purchase/delivery/governance action. Preserve selected SELL identity, show media
+failure explicitly, and connect Commerce Sheet entry to the actual product. At
+narrow width, deliberately collapse to a readable product-first flow; do not
+squeeze three columns or hide purchase. Do not invent variants, delivery promises,
+payment providers, or stock.
+
+**Shell/theme/responsive** — edit `apps/desktop/src/unified/App.tsx`, `state.ts`,
+and `styles.css`: contract 64 px header, 224/72 px rail, 44 px targets, Source
+Sans 3 operations text, selective Newsreader headings, cream/forest/bronze light
+tokens, explicit dark tokens, natural media exposure in dark mode, and stable
+theme/locale/connectivity/account/focus/narrow-shell controls across switching.
+No generic dashboard cards, neon, glass, gradients, or duplicate chrome.
+
+### Reuse before replacement
+
+| Need | Reuse source | Unified target |
+|---|---|---|
+| Live stage, status, strip, activity, dock | `apps/studio/live/dashboard/os.html`, `os.js`, `os.css`, `img/` | `SellWorkspace.tsx`, `SellWorkspace.css` |
+| Shell tokens/compact composition | Studio `os.css` and UI contract | `App.tsx`, `styles.css`, `state.ts` |
+| Product media/card/detail | `apps/shop/bobo-app/src/components/ProductCard.tsx`, `src/screens/customer/ProductDetailScreen.tsx` | `ShopWorkspace.tsx`, `ShopWorkspace.css` |
+| Checkout hierarchy | `apps/shop/bobo-app/src/screens/customer/CheckoutScreen.tsx`, `src/theme/{colors,typography,spacing}.ts` | `ShopWorkspace.tsx`; `features/commerce/ShareDialog.tsx` only for Commerce Sheet framing |
+
+Keep `contracts.ts`, `native.ts`, native commands, and Engine/Harness boundaries
+intact unless authenticated runtime evidence proves a specific contract defect.
+Do not add renderer-direct Engine/Harness calls or duplicate Studio/BOBO plumbing.
+
+### Authenticated native acceptance
+
+1. Launch unified native; the user signs in directly and connects owned Studio.
+2. In SELL, select a real queued product and verify media, strip, live state,
+   activity/governance, and controls.
+3. Use **Open in SHOP**; verify the same validated product and fresh Engine truth,
+   switch themes, then return to SELL without losing shell/session state.
+4. Open that product’s physical-phone Commerce Sheet; complete sandbox checkout,
+   obtain receipt, prove one attributed SELL conversion and idempotent replay.
+5. Save screenshots, runtime provenance, and visible pass/fail deltas.
+
+### Definition of done and exclusions
+
+Done requires the full screenshot matrix, keyboard/focus/contrast review,
+SELL-to-SHOP identity continuity, and phone Commerce Sheet receipt plus one
+attributable/idempotent conversion. Then rerun `check`, full suite, and production
+build. Do **not** research branches, rewrite Engine/Harness, create a new shell,
+duplicate Studio/BOBO plumbing, invent data, change service boundaries
+speculatively, or declare completion from tests alone. Document a proven boundary
+defect before changing a service.
 
 ## Read this first
 
-The recovery implementation is complete at the component/build gate and the
-specification re-review is **PASS**. It restores the approved hierarchy rather
-than the earlier lean dashboard substitution. This is still **not accepted as
-demo-ready**: populated native SELL/SHOP side-by-side evidence and phone E2E are
-not yet available.
-
-Only the signed-out browser preview, navigation rail, and locale behavior have
-been visually verified. Do not describe populated native SELL or SHOP as visually
-accepted until screenshots are captured against the four approved references, and
-do not describe checkout as accepted until a physical-phone run succeeds.
+The next task is the full mock-to-UI transfer above. Only the signed-out browser
+preview, navigation rail, and locale behavior have visual evidence so far.
+Populated native SELL/SHOP parity and phone Commerce Sheet E2E remain unproven;
+do not call this branch demo-ready.
 
 ## Approved product direction
 
@@ -133,8 +209,9 @@ path findings; a Studio sandbox receipt does not prove production settlement.
 
 ## Recovered UI status and remaining visual proof
 
-The current React UI in `apps/desktop/src/unified/` now restores the target
-composition while preserving existing behavior and boundaries:
+The current React UI in `apps/desktop/src/unified/` is a recovery pass, not full
+mock parity. It preserves behavior and boundaries while providing these building
+blocks:
 
 - media-led SELL with live-state hierarchy and honest unavailable states;
 - a connected product strip and product selection continuity;
@@ -142,10 +219,10 @@ composition while preserving existing behavior and boundaries:
 - a premium three-region SHOP detail/checkout composition; and
 - the phone-safe Commerce Sheet path.
 
-The accessibility/quality follow-up is included in the current HEAD. The design
-spec was re-reviewed after recovery and passed. This is code and browser-preview
-evidence, not populated native or phone visual acceptance. The outstanding proof
-is deliberately narrow:
+The accessibility/quality follow-ups are in the current base. The design spec was
+re-reviewed after recovery and passed. This is code/browser-preview evidence, not
+populated native or phone visual acceptance. The full transfer and evidence are
+defined in **NEXT PICKUP — FULL MOCK-TO-UI TRANSFER**.
 
 - native sign-in and populated SELL/SHOP screenshots side by side with the four
   approved references (including target desktop widths);
@@ -253,23 +330,10 @@ Repository metadata was checked for:
 That metadata check is not inference evidence. Do not claim model-backed speech,
 download completion, latency, quality or production readiness.
 
-## Fastest responsible pickup path
+## Pickup priority
 
-1. Launch the owned native app, have the user sign in directly, and connect Studio.
-2. Capture populated native SELL and SHOP at the target widths beside the four
-   approved references; record concrete pass/fail deltas rather than rewriting UI
-   or plumbing pre-emptively.
-3. Verify real product continuity from SELL selection into SHOP.
-4. Run the physical-phone Commerce Sheet through sandbox checkout, receipt, one
-   attributed conversion, and idempotent replay.
-5. Record screenshots, runtime provenance, exact HEAD/commits and pass/fail
-   evidence. Only then decide whether a bounded quality correction is necessary.
-6. After acceptance, create a named rollback tag, retire the legacy iframe path,
-   and make the unified renderer the default.
-
-Do not spend another cycle rewriting the unified UI, Engine/Harness plumbing,
-commerce backend, or application scaffolding unless this acceptance run proves a
-specific defect. The fastest pickup is native visual/E2E acceptance.
+Follow **NEXT PICKUP — FULL MOCK-TO-UI TRANSFER**. Browser preview and passing
+tests do not replace the populated native screenshot matrix or phone acceptance.
 
 ## Commands and launch constraints
 
