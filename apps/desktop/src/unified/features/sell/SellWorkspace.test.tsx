@@ -66,6 +66,12 @@ describe("SellWorkspace", () => {
     expect(await screen.findByRole("img", { name: "Image du produit indisponible" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Activité Studio" })).toBeTruthy();
     expect(screen.getByText("Produits prêts à présenter")).toBeTruthy();
+    expect(screen.getByText("En stock")).toBeTruthy();
     expect(screen.getByText("Commande vocale indisponible")).toBeTruthy();
+  });
+  it("preserves unknown authoritative stock status text", async () => {
+    const productWithUnknownStatus = { ...queuedProduct, stockStatus: "merchant_review" };
+    render(<SellWorkspace {...props({ adapter: adapter({ productQueue: vi.fn().mockResolvedValue({ ...queue, products: [productWithUnknownStatus] }) }) })} />);
+    expect(await screen.findByText("merchant_review")).toBeTruthy();
   });
 });
