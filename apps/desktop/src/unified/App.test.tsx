@@ -143,8 +143,8 @@ describe("unified workspace", () => {
   it("uses real SELL and SHOP state to restore after login and return from the selected detail", async () => {
     const native = adapter(); const commerce = workspace(); render(<App adapter={native} workspaceAdapter={commerce} />);
     await screen.findByText("Sign in to prepare your Studio session."); await userEvent.click(screen.getByRole("button", { name: "Sign in" })); await userEvent.type(screen.getByLabelText("Email"), "awa@example.com"); await userEvent.type(screen.getByLabelText("Password"), "secret"); await userEvent.click(screen.getAllByRole("button", { name: "Sign in" }).at(-1)!);
-    await screen.findByRole("button", { name: "Open in Shop" }); expect(commerce.bootstrap).toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: "Open in Shop" }));
+    await screen.findByText("Open in SHOP"); expect(commerce.bootstrap).toHaveBeenCalled();
+    await userEvent.click(screen.getByText("Open in SHOP"));
     expect(await screen.findByRole("heading", { name: "Robe Wax Bleue" })).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Return to Live" }));
     expect(screen.getByRole("button", { name: "Stop stream" })).toBeTruthy();

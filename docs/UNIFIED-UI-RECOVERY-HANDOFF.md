@@ -8,15 +8,68 @@ Branch: `yaatal/unified-ui-poc`
 
 Pushed base before this documentation commit: `8b7b307`
 
+## CURRENT PICKUP — MOCK TRANSFER IMPLEMENTED, VISUAL ACCEPTANCE OPEN
+
+Date: 2026-09-14. This transfer is preserved on `yaatal/unified-ui-poc` for the
+next harness. Do not discard, revert, or rewrite it before reviewing the visual
+evidence. The implementation files are:
+
+- `apps/desktop/src/unified/App.tsx`, `App.test.tsx`, and `styles.css`;
+- `apps/desktop/src/unified/features/sell/SellWorkspace.tsx`,
+  `SellWorkspace.css`, and `SellWorkspace.test.tsx`; and
+- `apps/desktop/src/unified/features/shop/ShopWorkspace.tsx`,
+  `ShopWorkspace.css`, and `ShopWorkspace.test.tsx`.
+
+### Delivered in this transfer
+
+- Refined persistent shell, theme, locale, and responsive controls, including
+  44 px controls and retained narrow-shell behavior.
+- SELL Live Studio hierarchy: media stage, live timer/state, product strip,
+  activity/governance context, compact dock, and attributed conversions.
+- Top-level SELL-to-SHOP handoff now selects the featured authoritative product.
+- SHOP product-first three-region media/truth/Commerce Sheet composition with a
+  broken-media fallback.
+- No fake seller, delivery, payment-provider, or voice data was added. Missing
+  authority remains visible as unavailable state.
+
+### Verification and evidence at stop
+
+- TypeScript check passed after these code updates.
+- Full desktop suite passed: **87/87**, after the final SELL-to-SHOP handler fix.
+- Production build passed **before** that final small SELL handler fix. The next
+  harness must rerun the production build before claiming the final state passes.
+- Browser-preview shell evidence exists at
+  `output/playwright/unified-preview-1280x800-light.png`.
+- Authenticated visual fixtures and populated native screenshots were **not**
+  completed. The 1280x800/900x600 light/dark matrix and physical-phone E2E remain
+  open.
+- The persistent rail still exposes SELL/SHOP only; the broader mock navigation
+  (Home, Live, Products, Orders, Customers, and Settings) is not transferred.
+
+### Boundary and next action
+
+`CatalogProduct` does not expose seller, delivery, payment-provider, or
+quantity/checkout DTOs. The UI therefore states authority/unavailability and
+uses the existing Engine Commerce Sheet flow. Engine, Harness, and native
+contracts are untouched.
+
+Next harness steps, in order:
+
+1. Rerun the production build after the final SELL-to-SHOP handler change.
+2. Render authenticated native SELL and SHOP against all four approved mocks.
+3. Correct only the visual deltas demonstrated by that comparison.
+4. Run the physical-phone Commerce Sheet through sandbox receipt and one
+   idempotent attributed conversion.
+
 ## NEXT PICKUP — FULL MOCK-TO-UI TRANSFER
 
 For the concrete five-repetition Ship-Learn-Next delivery plan, start with
 [Ship-Learn-Next Plan - Complete Unified UI](./Ship-Learn-Next%20Plan%20-%20Complete%20Unified%20UI.md).
 
 **Current code is not full visual parity.** The recovery is functional, not
-visual acceptance: `check`, the full suite (**84/84**), and production build
-pass, but populated native SELL/SHOP parity is unproven. Tests alone do not close
-this work.
+visual acceptance: `check` and the full suite (**87/87**) pass. The production
+build passed before the final small SELL handler fix and must be rerun. Populated
+native SELL/SHOP parity is unproven; tests alone do not close this work.
 
 ### References and screenshot evidence
 

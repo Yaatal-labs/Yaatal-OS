@@ -58,13 +58,22 @@ describe("SellWorkspace", () => {
     await waitFor(() => expect((screen.getByRole("button", { name: "Share" }) as HTMLButtonElement).disabled).toBe(true));
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ isLive: false }));
   });
+  it("selects the featured product before the top-level SHOP handoff", async () => {
+    const select = vi.fn(); const openShop = vi.fn(); const native = adapter({ productQueue: vi.fn().mockResolvedValue({ ...queue, products: [queuedProduct] }) });
+    render(<SellWorkspace {...props({ adapter: native, onSelectProduct: select, onOpenShop: openShop })} />);
+    await screen.findByRole("button", { name: "Stop stream" });
+    await userEvent.click(screen.getAllByRole("button", { name: "Open in SHOP" })[0]);
+    expect(select).toHaveBeenCalledWith("robe-wax");
+    expect(openShop).toHaveBeenCalledTimes(1);
+    expect(select.mock.invocationCallOrder[0]).toBeLessThan(openShop.mock.invocationCallOrder[0]);
+  });
   it("localizes live surface copy and recovers honestly from a failed featured image", async () => {
     const productWithImage = { ...queuedProduct, images: ["https://merchant.example/robe-wax.webp"] };
     render(<SellWorkspace {...props({ locale: "fr", adapter: adapter({ productQueue: vi.fn().mockResolvedValue({ ...queue, products: [productWithImage] }) }) })} />);
     const featured = await screen.findByRole("img", { name: "Robe Wax Bleue" });
     fireEvent.error(featured);
     expect(await screen.findByRole("img", { name: "Image du produit indisponible" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Activité Studio" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Assistant en direct" })).toBeTruthy();
     expect(screen.getByText("Produits prêts à présenter")).toBeTruthy();
     expect(screen.getByText("En stock")).toBeTruthy();
     expect(screen.getByText("Commande vocale indisponible")).toBeTruthy();

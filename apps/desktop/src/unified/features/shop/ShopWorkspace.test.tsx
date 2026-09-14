@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CatalogPage, CatalogProduct } from "../../contracts";
 import { ShopWorkspace, type ShopWorkspaceProps } from "./ShopWorkspace";
@@ -108,9 +108,23 @@ describe("ShopWorkspace", () => {
     render(<ShopWorkspace {...props({ selectedProductId: "bag", catalog: { list: vi.fn().mockResolvedValue(page([bag])), product: vi.fn().mockResolvedValue(bag) }, canShare: true, onShare })} />);
     expect(await screen.findByRole("heading", { name: "Sac cuir" })).toBeTruthy();
     expect(screen.getAllByText("Out of stock").length).toBeGreaterThan(0);
-    expect((screen.getByRole("button", { name: "Share product" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Open Commerce Sheet" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText("This product is out of stock and cannot be shared.")).toBeTruthy();
     expect(onShare).toHaveBeenCalledTimes(0);
+  });
+
+  it("opens Commerce Sheet for the freshly resolved selected product", async () => {
+    const onShare = vi.fn();
+    render(<ShopWorkspace {...props({ selectedProductId: "robe", onShare, canShare: true })} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Commerce Sheet" }));
+    expect(onShare).toHaveBeenCalledWith("robe");
+  });
+
+  it("falls back accessibly when selected product media fails to load", async () => {
+    const withImage = { ...robe, images: ["https://catalog.example/robe.jpg"] };
+    render(<ShopWorkspace {...props({ selectedProductId: "robe", catalog: { list: vi.fn().mockResolvedValue(page([withImage])), product: vi.fn().mockResolvedValue(withImage) } })} />);
+    fireEvent.error(await screen.findByRole("img", { name: "Robe Wax Bleue" }));
+    expect(screen.getByRole("img", { name: "Product image unavailable" })).toBeTruthy();
   });
 
   it("does not manufacture catalog data in browser preview", async () => {
@@ -125,6 +139,6 @@ describe("ShopWorkspace", () => {
     expect(await screen.findByRole("heading", { name: "Robe Wax Bleue" })).toBeTruthy();
     expect(screen.getByRole("complementary", { name: "Produit sélectionné" })).toBeTruthy();
     expect(screen.getByText("FICHE COMMERCE")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Partager ce produit" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Prêt pour le commerce" })).toBeTruthy();
   });
 });
