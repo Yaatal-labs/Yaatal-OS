@@ -6,7 +6,7 @@ Repository: `C:\Users\momo-\OneDrive\Desktop\YAATAL\Yaatal-Engine\.worktrees\Yaa
 
 Branch: `yaatal/unified-ui-poc`
 
-HEAD at handoff: `67826b5`
+HEAD at handoff: `2769d109` (before this documentation correction)
 
 ## Read this first
 
@@ -174,18 +174,18 @@ The useful implementation sequence is:
 | `1868347` | Remaining docs/evidence plus generated Expo asset checkpoint |
 | `a4d3d600` | Restores media-led unified SELL, product strip, activity/governance, compact controls, three-region SHOP, and Commerce Sheet presentation |
 | `67826b5` | Accessibility and quality fixes from the recovery review |
+| `2769d109` | Final quality fix: localizes stock and narrows the header |
 
-Before making a follow-up commit, inspect `HEAD`: a final quality-fix commit may
-land after this handoff update starts. Record that commit in the acceptance
-evidence rather than overwriting or reverting it. The branch was pushed to
-`origin/yaatal/unified-ui-poc` through recovery handoff commit `64aaec6`.
+The final quality fix landed after the preceding handoff correction. Record it in
+the acceptance evidence rather than overwriting or reverting it. The branch was
+pushed to `origin/yaatal/unified-ui-poc` through recovery handoff commit `64aaec6`.
 
 ## What passed
 
-At `a4d3d600` / `67826b5`:
+At `a4d3d600` / `67826b5` / `2769d109`:
 
 - `pnpm --filter @yaatal/os-shell check` passed.
-- `pnpm --filter @yaatal/os-shell test` passed: **82/82**.
+- `pnpm --filter @yaatal/os-shell test` passed: **83/83**.
 - The production build passed.
 - The spec re-review passed.
 
