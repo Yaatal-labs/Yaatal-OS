@@ -79,6 +79,18 @@ describe("unified workspace", () => {
     await userEvent.click(screen.getByRole("button", { name: "SHOP" }));
     expect(screen.getByText("Selected: robe-wax")).toBeTruthy();
   });
+  it("navigates from semantic rail controls by pointer and keyboard", async () => {
+    const user = userEvent.setup();
+    render(<App adapter={adapter()} renderSell={() => <p>Sell shell</p>} renderShop={() => <p>Shop shell</p>} />);
+    expect(await screen.findByText("Sell shell")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Open SHOP workspace" }));
+    expect(await screen.findByText("Shop shell")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open SHOP workspace" }).getAttribute("aria-current")).toBe("page");
+    screen.getByRole("button", { name: "Open SELL workspace" }).focus();
+    await user.keyboard("{Enter}");
+    expect(await screen.findByText("Sell shell")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open SELL workspace" }).getAttribute("aria-current")).toBe("page");
+  });
   it("logs in once, keeps sessions through navigation, and clears selection on logout", async () => {
     const native = adapter();
     render(<App adapter={native} renderSell={context => <button onClick={() => context.selectProduct("robe-wax")}>Select product</button>} renderShop={context => <p>Selected: {context.selectedProductId || "none"}</p>} />);

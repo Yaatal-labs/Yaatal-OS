@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import type { CommerceWorkspaceAdapter, Conversion } from "../../contracts";
@@ -57,5 +57,15 @@ describe("SellWorkspace", () => {
     await userEvent.click(screen.getByRole("button", { name: "Stop stream" }));
     await waitFor(() => expect((screen.getByRole("button", { name: "Share" }) as HTMLButtonElement).disabled).toBe(true));
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ isLive: false }));
+  });
+  it("localizes live surface copy and recovers honestly from a failed featured image", async () => {
+    const productWithImage = { ...queuedProduct, images: ["https://merchant.example/robe-wax.webp"] };
+    render(<SellWorkspace {...props({ locale: "fr", adapter: adapter({ productQueue: vi.fn().mockResolvedValue({ ...queue, products: [productWithImage] }) }) })} />);
+    const featured = await screen.findByRole("img", { name: "Robe Wax Bleue" });
+    fireEvent.error(featured);
+    expect(await screen.findByRole("img", { name: "Image du produit indisponible" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Activité Studio" })).toBeTruthy();
+    expect(screen.getByText("Produits prêts à présenter")).toBeTruthy();
+    expect(screen.getByText("Commande vocale indisponible")).toBeTruthy();
   });
 });

@@ -120,4 +120,11 @@ describe("ShopWorkspace", () => {
     expect(catalog.list).toHaveBeenCalledTimes(0);
     expect(catalog.product).toHaveBeenCalledTimes(0);
   });
+  it("localizes the selected product commerce sheet", async () => {
+    render(<ShopWorkspace {...props({ locale: "fr", selectedProductId: "robe" })} />);
+    expect(await screen.findByRole("heading", { name: "Robe Wax Bleue" })).toBeTruthy();
+    expect(screen.getByRole("complementary", { name: "Produit sélectionné" })).toBeTruthy();
+    expect(screen.getByText("FICHE COMMERCE")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Partager ce produit" })).toBeTruthy();
+  });
 });
