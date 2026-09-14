@@ -50,12 +50,93 @@ providers, viewer counts or model output. Engine and Studio remain authoritative
 However, the layout, hierarchy, density and visual character still need to follow
 the approved direction.
 
+## Mandatory reuse-first rule
+
+Studio and BOBO already contained the feature plumbing **and working UI**, but in
+separate surfaces. This was always a consolidation task, not a greenfield feature
+or backend build:
+
+- Studio is the source for the live cockpit, live media/controls, assistant and
+  voice surfaces, product selection, commerce intents, receipts, attribution and
+  event-driven state.
+- BOBO is the source for catalog discovery, real product media, product detail,
+  buyer options and the checkout experience.
+- Yaatal OS should supply the persistent shell, shared identity/navigation/theme,
+  suppress duplicate Studio/BOBO chrome, and connect the existing surfaces through
+  validated product identity and retained session state.
+
+Before writing replacement UI, inspect and render both existing implementations:
+
+- `apps/studio/live/dashboard/`
+- `apps/shop/bobo-app/`
+
+Inventory reusable views, styles, assets, state transitions and API bindings.
+Extract or adapt those sources into the unified shell. Do not replace a working
+surface with a reduced placeholder merely because the replacement is easier to
+test. Do not add new native/backend plumbing unless the reused UI demonstrates a
+specific missing boundary.
+
+For every UI checkpoint, require a side-by-side screenshot with the relevant
+approved mock at the target viewport. Test counts without visual evidence do not
+complete UI work. If an execution plan conflicts with the approved mock or removes
+an existing working surface, stop and surface that conflict to the user before
+implementation.
+
+## Engine and Harness boundary
+
+Engine and Harness also already contained the relevant plumbing. They are service
+authorities behind the UI, not additional desktop surfaces to recreate.
+
+Engine owns:
+
+- login, session identity and the scoped Studio bootstrap grant;
+- canonical catalog and product truth;
+- orders, payment state, social events and commerce persistence;
+- the authenticated `/api/voice/session` boundary and downstream voice-service
+  routing.
+
+Harness owns:
+
+- the `edge-turn.v1` proposal contract;
+- behavioral policy, explicit Allow/Deny decisions and bounded tool access;
+- audit records for model-proposed Studio actions;
+- the rule that model output never writes directly to Engine.
+
+The existing governed path is:
+
+`Studio seller input -> Engine voice/session -> transcript -> Harness proposal and policy -> Allow/Deny -> Studio executes only the allowed OBS or Engine action`
+
+The buyer checkout path remains BOBO/public Commerce Sheet plus the configured
+Engine/payment authority. Harness is not a buyer checkout service and must not be
+inserted into that path.
+
+For the unified UI lane, do not redesign Engine or Harness, add renderer-direct
+calls to them, or duplicate their policy/session logic. Reuse the existing Studio
+and BOBO integrations plus the narrow native OS identity boundary. Change a
+service only when an end-to-end run proves a concrete contract defect.
+
+What remains on this side is deployment and proof, not speculative plumbing:
+
+- confirm the deployed Engine revision exposes the required auth/bootstrap,
+  catalog, social, commerce and voice contracts;
+- run Harness privately with real Engine context, a scoped token, persistent audit
+  path and the configured `mock` or `minimind` proposal backend;
+- prove that Harness fails closed and that one allowed governed action produces one
+  audited result;
+- qualify the actual Engine voice backend before claiming live model-backed voice.
+
+The commerce UI acceptance does not require an agent to place orders or mutate
+payments. Current project readiness notes also record unresolved production money
+path findings; a Studio sandbox receipt does not prove production settlement.
+
 ## Current visual gap
 
 The current React UI in `apps/desktop/src/unified/` implements a lean shared shell,
 SELL queue/readiness/conversions, SHOP catalog/detail and a share dialog. It does
 not currently reproduce the mocks' dominant live composition or their level of
-finish. In particular, the current experience lacks or substantially reduces:
+finish. These capabilities were not absent from the repository; the unified work
+failed to carry enough of the existing Studio and BOBO interfaces forward. In
+particular, the current unified experience lacks or substantially reduces:
 
 - the full persistent operational navigation shown in the references;
 - the large live-scene hierarchy and product carousel composition;
@@ -70,8 +151,10 @@ Their visual space still needs an honest product decision instead of collapsing
 into a generic dashboard.
 
 Before changing code, render the branch and compare it side by side with all four
-reference PNGs. Capture the gap explicitly. Keep the existing native adapters and
-commerce paths unless a visual change demonstrates a real integration need.
+reference PNGs. Also render the existing Studio and BOBO surfaces, then map their
+working components into the unified composition. Capture the gap explicitly. Keep
+the existing business logic, native adapters and commerce paths unless reuse
+demonstrates a real integration need.
 
 ## Implemented commits
 
@@ -89,7 +172,8 @@ The useful implementation sequence is:
 | `4af00fe` | Sanitized Studio WebSocket event bridge and recovery fixes |
 | `1868347` | Remaining docs/evidence plus generated Expo asset checkpoint |
 
-Nothing was pushed. The worktree was clean when this handoff was committed.
+The branch was pushed to `origin/yaatal/unified-ui-poc` through recovery handoff
+commit `64aaec6`. The worktree was clean at that checkpoint.
 
 ## What passed
 
@@ -167,16 +251,19 @@ download completion, latency, quality or production readiness.
 ## Fastest responsible pickup path
 
 1. Read the UI contract and open all four reference PNGs before editing.
-2. Launch the current React renderer and capture 1280x800 and 900x600 comparisons.
-3. Refactor the shell, SELL hierarchy and SHOP detail toward the approved visual
-   system while reusing the working native adapters and tests.
-4. Keep unavailable functionality visibly honest; do not create fake assistant,
-   voice, variants, delivery or payment state.
-5. Run focused UI tests and TypeScript once after the visual pass.
-6. Launch the owned native app and Studio, arrange direct user sign-in, then run
+2. Render and inventory the existing Studio dashboard and BOBO application; treat
+   them as the implementation sources, not legacy inspiration.
+3. Launch the current React renderer and capture 1280x800 and 900x600 comparisons.
+4. Consolidate the working Studio and BOBO views into the shell and restyle their
+   composition toward the approved mocks. Preserve behavior instead of rebuilding
+   it as narrower substitute components.
+5. Keep unavailable data visibly honest; do not invent variants, delivery promises,
+   payment availability, viewer counts or model output.
+6. Run focused UI tests and TypeScript once after the visual pass.
+7. Launch the owned native app and Studio, arrange direct user sign-in, then run
    the complete commerce acceptance on an actual phone.
-7. Record screenshots, runtime provenance, exact commits and pass/fail evidence.
-8. Only after acceptance create a named rollback tag, retire the legacy iframe
+8. Record screenshots, runtime provenance, exact commits and pass/fail evidence.
+9. Only after acceptance create a named rollback tag, retire the legacy iframe
    path and make the unified renderer the default.
 
 Do not spend another cycle investigating Engine branches, scaffolding a new app,
