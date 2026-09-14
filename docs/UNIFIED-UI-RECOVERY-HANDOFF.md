@@ -1,23 +1,25 @@
 # Unified UI recovery handoff
 
-Date: 2026-09-13
+Date: 2026-09-14
 
 Repository: `C:\Users\momo-\OneDrive\Desktop\YAATAL\Yaatal-Engine\.worktrees\Yaatal-OS\unified-ui-poc`
 
 Branch: `yaatal/unified-ui-poc`
 
-HEAD at handoff: `1868347`
+HEAD at handoff: `67826b5`
 
 ## Read this first
 
-This branch is **not demo-ready** and has not passed native or phone acceptance.
-Do not describe it as matching the approved UI. The secure native and commerce
-plumbing is substantially implemented, but the React presentation is materially
-less complete and less faithful than the four approved visual references.
+The recovery implementation is complete at the component/build gate and the
+specification re-review is **PASS**. It restores the approved hierarchy rather
+than the earlier lean dashboard substitution. This is still **not accepted as
+demo-ready**: populated native SELL/SHOP side-by-side evidence and phone E2E are
+not yet available.
 
-The previous execution focused on integration before performing a side-by-side
-visual review of the mocks. Recover from that mistake by starting with the visual
-gap, not by rebuilding the backend or adding more infrastructure.
+Only the signed-out browser preview, navigation rail, and locale behavior have
+been visually verified. Do not describe populated native SELL or SHOP as visually
+accepted until screenshots are captured against the four approved references, and
+do not describe checkout as accepted until a physical-phone run succeeds.
 
 ## Approved product direction
 
@@ -129,32 +131,31 @@ The commerce UI acceptance does not require an agent to place orders or mutate
 payments. Current project readiness notes also record unresolved production money
 path findings; a Studio sandbox receipt does not prove production settlement.
 
-## Current visual gap
+## Recovered UI status and remaining visual proof
 
-The current React UI in `apps/desktop/src/unified/` implements a lean shared shell,
-SELL queue/readiness/conversions, SHOP catalog/detail and a share dialog. It does
-not currently reproduce the mocks' dominant live composition or their level of
-finish. These capabilities were not absent from the repository; the unified work
-failed to carry enough of the existing Studio and BOBO interfaces forward. In
-particular, the current unified experience lacks or substantially reduces:
+The current React UI in `apps/desktop/src/unified/` now restores the target
+composition while preserving existing behavior and boundaries:
 
-- the full persistent operational navigation shown in the references;
-- the large live-scene hierarchy and product carousel composition;
-- the assistant/activity rail and bottom live-control bar;
-- the mock's premium three-region SHOP detail/checkout composition;
-- demonstrated visual parity at 1280x800, 900x600 and narrow SHOP widths.
+- media-led SELL with live-state hierarchy and honest unavailable states;
+- a connected product strip and product selection continuity;
+- activity/governance context and compact live controls;
+- a premium three-region SHOP detail/checkout composition; and
+- the phone-safe Commerce Sheet path.
 
-Some reference content was deliberately marked out of functional scope in the
-execution plan: microphone/voice, viewer counts, assistant recommendations,
-delivery promises and an in-desktop payment provider panel must not be faked.
-Their visual space still needs an honest product decision instead of collapsing
-into a generic dashboard.
+The accessibility/quality follow-up is included in the current HEAD. The design
+spec was re-reviewed after recovery and passed. This is code and browser-preview
+evidence, not populated native or phone visual acceptance. The outstanding proof
+is deliberately narrow:
 
-Before changing code, render the branch and compare it side by side with all four
-reference PNGs. Also render the existing Studio and BOBO surfaces, then map their
-working components into the unified composition. Capture the gap explicitly. Keep
-the existing business logic, native adapters and commerce paths unless reuse
-demonstrates a real integration need.
+- native sign-in and populated SELL/SHOP screenshots side by side with the four
+  approved references (including target desktop widths);
+- real SELL-to-SHOP product continuity in the signed-in native window; and
+- physical-phone Commerce Sheet through sandbox checkout, receipt, attributed
+  conversion, and an idempotent replay.
+
+Continue to keep unavailable data visibly honest. Do not invent microphone/voice
+output, viewer counts, assistant recommendations, product variants, delivery
+promises, or payment availability just to fill reference-shaped space.
 
 ## Implemented commits
 
@@ -171,21 +172,22 @@ The useful implementation sequence is:
 | `8e3725e` | Phone-safe Commerce Sheet gateway |
 | `4af00fe` | Sanitized Studio WebSocket event bridge and recovery fixes |
 | `1868347` | Remaining docs/evidence plus generated Expo asset checkpoint |
+| `a4d3d600` | Restores media-led unified SELL, product strip, activity/governance, compact controls, three-region SHOP, and Commerce Sheet presentation |
+| `67826b5` | Accessibility and quality fixes from the recovery review |
 
-The branch was pushed to `origin/yaatal/unified-ui-poc` through recovery handoff
-commit `64aaec6`. The worktree was clean at that checkpoint.
+Before making a follow-up commit, inspect `HEAD`: a final quality-fix commit may
+land after this handoff update starts. Record that commit in the acceptance
+evidence rather than overwriting or reverting it. The branch was pushed to
+`origin/yaatal/unified-ui-poc` through recovery handoff commit `64aaec6`.
 
 ## What passed
 
-At `4af00fe` / `1868347`:
+At `a4d3d600` / `67826b5`:
 
 - `pnpm --filter @yaatal/os-shell check` passed.
-- `pnpm --filter @yaatal/os-shell test` passed: 79 tests in 9 files.
-- Focused App/SELL recovery tests passed: 33 tests.
-- The phone gateway tests plus existing Studio commerce tests passed: 11 tests.
-- Native default and `unified-ui` Cargo checks had passed before the final
-  TypeScript-only recovery adjustment.
-- The sanitized native event bridge has focused Rust and renderer tests.
+- `pnpm --filter @yaatal/os-shell test` passed: **82/82**.
+- The production build passed.
+- The spec re-review passed.
 
 These are component and integration gates, not end-to-end acceptance.
 
@@ -213,7 +215,8 @@ Consequently none of the following is verified:
 - one attributed conversion and idempotent replay;
 - logout cleanup;
 - packaged native launch;
-- visual acceptance or screenshots.
+- populated native SELL/SHOP visual acceptance or side-by-side screenshots;
+- physical-phone E2E acceptance.
 
 All development processes started by the previous run were shut down. Ports
 1420, 8485 and 8486 had no listeners at handoff.
@@ -250,25 +253,21 @@ download completion, latency, quality or production readiness.
 
 ## Fastest responsible pickup path
 
-1. Read the UI contract and open all four reference PNGs before editing.
-2. Render and inventory the existing Studio dashboard and BOBO application; treat
-   them as the implementation sources, not legacy inspiration.
-3. Launch the current React renderer and capture 1280x800 and 900x600 comparisons.
-4. Consolidate the working Studio and BOBO views into the shell and restyle their
-   composition toward the approved mocks. Preserve behavior instead of rebuilding
-   it as narrower substitute components.
-5. Keep unavailable data visibly honest; do not invent variants, delivery promises,
-   payment availability, viewer counts or model output.
-6. Run focused UI tests and TypeScript once after the visual pass.
-7. Launch the owned native app and Studio, arrange direct user sign-in, then run
-   the complete commerce acceptance on an actual phone.
-8. Record screenshots, runtime provenance, exact commits and pass/fail evidence.
-9. Only after acceptance create a named rollback tag, retire the legacy iframe
-   path and make the unified renderer the default.
+1. Launch the owned native app, have the user sign in directly, and connect Studio.
+2. Capture populated native SELL and SHOP at the target widths beside the four
+   approved references; record concrete pass/fail deltas rather than rewriting UI
+   or plumbing pre-emptively.
+3. Verify real product continuity from SELL selection into SHOP.
+4. Run the physical-phone Commerce Sheet through sandbox checkout, receipt, one
+   attributed conversion, and idempotent replay.
+5. Record screenshots, runtime provenance, exact HEAD/commits and pass/fail
+   evidence. Only then decide whether a bounded quality correction is necessary.
+6. After acceptance, create a named rollback tag, retire the legacy iframe path,
+   and make the unified renderer the default.
 
-Do not spend another cycle investigating Engine branches, scaffolding a new app,
-rewriting the commerce backend, installing alternate UI stacks or repeating broad
-research. The immediate problem is the visible product experience.
+Do not spend another cycle rewriting the unified UI, Engine/Harness plumbing,
+commerce backend, or application scaffolding unless this acceptance run proves a
+specific defect. The fastest pickup is native visual/E2E acceptance.
 
 ## Commands and launch constraints
 
