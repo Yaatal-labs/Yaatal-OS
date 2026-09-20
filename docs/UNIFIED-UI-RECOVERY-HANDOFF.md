@@ -8,6 +8,62 @@ Branch: `yaatal/unified-ui-poc`
 
 Pushed base before this documentation commit: `8b7b307`
 
+## CURRENT PICKUP — NATIVE COMMERCE AND SIDECAR OWNERSHIP HARDENED, GATES GREEN
+
+Date: 2026-09-20 (second checkpoint). Security hardening plus the canonical
+unified launcher, reviewed and gate-verified before push.
+
+### Security hardening in this checkpoint
+
+- Commerce intents now require the `engine_live_session` product queue: the
+  gateway rejects `engine_catalog_fallback` (`live_product_queue_required`)
+  and products outside the live session (`product_not_in_live_session`)
+  before any Studio transport call. Intents can no longer be minted from a
+  catalog product that is not in the live session.
+- The sidecar supervisor no longer adopts an arbitrary loopback listener
+  that answers the health probe. An existing listener now fails with a new
+  `port_in_use` error code; the authenticated Studio bootstrap nonce is only
+  delivered to a child owned by this shell. Covered by a real socket test.
+
+### Canonical unified launcher
+
+- `pnpm --filter @yaatal/os-shell tauri:dev:unified` / `tauri:build:unified`
+  (`scripts/tauri-unified.mjs`) set the renderer gate
+  (`VITE_YAATAL_UNIFIED_UI=1`) and the Rust `unified-ui` feature together.
+  Do not launch the unified renderer with only one of those gates enabled.
+- `.env.example` documents the gate; README verify commands now clippy and
+  test with `--features unified-ui` (previously the feature-gated code was
+  never clippy-gated, which this checkpoint fixes).
+
+### Review repairs (the working tree did not compile as found)
+
+- `main.rs`: restored the closing brace of the `if let` child-poll block in
+  `SidecarSupervisor::status` dropped by the adoption removal.
+- `gateway.rs`: removed the orphaned `supervisor.adopted` reference in
+  `invalidate_if_restart` (the field no longer exists); restart now reduces
+  to "no child".
+- Applied the feature-gated clippy fixes (`needless_borrow` x8,
+  `field_reassign_with_default` in `session.rs` test) and `cargo fmt`.
+
+### Fresh verification at this checkpoint
+
+- `pnpm --filter @yaatal/os-shell check` passed; **88/88** tests passed.
+- `pnpm --filter @yaatal/os-shell build` passed; the BOBO export regenerated
+  the identical bundle hash (`index-b9c72d6c…`), which replaces the stale
+  checkpoint bundle baked against `http://localhost:5150` — the new checkpoint
+  targets `https://engine.njooba.com` via `apps/shop/bobo-app/.env.production`.
+- `cargo fmt --check` passed.
+- `cargo clippy --features unified-ui --all-targets -- -D warnings` passed.
+- `cargo test --features unified-ui` passed: **31/31** (includes the new
+  adoption-refusal and live-session commerce-intent tests).
+
+### What remains (unchanged from the 144f002 pickup)
+
+Native acceptance with real authority: user sign-in in the native window,
+populated SELL/SHOP captures, SELL-to-SHOP continuity, and the physical-phone
+Commerce Sheet through sandbox receipt. The `orders`/`customers` rail entries
+stay visibly disabled until unified workspace contracts exist.
+
 ## CURRENT PICKUP — FULL SHELL MOCK TRANSFER COMMITTED, NATIVE ACCEPTANCE OPEN
 
 Date: 2026-09-20. Commit `144f002` closes the remaining approved shell-composition
