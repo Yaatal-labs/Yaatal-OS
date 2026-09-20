@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, Moon, Radio, ShoppingBag, Sun, UserRound } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, ClipboardList, Home, Moon, Package, Radio, Settings2, ShoppingBag, Sun, UserRound, UsersRound } from "lucide-react";
 import { type SidecarStatus } from "@yaatal/os-protocol";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -25,8 +25,8 @@ const shellMessages = {
   },
 } satisfies Record<Locale, Record<string, string | ((value: string) => string)>>;
 const railMessages = {
-  en: { connection: "Connection", openSell: "Open SELL workspace", openShop: "Open SHOP workspace" },
-  fr: { connection: "Connexion", openSell: "Ouvrir l’espace VENDRE", openShop: "Ouvrir l’espace BOUTIQUE" },
+  en: { connection: "Connection", openSell: "Open SELL workspace", openShop: "Open SHOP workspace", home: "Home", live: "Live", products: "Products", orders: "Orders", customers: "Customers", settings: "Settings", unavailable: (label: string) => `${label} · Not available in this build` },
+  fr: { connection: "Connexion", openSell: "Ouvrir l’espace VENDRE", openShop: "Ouvrir l’espace BOUTIQUE", home: "Accueil", live: "Direct", products: "Produits", orders: "Commandes", customers: "Clients", settings: "Paramètres", unavailable: (label: string) => `${label} · Indisponible dans cette version` },
 } as const;
 export interface WorkspaceContext {
   session: SanitizedSession;
@@ -238,10 +238,18 @@ export function App({ adapter = defaultAdapter, workspaceAdapter = defaultWorksp
     <a className="skip-link" href="#workspace">{copy.skipToWorkspace}</a>
     <aside className="unified-rail" aria-label={copy.navigation}>
       <div className="brand"><span className="brand-mark" aria-hidden="true">Y</span><span className="rail-label">YAATAL <strong>OS</strong></span></div>
-      <p className="rail-caption rail-label">{copy.workspaceCaption}</p>
-      <nav aria-label={copy.workspaces} className="rail-workspaces">{(["sell", "shop"] as const).map(item => <Button key={item} variant="ghost" className="workspace-link" aria-label={item === "sell" ? railMessages[locale].openSell : railMessages[locale].openShop} aria-current={workspace === item ? "page" : undefined} data-current={workspace === item || undefined} onClick={() => navigate(item)}>{item === "sell" ? <Radio size={20} /> : <ShoppingBag size={20} />}<span className="rail-label">{item === "sell" ? copy.sell : copy.shop}</span></Button>)}</nav>
+      <nav aria-label={copy.workspaces} className="rail-workspaces">
+        <Button variant="ghost" className="workspace-link" aria-label={railMessages[locale].openSell} aria-current={workspace === "sell" ? "page" : undefined} data-current={workspace === "sell" || undefined} onClick={() => navigate("sell")}><Home size={20} /><span className="rail-label">{railMessages[locale].home}</span></Button>
+        <Button variant="ghost" className="workspace-link rail-live-link" aria-label={railMessages[locale].live} data-live={liveSession?.isLive || undefined} onClick={() => navigate("sell")}><Radio size={20} /><span className="rail-label">{railMessages[locale].live}</span></Button>
+        <Button variant="ghost" className="workspace-link" aria-label={railMessages[locale].openShop} aria-current={workspace === "shop" ? "page" : undefined} data-current={workspace === "shop" || undefined} onClick={() => navigate("shop")}><Package size={20} /><span className="rail-label">{railMessages[locale].products}</span></Button>
+        <Button variant="ghost" className="workspace-link" disabled data-unavailable="true" aria-label={railMessages[locale].unavailable(railMessages[locale].orders)} title={railMessages[locale].unavailable(railMessages[locale].orders)}><ClipboardList size={20} /><span className="rail-label">{railMessages[locale].orders}</span></Button>
+        <Button variant="ghost" className="workspace-link" disabled data-unavailable="true" aria-label={railMessages[locale].unavailable(railMessages[locale].customers)} title={railMessages[locale].unavailable(railMessages[locale].customers)}><UsersRound size={20} /><span className="rail-label">{railMessages[locale].customers}</span></Button>
+      </nav>
       <p className="rail-note rail-label">{railMessages[locale].connection} · {mode === "preview" ? copy.browserPreview : sidecar?.state === "ready" ? copy.studioConnected : copy.studioOffline}</p>
-      <div className="rail-footer"><Button variant="ghost" size="icon" aria-label={collapsed ? copy.expand : copy.collapse} aria-expanded={!collapsed} onClick={() => setCollapsed(value => !value)}>{collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}</Button></div>
+      <div className="rail-footer">
+        <Button variant="ghost" className="workspace-link rail-settings-link" aria-label={railMessages[locale].settings} onClick={() => setAccountOpen(true)}><Settings2 size={20} /><span className="rail-label">{railMessages[locale].settings}</span></Button>
+        <div className="rail-collapse"><Button variant="ghost" size="icon" aria-label={collapsed ? copy.expand : copy.collapse} aria-expanded={!collapsed} onClick={() => setCollapsed(value => !value)}>{collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}</Button><span className="rail-label">{collapsed ? copy.expand : copy.collapse}</span></div>
+      </div>
     </aside>
     <div className="unified-workspace">
       <header className="unified-header"><span className="workspace-name">{workspace === "sell" ? copy.sellerWorkspace : copy.yourShop}</span><nav className="workspace-switch" aria-label={copy.workspaces}><Button variant="ghost" aria-current={workspace === "sell" ? "page" : undefined} onClick={() => navigate("sell")}>{copy.sell}</Button><Button variant="ghost" aria-current={workspace === "shop" ? "page" : undefined} onClick={() => navigate("shop")}>{copy.shop}</Button></nav><div className="header-actions"><span className="connection" role="status" aria-live="polite"><i data-state={sidecar?.state} />{mode === "preview" ? copy.browserPreview : mode === "checking" || initializing ? copy.connecting : sidecar?.state === "ready" ? copy.studioConnected : copy.studioOffline}</span><Button variant="ghost" size="icon" className="shell-icon-control" aria-label={theme === "light" ? copy.useDark : copy.useLight} onClick={toggleTheme}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}</Button><Button variant="ghost" size="icon" className="shell-icon-control locale-control" aria-label={locale === "en" ? copy.useFrench : copy.useEnglish} onClick={toggleLocale}>{locale === "en" ? copy.localeFrench : copy.localeEnglish}</Button><span className="header-divider" aria-hidden="true" />

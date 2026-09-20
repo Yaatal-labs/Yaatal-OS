@@ -90,6 +90,19 @@ describe("unified workspace", () => {
     await user.keyboard("{Enter}");
     await waitFor(() => expect(screen.getByRole("button", { name: "Open SELL workspace" }).getAttribute("aria-current")).toBe("page"));
   });
+  it("transfers the approved shell rail without inventing unavailable workspaces", async () => {
+    render(<App adapter={adapter()} renderSell={() => <p>Sell shell</p>} renderShop={() => <p>Shop shell</p>} />);
+    expect(await screen.findByText("Sell shell")).toBeTruthy();
+    expect(screen.getByText("Home")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Live" })).toBeTruthy();
+    expect(screen.getByText("Products")).toBeTruthy();
+    const orders = screen.getByRole("button", { name: "Orders · Not available in this build" }) as HTMLButtonElement;
+    const customers = screen.getByRole("button", { name: "Customers · Not available in this build" }) as HTMLButtonElement;
+    expect(orders.disabled).toBe(true);
+    expect(customers.disabled).toBe(true);
+    await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+  });
   it("keeps theme and locale controls reachable at a narrow viewport", async () => {
     const originalWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 320 });
