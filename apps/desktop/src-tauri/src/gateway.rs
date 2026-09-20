@@ -159,7 +159,7 @@ pub fn invalidate_if_restart(app: &AppHandle, state: &AppState) -> Result<()> {
     let restart = {
         let mut supervisor = state.supervisor.lock().map_err(|_| "sidecar_unavailable")?;
         supervisor.status();
-        supervisor.child.is_none() && !supervisor.adopted
+        supervisor.child.is_none()
     };
     if restart {
         invalidate_session(app, state)?;
@@ -183,11 +183,11 @@ fn studio_session_bootstrap_blocking(app: &AppHandle, state: &AppState) -> Resul
     let result = (|| {
         let body = session::engine_studio_bootstrap_start(app, engine()?.as_str(), &token)?;
         let grant = session::validate_studio_bootstrap_grant(&body)?;
-        current(&state, generation)?;
+        current(state, generation)?;
         let response = http::request(
             &client,
             Method::POST,
-            endpoint(&origin(&state)?, "api/studio/operator/bootstrap")?,
+            endpoint(&origin(state)?, "api/studio/operator/bootstrap")?,
             Some(json!({"nonce":grant.nonce,"surface":grant.surface})),
         )?;
         if response["authenticated"] != true {
@@ -197,7 +197,7 @@ fn studio_session_bootstrap_blocking(app: &AppHandle, state: &AppState) -> Resul
         let status = http::request(
             &client,
             Method::GET,
-            endpoint(&origin(&state)?, "api/studio/operator/session")?,
+            endpoint(&origin(state)?, "api/studio/operator/session")?,
             None,
         )?;
         if status["authenticated"] != true {
@@ -211,7 +211,7 @@ fn studio_session_bootstrap_blocking(app: &AppHandle, state: &AppState) -> Resul
         })
     })();
     if result.is_err() {
-        let _ = revoke(&state, &client);
+        let _ = revoke(state, &client);
     }
     result
 }
@@ -260,7 +260,7 @@ fn session_snapshot(value: &Value) -> Result<StudioSession> {
 
 fn studio_session_state_blocking(state: &AppState) -> Result<StudioSession> {
     session_snapshot(&studio_request(
-        &state,
+        state,
         Method::GET,
         "api/studio/session-state",
         None,
@@ -376,7 +376,7 @@ fn studio_status_blocking(state: &AppState) -> Result<StudioStatus> {
     let value = http::request(
         &http::client(false)?,
         Method::GET,
-        endpoint(&origin(&state)?, "api/os/status")?,
+        endpoint(&origin(state)?, "api/os/status")?,
         None,
     )?;
     if value["version"] != "yaatal.studio.os.v1" || value["health"] != "ok" {
@@ -656,8 +656,7 @@ pub struct ProductQueue {
     products: Vec<CatalogProduct>,
     source: String,
 }
-fn studio_product_queue_blocking(state: &AppState) -> Result<ProductQueue> {
-    let value = studio_request(&state, Method::GET, "api/studio/product-queue", None)?;
+fn product_queue(value: &Value) -> Result<ProductQueue> {
     let source = match value["source"].as_str() {
         Some(s @ ("engine_live_session" | "engine_catalog_fallback")) => s,
         Some("mock_fallback") if std::env::var("STUDIO_DEMO_MODE").as_deref() == Ok("1") => {
@@ -673,6 +672,14 @@ fn studio_product_queue_blocking(state: &AppState) -> Result<ProductQueue> {
             .collect::<Result<_>>()?,
         source,
     })
+}
+fn studio_product_queue_blocking(state: &AppState) -> Result<ProductQueue> {
+    product_queue(&studio_request(
+        state,
+        Method::GET,
+        "api/studio/product-queue",
+        None,
+    )?)
 }
 
 #[tauri::command]
@@ -834,14 +841,18 @@ fn commerce_intent_request(product: &CatalogProduct) -> Value {
 
 fn commerce_intent_workflow(
     product_id: String,
-    fetch: impl FnOnce(&str) -> Result<CatalogProduct>,
+    queue: ProductQueue,
     transport: impl FnOnce(Value) -> Result<Value>,
 ) -> Result<(CatalogProduct, Value)> {
     let product_id = id(&Value::String(product_id))?;
-    let product = fetch(&product_id)?;
-    if product.id != product_id {
-        return Err("product_mismatch".into());
+    if queue.source != "engine_live_session" {
+        return Err("live_product_queue_required".into());
     }
+    let product = queue
+        .products
+        .into_iter()
+        .find(|product| product.id == product_id)
+        .ok_or_else(|| "product_not_in_live_session".to_string())?;
     if product.stock == 0 || product.price_fcfa < 100 {
         return Err("product_unavailable".into());
     }
@@ -854,20 +865,24 @@ fn studio_create_commerce_intent_blocking(
     product_id: String,
 ) -> Result<CommerceIntent> {
     let (generation, client) = operator(state)?;
-    let (p, value) = commerce_intent_workflow(
-        product_id,
-        |requested_product_id| fetch_product(requested_product_id.to_owned()),
-        |body| {
-            studio_request_with_client(
-                state,
-                generation,
-                client.clone(),
-                Method::POST,
-                "api/studio/poc/commerce-intents",
-                Some(body),
-            )
-        },
-    )?;
+    let queue = product_queue(&studio_request_with_client(
+        state,
+        generation,
+        client.clone(),
+        Method::GET,
+        "api/studio/product-queue",
+        None,
+    )?)?;
+    let (p, value) = commerce_intent_workflow(product_id, queue, |body| {
+        studio_request_with_client(
+            state,
+            generation,
+            client.clone(),
+            Method::POST,
+            "api/studio/poc/commerce-intents",
+            Some(body),
+        )
+    })?;
     let result = intent(&value, &public_base(state)?, &p.id)?;
     let mut current = state.session.lock().map_err(|_| "session_unavailable")?;
     current.check_generation(generation)?;
@@ -1043,7 +1058,7 @@ fn studio_conversions_blocking(
 ) -> Result<Vec<Conversion>> {
     let session_id = id(&Value::String(live_session_id))?;
     let value = studio_request(
-        &state,
+        state,
         Method::GET,
         &format!("api/studio/poc/conversions?live_session_id={session_id}"),
         None,
@@ -1226,8 +1241,7 @@ mod tests {
     }
 
     #[test]
-    fn commerce_intent_uses_only_the_authoritative_product_snapshot() {
-        let fetched = RefCell::new(Vec::new());
+    fn commerce_intent_uses_only_the_authorized_live_product_snapshot() {
         let sent = RefCell::new(None);
         let authoritative = product(&json!({
             "id":"robe-wax",
@@ -1239,9 +1253,9 @@ mod tests {
         .unwrap();
         let (product, response) = commerce_intent_workflow(
             "robe-wax".into(),
-            |requested_product_id| {
-                fetched.borrow_mut().push(requested_product_id.to_owned());
-                Ok(authoritative.clone())
+            ProductQueue {
+                products: vec![authoritative],
+                source: "engine_live_session".into(),
             },
             |body| {
                 *sent.borrow_mut() = Some(body);
@@ -1249,7 +1263,6 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(fetched.into_inner(), vec!["robe-wax"]);
         assert_eq!(product.name, "Engine Robe");
         assert_eq!(response, json!({"transport":"called"}));
         let body = sent.into_inner().expect("Studio request body");
@@ -1265,6 +1278,37 @@ mod tests {
         for renderer_field in ["priceFcfa", "renderer_media", "renderer_stock"] {
             assert!(!nested.contains_key(renderer_field));
         }
+    }
+
+    #[test]
+    fn commerce_intent_rejects_catalog_fallback_and_products_outside_live_session() {
+        let product = product(&json!({
+            "id":"robe-wax",
+            "name":"Engine Robe",
+            "price_fcfa":75000,
+            "stock":3,
+            "images":[]
+        }))
+        .unwrap();
+        let fallback = commerce_intent_workflow(
+            "robe-wax".into(),
+            ProductQueue {
+                products: vec![product.clone()],
+                source: "engine_catalog_fallback".into(),
+            },
+            |_| panic!("fallback product must not reach Studio"),
+        );
+        assert_eq!(fallback.unwrap_err(), "live_product_queue_required");
+
+        let unrelated = commerce_intent_workflow(
+            "other-product".into(),
+            ProductQueue {
+                products: vec![product],
+                source: "engine_live_session".into(),
+            },
+            |_| panic!("unrelated product must not reach Studio"),
+        );
+        assert_eq!(unrelated.unwrap_err(), "product_not_in_live_session");
     }
 
     #[test]

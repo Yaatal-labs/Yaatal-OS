@@ -60,6 +60,7 @@ enum SidecarState {
 #[serde(rename_all = "snake_case")]
 enum SidecarErrorCode {
     SpawnFailed,
+    PortInUse,
     StartupTimeout,
     UnexpectedExit,
 }
@@ -201,7 +202,6 @@ fn is_loopback(address: IpAddr) -> bool {
 struct SidecarSupervisor {
     config: SidecarConfig,
     child: Option<Child>,
-    adopted: bool,
     state: SidecarState,
     error_code: Option<SidecarErrorCode>,
 }
@@ -211,7 +211,6 @@ impl SidecarSupervisor {
         Self {
             config,
             child: None,
-            adopted: false,
             state: SidecarState::Stopped,
             error_code: None,
         }
@@ -233,42 +232,30 @@ impl SidecarSupervisor {
                     self.error_code = Some(SidecarErrorCode::UnexpectedExit);
                 }
             }
-        } else if self.adopted
-            && !probe_health(
-                self.config.host,
-                self.config.port,
-                Duration::from_millis(350),
-            )
-        {
-            self.adopted = false;
-            self.state = SidecarState::Failed;
-            self.error_code = Some(SidecarErrorCode::UnexpectedExit);
         }
         SanitizedSidecarStatus {
             version: PROTOCOL_VERSION,
             kind: "sidecar-status",
             state: self.state,
-            is_running: self.child.is_some() || self.adopted,
+            is_running: self.child.is_some(),
             port: self.config.port,
             error_code: self.error_code,
         }
     }
 
     fn start(&mut self) -> SanitizedSidecarStatus {
-        if self.child.is_some() || self.adopted {
+        if self.child.is_some() {
             return self.status();
         }
-        // A prior shell may have been closed before its development sidecar.
-        // Reuse a healthy loopback Studio rather than spawning a second process
-        // that can only fail with an opaque address-in-use error.
+        // Never adopt an arbitrary loopback listener. The authenticated Studio
+        // bootstrap nonce may only be delivered to a child owned by this shell.
         if probe_health(
             self.config.host,
             self.config.port,
             Duration::from_millis(350),
         ) {
-            self.adopted = true;
-            self.state = SidecarState::Ready;
-            self.error_code = None;
+            self.state = SidecarState::Failed;
+            self.error_code = Some(SidecarErrorCode::PortInUse);
             return self.status();
         }
         if !self.config.studio_dir.is_dir() {
@@ -328,7 +315,6 @@ impl SidecarSupervisor {
     }
 
     fn stop_child(&mut self) {
-        self.adopted = false;
         if let Some(mut child) = self.child.take() {
             let _ = child.kill();
             let _ = child.wait();
@@ -339,8 +325,6 @@ impl SidecarSupervisor {
 impl Drop for SidecarSupervisor {
     fn drop(&mut self) {
         // Never leave a child owned by this shell holding the loopback port.
-        // An adopted process is deliberately not killed because we did not
-        // create it and therefore do not own its lifecycle.
         if self.child.is_some() {
             self.stop_child();
         }
@@ -532,7 +516,7 @@ fn os_logout_blocking(
     drop(session_state);
     #[cfg(feature = "unified-ui")]
     if let Some(client) = old_client {
-        let _ = gateway::revoke(&state, &client);
+        let _ = gateway::revoke(state, &client);
     }
     Ok(sanitized)
 }
@@ -753,5 +737,36 @@ mod tests {
         assert_eq!(rendered["errorCode"], "spawn_failed");
         assert!(rendered.get("inheritedEnv").is_none());
         assert!(!rendered.to_string().contains("secret"));
+    }
+
+    #[test]
+    fn start_refuses_to_adopt_an_existing_loopback_health_server() {
+        let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+            .expect("bind test listener");
+        let port = listener.local_addr().expect("listener address").port();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept health probe");
+            let mut request = [0; 128];
+            let _ = stream.read(&mut request);
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK")
+                .expect("write health response");
+        });
+        let config = SidecarConfig {
+            python: PathBuf::from("python"),
+            studio_dir: PathBuf::from("."),
+            host: IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+            port,
+            inherited_env: Vec::new(),
+        };
+        let mut supervisor = SidecarSupervisor::new(config);
+
+        let status = supervisor.start();
+
+        server.join().expect("health server exits");
+        assert_eq!(status.state, SidecarState::Failed);
+        assert_eq!(status.error_code, Some(SidecarErrorCode::PortInUse));
+        assert!(!status.is_running);
+        assert!(supervisor.child.is_none());
     }
 }

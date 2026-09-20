@@ -271,8 +271,10 @@ mod tests {
     #[cfg(feature = "unified-ui")]
     #[test]
     fn studio_restart_discards_the_cookie_client() {
-        let mut state = SessionState::default();
-        state.studio_client = Some(crate::http::client(true).expect("cookie client"));
+        let mut state = SessionState {
+            studio_client: Some(crate::http::client(true).expect("cookie client")),
+            ..SessionState::default()
+        };
         let generation = state.generation;
         state.invalidate_studio();
         assert_ne!(state.generation, generation);
