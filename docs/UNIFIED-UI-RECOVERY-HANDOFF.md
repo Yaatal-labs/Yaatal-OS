@@ -8,6 +8,51 @@ Branch: `yaatal/unified-ui-poc`
 
 Pushed base before this documentation commit: `8b7b307`
 
+## CURRENT PICKUP — FULL SHELL MOCK TRANSFER COMMITTED, NATIVE ACCEPTANCE OPEN
+
+Date: 2026-09-20. Commit `144f002` closes the remaining approved shell-composition
+gap without changing Engine, Harness, native commands, Studio adapters, or BOBO
+catalog/commerce contracts.
+
+### Added in `144f002`
+
+- Transferred the approved expanded rail vocabulary: Home, Live, Products,
+  Orders, Customers, Settings, and the existing collapse control.
+- Home and Live reuse the existing SELL workspace; Products reuses SHOP.
+- Orders and Customers are visibly disabled with explicit unavailable labels
+  because no corresponding unified workspace contract exists. No fake data or
+  renderer-direct backend calls were added.
+- Settings opens the existing account/preferences surface instead of creating a
+  competing settings implementation.
+- Fixed collapsed-rail accessible names for Live and Settings.
+- Fixed the 900x600 header collision by switching to the compact header at the
+  same breakpoint as the 72 px rail.
+
+### Fresh verification at this checkpoint
+
+- `pnpm --filter @yaatal/os-shell check` passed.
+- Full desktop suite passed: **88/88**.
+- `pnpm --filter @yaatal/os-shell build` passed, including BOBO Expo export and
+  the Vite production bundle.
+- Feature-flagged browser evidence was captured at:
+  - `output/playwright/unified-shell-1280x800-light.png`
+  - `output/playwright/unified-shell-1280x800-dark.png`
+  - `output/playwright/unified-shell-900x600-light.png`
+  - `output/playwright/unified-shell-900x600-dark.png`
+
+### What truly remains
+
+The source transfer and signed-out shell matrix are complete. The remaining work
+requires real external authority rather than more speculative React/CSS:
+
+1. User signs in directly in the native Tauri window and connects the owned
+   Studio instance.
+2. Capture populated SELL and SHOP at 1280x800 and 900x600 in light/dark against
+   the four approved mocks, correcting only demonstrated populated-state deltas.
+3. Verify SELL-to-SHOP continuity for one current Engine product.
+4. Run the physical-phone Commerce Sheet through sandbox receipt, one attributed
+   conversion, and an idempotent replay.
+
 ## CURRENT PICKUP — MOCK TRANSFER IMPLEMENTED, VISUAL ACCEPTANCE OPEN
 
 Date: 2026-09-14. This transfer is preserved on `yaatal/unified-ui-poc` for the
