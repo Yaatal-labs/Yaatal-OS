@@ -199,9 +199,145 @@ fn is_loopback(address: IpAddr) -> bool {
     address.is_loopback()
 }
 
+#[cfg(windows)]
+mod sidecar_lifetime {
+    //! Tie the sidecar's lifetime to this shell's. A Job Object with
+    //! KILL_ON_JOB_CLOSE makes the kernel terminate the child when the last
+    //! handle to the job closes — normal exit, crash, or force-kill. Without
+    //! this, closing the window orphaned the uvicorn listener on 8484.
+    use std::os::windows::io::AsRawHandle;
+    use std::process::Child;
+
+    const JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: u32 = 0x2000;
+    #[repr(C)]
+    struct IoCounters {
+        read_operation_count: u64,
+        write_operation_count: u64,
+        other_operation_count: u64,
+        read_transfer_count: u64,
+        write_transfer_count: u64,
+        other_transfer_count: u64,
+    }
+    #[repr(C)]
+    struct JobObjectExtendedLimitInformation {
+        basic_limit_information: JobObjectBasicLimitInformation,
+        io_info: IoCounters,
+        process_memory_limit: usize,
+        job_memory_limit: usize,
+        peak_process_memory_used: usize,
+        peak_job_memory_used: usize,
+    }
+    #[repr(C)]
+    struct JobObjectBasicLimitInformation {
+        per_process_user_time_limit: i64,
+        per_job_user_time_limit: i64,
+        limit_flags: u32,
+        minimum_working_set_size: usize,
+        maximum_working_set_size: usize,
+        active_process_limit: u32,
+        affinity: usize,
+        priority_class: u32,
+        scheduling_class: u32,
+    }
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn CreateJobObjectW(
+            lpJobAttributes: *mut core::ffi::c_void,
+            lpName: *const u16,
+        ) -> *mut core::ffi::c_void;
+        fn SetInformationJobObject(
+            hJob: *mut core::ffi::c_void,
+            job_object_information_class: i32,
+            lpJobObjectInformation: *mut core::ffi::c_void,
+            cbJobObjectInformation: u32,
+        ) -> i32;
+        fn AssignProcessToJobObject(
+            hJob: *mut core::ffi::c_void,
+            hProcess: *mut core::ffi::c_void,
+        ) -> i32;
+    }
+
+    fn to_wide(value: &str) -> Vec<u16> {
+        value.encode_utf16().chain(std::iter::once(0)).collect()
+    }
+
+    /// Assign `child` to a kill-on-close job. Returns the job handle to keep
+    /// alive for the lifetime of the supervisor; dropping it releases the tie.
+    pub fn bind_child(child: &Child) -> Option<JobHandle> {
+        unsafe {
+            let job = CreateJobObjectW(std::ptr::null_mut(), to_wide("yaatal-os-sidecar").as_ptr());
+            if job.is_null() {
+                return None;
+            }
+            let mut info = JobObjectExtendedLimitInformation {
+                basic_limit_information: JobObjectBasicLimitInformation {
+                    per_process_user_time_limit: 0,
+                    per_job_user_time_limit: 0,
+                    limit_flags: JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+                    minimum_working_set_size: 0,
+                    maximum_working_set_size: 0,
+                    active_process_limit: 0,
+                    affinity: 0,
+                    priority_class: 0,
+                    scheduling_class: 0,
+                },
+                io_info: IoCounters {
+                    read_operation_count: 0,
+                    write_operation_count: 0,
+                    other_operation_count: 0,
+                    read_transfer_count: 0,
+                    write_transfer_count: 0,
+                    other_transfer_count: 0,
+                },
+                process_memory_limit: 0,
+                job_memory_limit: 0,
+                peak_process_memory_used: 0,
+                peak_job_memory_used: 0,
+            };
+            if SetInformationJobObject(
+                job,
+                9, // JobObjectExtendedLimitInformation
+                &mut info as *mut _ as *mut core::ffi::c_void,
+                std::mem::size_of::<JobObjectExtendedLimitInformation>() as u32,
+            ) == 0
+            {
+                return None;
+            }
+            if AssignProcessToJobObject(job, child.as_raw_handle() as *mut _) == 0 {
+                return None;
+            }
+            Some(JobHandle(job))
+        }
+    }
+
+    /// Held, never closed: the kernel closes the job at shell teardown, which
+    /// is what makes KILL_ON_JOB_CLOSE reap the sidecar on any exit path.
+    #[allow(dead_code)]
+    pub struct JobHandle(*mut core::ffi::c_void);
+    // SAFETY: a job handle is a kernel object identifier, not memory; moving it
+    // between threads is safe (Win32 object handles are thread-agnostic).
+    unsafe impl Send for JobHandle {}
+}
+
+#[cfg(not(windows))]
+mod sidecar_lifetime {
+    /// On Unix, the sidecar is in the shell's process group and receives SIGHUP
+    /// on parent exit; a pdeathsig shim remains future work if orphaning is
+    /// observed there. The port_in_use refusal covers stray listeners meanwhile.
+    pub struct JobHandle;
+    pub fn bind_child(_child: &std::process::Child) -> Option<JobHandle> {
+        None
+    }
+}
+
 struct SidecarSupervisor {
     config: SidecarConfig,
     child: Option<Child>,
+    /// Job handle kept alive for exactly as long as the shell owns the child.
+    /// Dropping the supervisor (app teardown) closes the job; with
+    /// KILL_ON_JOB_CLOSE the kernel then reaps the sidecar.
+    job: Option<sidecar_lifetime::JobHandle>,
     state: SidecarState,
     error_code: Option<SidecarErrorCode>,
 }
@@ -211,6 +347,7 @@ impl SidecarSupervisor {
         Self {
             config,
             child: None,
+            job: None,
             state: SidecarState::Stopped,
             error_code: None,
         }
@@ -290,7 +427,12 @@ impl SidecarSupervisor {
                     .map(|(key, value)| (key, value)),
             );
         match command.spawn() {
-            Ok(child) => self.child = Some(child),
+            Ok(child) => {
+                // Best-effort: if binding fails the sidecar still runs, and
+                // the port_in_use refusal plus stop_child cover graceful paths.
+                self.job = sidecar_lifetime::bind_child(&child);
+                self.child = Some(child);
+            }
             Err(_) => {
                 self.state = SidecarState::Failed;
                 self.error_code = Some(SidecarErrorCode::SpawnFailed);
@@ -315,6 +457,7 @@ impl SidecarSupervisor {
     }
 
     fn stop_child(&mut self) {
+        self.job = None;
         if let Some(mut child) = self.child.take() {
             let _ = child.kill();
             let _ = child.wait();
