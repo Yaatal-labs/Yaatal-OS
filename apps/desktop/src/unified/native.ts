@@ -131,9 +131,19 @@ type Request = <T>(command: string, parse: (value: unknown) => T | null, args?: 
 function createRequest(call: Invoke, native: boolean): Request {
   return async function request<T>(command: string, parse: (value: unknown) => T | null, args?: Record<string, unknown>): Promise<T> {
     if (!native) throw new Error("Open the desktop app to use this action.");
-    let raw: unknown; try { raw = await call(command, args); } catch { throw new Error("The desktop service could not complete this request. Check the connection and try again."); }
+    let raw: unknown; try { raw = await call(command, args); } catch (failure) { throw transportError(failure); }
     const result = parse(raw); if (result === null) throw new Error("The desktop service returned an unsupported response."); return result;
   };
+}
+
+/**
+ * Native failures arrive as fixed-contract snake_case codes (e.g. the Engine's
+ * authentication_required). Only those pass through, humanized; anything else —
+ * arbitrary text that could carry a credential fragment — stays masked.
+ */
+export function transportError(failure: unknown): Error {
+  const text = (failure instanceof Error ? failure.message : typeof failure === "string" ? failure : "").trim();
+  return /^[a-z]+(_[a-z]+)*$/.test(text) ? new Error(text.replace(/_/g, " ")) : new Error("The desktop service could not complete this request. Check the connection and try again.");
 }
 
 export function createNativeAdapter(call: Invoke = invoke, native = isTauri()): NativeAdapter {

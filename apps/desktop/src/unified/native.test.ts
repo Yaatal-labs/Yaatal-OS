@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
-import { createNativeAdapter, createWorkspaceAdapter, sanitizeCatalogProduct, sanitizeSession, sanitizeStudioEvent } from "./native";
+import { createNativeAdapter, createWorkspaceAdapter, sanitizeCatalogProduct, sanitizeSession, sanitizeStudioEvent, transportError } from "./native";
 
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 describe("native adapter", () => {
@@ -28,6 +28,14 @@ describe("native adapter", () => {
     let message = "";
     try { await adapter.sessionStatus(); } catch (error) { message = error instanceof Error ? error.message : String(error); }
     expect(message.includes("secret-token")).toBe(false);
+  });
+  it("surfaces fixed-contract error codes humanized, masks everything else", async () => {
+    const adapter = createNativeAdapter(vi.fn().mockRejectedValue(new Error("authentication_required")), true);
+    await expect(adapter.login("awa@example.com", "wrong")).rejects.toThrow("authentication required");
+    expect(transportError(new Error("service_unavailable")).message).toBe("service unavailable");
+    expect(transportError(new Error("Bearer eyJhbGciOi.abc")).message).toContain("could not complete");
+    expect(transportError("state_conflict").message).toBe("state conflict");
+    expect(transportError(new Error("")).message).toContain("could not complete");
   });
   it("sanitizes either event-registration failure and cleans up a partial subscription", async () => {
     const subscribe = createNativeAdapter(vi.fn(), true).subscribe;
