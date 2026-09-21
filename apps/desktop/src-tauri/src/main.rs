@@ -152,6 +152,14 @@ impl SidecarConfig {
         ]
         .into_iter()
         .filter_map(|key| env::var(key).ok().map(|value| (key.to_string(), value)))
+        // The sidecar's own default is the in-Docker hostname (yaatal-engine:8080),
+        // which never resolves on a dev machine. The shell's gateway default is the
+        // public Engine; pin the sidecar to the same value when the operator has
+        // not chosen one, so both surfaces always target the same authority.
+        .chain(std::iter::once((
+            "ENGINE_API_URL".to_string(),
+            env::var("ENGINE_API_URL").unwrap_or_else(|_| "https://engine.njooba.com".to_string()),
+        )))
         .collect();
 
         Ok(Self {
