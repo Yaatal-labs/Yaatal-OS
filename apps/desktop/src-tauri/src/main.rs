@@ -141,6 +141,8 @@ impl SidecarConfig {
             "SYSTEMROOT",
             "WINDIR",
             "ENGINE_API_URL",
+            "ENGINE_API_EMAIL",
+            "ENGINE_API_PASSWORD",
             "HARNESS_URL",
             "STUDIO_CONTROL_TOKEN",
             "STUDIO_DEMO_MODE",
