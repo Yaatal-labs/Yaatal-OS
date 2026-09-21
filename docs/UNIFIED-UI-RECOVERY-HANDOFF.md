@@ -13,6 +13,18 @@ Pushed base before this documentation commit: `8b7b307`
 Date: 2026-09-20 (second checkpoint). Security hardening plus the canonical
 unified launcher, reviewed and gate-verified before push.
 
+### Orphaned sidecar on Windows — known, next hardening item
+
+Closing the native window on 2026-09-20 left the shell-spawned uvicorn child
+alive and holding loopback 8484 (verified: PID listening after the app exited;
+manually killed). `std::process::Child::kill` only runs on graceful teardown —
+it cannot cover process-exit. The `port_in_use` refusal now prevents silent
+adoption, but the shell should additionally place the sidecar in a Windows Job
+Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` so the kernel ties the child's
+lifetime to the shell's, including on crash and force-close. Unix equivalent:
+`prctl(PR_SET_PDEATHSIG)` in a pre-spawn shim. Until then: if a launch fails
+with `port in use`, kill the orphaned `python -m uvicorn` on 8484 and relaunch.
+
 ### Security hardening in this checkpoint
 
 - Commerce intents now require the `engine_live_session` product queue: the
