@@ -103,6 +103,28 @@ describe("unified workspace", () => {
     await userEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(await screen.findByRole("dialog")).toBeTruthy();
   });
+  it("opens the Atelier without an Engine session and keeps it mounted across workspaces", async () => {
+    const atelier = vi.fn(() => <p>Atelier frame</p>);
+    render(<App adapter={adapter()} renderSell={() => <p>Sell shell</p>} renderShop={() => <p>Shop shell</p>} renderAtelier={atelier} />);
+    await screen.findByText("Sell shell");
+    expect(atelier).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Open ATELIER workspace" }));
+    expect(await screen.findByText("Atelier frame")).toBeTruthy();
+    expect(localStorage.getItem("yaatal-os-workspace")).toBe("atelier");
+    const pane = screen.getByText("Atelier frame").closest(".workspace-pane") as HTMLElement;
+    expect(pane.hidden).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Open SHOP workspace" }));
+    expect(await screen.findByText("Shop shell")).toBeTruthy();
+    expect(screen.getByText("Atelier frame").closest(".workspace-pane")).toBe(pane);
+    expect(pane.hidden).toBe(true);
+    expect(pane.hasAttribute("inert")).toBe(true);
+  });
+  it("restores the Atelier as the saved workspace", async () => {
+    localStorage.setItem("yaatal-os-workspace", "atelier");
+    render(<App adapter={adapter()} renderSell={() => <p>Sell shell</p>} renderShop={() => <p>Shop shell</p>} renderAtelier={() => <p>Atelier frame</p>} />);
+    expect(await screen.findByText("Atelier frame")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open ATELIER workspace" }).getAttribute("aria-current")).toBe("page");
+  });
   it("keeps theme and locale controls reachable at a narrow viewport", async () => {
     const originalWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 320 });

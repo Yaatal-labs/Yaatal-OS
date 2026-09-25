@@ -1,4 +1,4 @@
-export type Workspace = "sell" | "shop";
+export type Workspace = "sell" | "shop" | "atelier";
 export type Theme = "light" | "dark";
 export type ThemePreference = Theme | "system";
 export const THEME_KEY = "yaatal-os-theme";

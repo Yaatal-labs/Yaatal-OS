@@ -26,6 +26,18 @@ launch reports only a bounded error code to Sell.
 `http://127.0.0.1:5173` if it is invalid or contains a token/JWT/secret query
 parameter. It must never contain credentials.
 
+### Atelier
+
+The third workspace, ATELIER, embeds the Yaatal Cloudflare OS (`apps/cloudflare-os`), where the agent
+creates Gadgets and Blueprints and a person reviews them before they are accepted. Start it with
+`pnpm run-local` in the pinned checkout (see `apps/cloudflare-os/README.md`); the shell shows how to
+start it when it is not reachable.
+
+`VITE_YAATAL_OS_ATELIER_URL` defaults to `http://localhost:8787/`. It must be HTTPS, or HTTP on
+loopback only; credentials, query strings and fragments are rejected or dropped. The Atelier is a
+cross-origin, sandboxed frame with no referrer and no Tauri capability, so it has no IPC access; it
+keeps its own sign-in. It needs no Engine session and stays mounted while you switch workspaces.
+
 ## Verify
 
 ```powershell
