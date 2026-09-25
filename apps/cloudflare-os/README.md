@@ -13,7 +13,9 @@ business data, payments and inference policy.
 | Path | Purpose |
 | --- | --- |
 | `upstream.json` | Pinned starter and upstream commits, and the required toolchain |
-| `scripts/bootstrap.sh` | Clones the starter at the pin and checks out the pinned upstream |
+| `scripts/bootstrap.sh` | Clones the starter at the pin, checks out the pinned upstream, runs the overlay |
+| `scripts/overlay.sh` | Copies `gatekeepers/*` into a checkout's upstream `packages/` (re-run after edits) |
+| `gatekeepers/gatekeeper-yaatal` | Read-only Engine catalog for agents and Gadgets, pinned to one merchant |
 | `yaatal/admin-settings.json` | Yaatal identity: site name, accent, announcement, agent instructions |
 | `yaatal/apply-admin.mjs` | Applies the settings through the Admin API and verifies each field |
 | `yaatal/lib.mjs` | Shared RPC sign-in and helpers (same Cap'n Web API the UI uses) |
@@ -53,6 +55,52 @@ node yaatal/apply-admin.mjs
 MODELS=@cf/nvidia/nemotron-3-120b-a12b node yaatal/smoke/agent-build.mjs
 node yaatal/smoke/review-changes.mjs <workspaceId>
 node yaatal/smoke/publish-blueprint.mjs <workspaceId> --title "Yaatal · Live-sale prep card" --accept
+```
+
+## Engine catalog Gatekeeper
+
+`gatekeepers/gatekeeper-yaatal` gives agents and Gadgets the products of **one** Yaatal shop, read-only:
+
+```ts
+interface YaatalCatalogSession {
+  listProducts(options?: { page?: number; category?: string }): Promise<CatalogPage>;
+  getProduct(productId: string): Promise<CatalogProduct>;
+}
+```
+
+It returns the unified shell's `CatalogProduct` / `CatalogPage` shapes, read from Engine's public
+`GET /api/catalog` (active products only).
+
+- **The deployment chooses the shop, never the model.** `YAATAL_MERCHANT_ID` is configuration and no
+  method takes a merchant. A row from another merchant fails the whole read; another merchant's
+  product id reads as "Product not found", the same as a missing one.
+- **Validated both ways.** Product ids are checked before they reach a URL; Engine must answer 200
+  JSON within 8 s and 1 MB with no redirect; image URLs with credentials or non-HTTP schemes are
+  dropped; fields outside the DTO are not passed on.
+- **Every read is an observation first.** If the person declines it, Engine is never called.
+- **Unconfigured means unavailable.** Missing or unsafe settings raise "Yaatal catalog unavailable";
+  agents are told to say so rather than invent products, prices or stock.
+- **Text is plain text.** Gadgets must escape names and descriptions before putting them in HTML.
+
+Every user sees the same public catalog, so every observer may keep what it reads. Private reads
+(inactive products, orders) need a per-user Engine sign-in and observer verification first; they are
+not part of this Gatekeeper.
+
+Configure it locally in `<starter>/cloudflare-os/packages/gatekeeper-yaatal/.dev.vars` (untracked):
+
+```sh
+YAATAL_ENGINE_URL=https://engine.example.com/   # HTTPS; plain HTTP only on localhost/127.0.0.1/[::1]
+YAATAL_MERCHANT_ID=<merchant profile id>
+```
+
+After `bootstrap.sh` (or `overlay.sh` on an existing checkout), in `<starter>/cloudflare-os`:
+
+```sh
+pnpm install
+pnpm --filter @yaatal/gatekeeper-yaatal run types:generate
+pnpm --filter @yaatal/gatekeeper-yaatal run types:check
+pnpm --filter @yaatal/gatekeeper-yaatal run test:run    # denial and leak tests, in workerd
+pnpm run-local
 ```
 
 ## Observed on the pin (local run, Workers AI free tier)
