@@ -59,7 +59,7 @@ Phase 0 produced local read-only evidence and this plan update. Subsequent phase
 
 ### Phase 1 — Isolated pinned upstream run (after authorization)
 1. Reuse an existing checkout if suitable; otherwise create the separately scoped sandbox from a pinned `cloudflare-os-starter` revision, then `git submodule update --init`. Record both revisions.
-2. Prefer the isolated local Docker environment above. From the starter root, `pnpm --dir cloudflare-os run-local` runs the UPSTREAM script (not a starter script) and installs/builds dependencies. First verify its pinned container bind/dependency requirements; containerization is an untested setup step, not a reason to rebuild the product. Do not confuse local-dev execution with production workerd deployment.
+2. From the starter root, `pnpm --dir cloudflare-os run-local` runs the UPSTREAM script (not a starter script) and installs/builds dependencies. Uses the sandbox-local toolchain — no Docker, no global Node change. Do not confuse local-dev execution with production workerd deployment.
 3. Browser smoke: the actual logged loopback URL loads, sign-in works and `/admin` is limited to the intended administrator. Do not assume a fresh account is already admin.
 4. Agent smoke: select an authorized working model and complete one non-sensitive task; do not claim a default provider is already usable.
 5. Record actual outputs, not mocks.
