@@ -1,10 +1,31 @@
-# Studio Pi Copilot Pilot — r4 UPSTREAM-FIRST YAATAL ADAPTATION
+# Studio Pi Copilot Pilot — r5 UPSTREAM-FIRST YAATAL ADAPTATION
 
-> **Fresh-session entry.** Read this file, then report scope and gate before acting. Phase 0 read-only preflight was authorized and completed; results are below. Local setup, paid model calls and deployment still require their own scope/branch/write-set briefing and approval. No publish from unmerged branches.
+> **Fresh-session entry.** Read this file, then report scope and gate before acting. Phases 0–2 are complete (see **r5 status**); Phase 3 is next. Local setup, paid model calls and deployment still require their own scope/branch/write-set briefing and approval. No publish from unmerged branches.
 
 - Branch: `yaatal/studio-pi-copilot-pilot` · Worktree: `C:/tmp/yaatal-studio-pi-copilot` · Base: `0b989cce4c56586d6604d495bffb568959980669`
-- Plan revision: 2026-09-24 **r4** (upstream-first). Supersedes r3. Archive at `C:/tmp/pi-pilot-research/STUDIO-PI-COPILOT-PILOT.r3.archive.md`.
+- Plan revision: 2026-09-25 **r5** (status refresh + Phase 3 design). r4 (2026-09-24) superseded r3. Archive at `C:/tmp/pi-pilot-research/STUDIO-PI-COPILOT-PILOT.r3.archive.md`.
 - Live state, open blocker and exact next commands: [`../CFOS-ADAPTATION-CHECKPOINT-HANDOFF.md`](../CFOS-ADAPTATION-CHECKPOINT-HANDOFF.md).
+
+## r5 status (2026-09-25)
+
+| Phase | State | Evidence |
+|---|---|---|
+| 0 Preflight | Done | pnpm resolution fixed with a clean-environment sandbox wrapper (sandbox-local, no global change) |
+| 1 Pinned upstream run | Done | Starter `3d211477`, upstream `a43210a7` (the starter's own pin `6478a144` predates `packages/workshop-evals`). Admin-only `/admin` verified. Agent turns on the **Workers AI free tier** through AI Gateway (`--use-workers-ai-binding`, no provider keys) |
+| 2 Identity + one Blueprint | Done except logo | `apps/cloudflare-os/yaatal/admin-settings.json` applied; in-OS agent built a live-sale prep Gadget, one review note fixed a blank UI and unescaped HTML, published as a featured Blueprint |
+| 3 Read-only Engine Gatekeeper | **Next** (U-02) | Design below |
+| 4 A/B | Started | Round M1 compared models on one prompt: `nemotron-3-super` is the default brain (only one to finish clean after review). Workers AI multi-turn 400s on some models are upstream issue #54 |
+
+**Added since r4** (same upstream-first rule): the Atelier workspace embeds this OS in the unified Tauri shell as a sandboxed frame with no IPC (branch `yaatal/atelier-workspace`); the shell may later supervise the local server (U-03). Hosted deploy + PWA through the starter router stays behind an explicit deploy approval (U-04). French voice (`@cloudflare/voice`) is a separate later track.
+
+### Phase 3 design (U-02): `gatekeeper-yaatal`
+
+- **Shape.** A singleton, auto-provisioned, credential-free Gatekeeper package. Locally it is discovered like every upstream `packages/gatekeeper-*`; hosted, it fills the starter's `customGatekeeper` slot.
+- **Surface.** `listProducts({ page?, category? })` and `getProduct(productId)` returning the shell's `CatalogProduct` / `CatalogPage` DTOs. **No merchant parameter exists**: the merchant is pinned by deployment configuration (`YAATAL_MERCHANT_ID`), never by the model or the signed-in email.
+- **Source.** Engine's public `GET /api/catalog` (active products only) filtered by the pinned merchant. Every returned row is checked against that merchant; a foreign row fails the read, and a foreign product id reads as not found.
+- **Hardening.** Product ids are validated before they reach a URL path; HTTPS (or loopback HTTP) only; no redirects; timeout and size caps; image URLs with credentials or non-HTTP schemes dropped. Every read is recorded as an observation first; a declined observation makes no request. Unconfigured means *unavailable*, never invented data.
+- **Observers.** The data is the pinned merchant's public catalog, identical for every user, so all observers may retain it. **Private reads** (inactive products, orders, the merchant JWT) are **U-02b**: per-user Engine sign-in, observer verification and denial tests before any real data.
+- **Gate.** Denial/leak tests pass before the Gatekeeper is pointed at a real Engine.
 
 ## What changed from r3
 
@@ -54,7 +75,7 @@ Phase 0 produced local read-only evidence and this plan update. Subsequent phase
 - No identifiable Cloudflare OS, full Engine API or Studio application image was found in the local inventory. Existing stopped databases have unknown data provenance and must remain untouched.
 - **Decision (2026-09-25):** there is no upstream Cloudflare OS image (no Dockerfile, compose or devcontainer; `run-local` uses wrangler/workerd on the host). A self-built dev container was proposed and the base-image pull was declined, so the chosen path is **portable sandbox-local tooling**: Node `v24.21.0` + pnpm `11.17.0` under `C:/tmp/yaatal-cloudflare-os-eval/.toolchain/`, activated by `.toolchain/env.sh`. No global Windows toolchain change.
 - Sandbox pin recorded: starter `3d211477ad009e13a98d863d843e5c12a29ad02b`, upstream submodule `6478a1448a11524e2f7c2575ad66fab0bc47c433`. `.toolchain/` is untracked scratch and must never be committed.
-- **Open blocker:** pnpm does not resolve/execute correctly in the sandbox toolchain (PATH precedence picks the global shim; the global shim then fails with `0xC0000142` and re-invokes itself). Root cause unconfirmed. Fix must stay sandbox-local. See the handoff document, section 5.
+- **Resolved 09-25 (was the open blocker):** pnpm did not resolve/execute correctly in the sandbox toolchain (PATH precedence picks the global shim; the global shim then fails with `0xC0000142` and re-invokes itself). Root cause unconfirmed. Fix must stay sandbox-local. See the handoff document, section 5.
 - Proposed source path remains `C:/tmp/yaatal-cloudflare-os-eval/`, branch `yaatal/cloudflare-os-adaptation`. In addition to checkout/build/cache/runtime files, Docker setup writes explicitly named test images/containers/network/volumes; list these before launch. No existing volume reuse, privileged/host networking or Docker socket mounts. Bind only a checked free `127.0.0.1` port. No global Pi install or VPS mutation. Pull/build/launch approval remains pending; this gate performed inventory only.
 
 ### Phase 1 — Isolated pinned upstream run (after authorization)
