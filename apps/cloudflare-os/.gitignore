@@ -1,0 +1,3 @@
+# Local credentials and run artifacts never belong in the repo
+*creds*.json
+agent-build-*.json
