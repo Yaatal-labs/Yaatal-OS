@@ -2,6 +2,8 @@
 // from a prepaid balance. Clients (the Yaatal OS, apps built on it, agencies' own code) use a Yaatal
 // key; upstream keys never leave this Worker, and nothing identifying the customer goes upstream.
 //
+//   GET  /                              public page: offer, FCFA prices, quickstart, data handling
+//   GET  /usage                         usage page (the key stays in the browser tab)
 //   GET  /v1/models                     models and their FCFA prices
 //   POST /v1/chat/completions           OpenAI chat completions, streaming or not
 //   GET  /v1/balance                    the key's balance and recent ledger rows
@@ -15,9 +17,10 @@
 import { MODELS, costOf, findModel, type ModelOffer } from "./models.js";
 import { UnknownAccountError, accountForKey, createAccount, createKey, credit, debitUsage, recentLedger, revokeKey } from "./ledger.js";
 import { callUpstreams, type UpstreamEnv } from "./upstream.js";
+import { home, usage, type SiteEnv } from "./site.js";
 import { countStream, requestCharacters, usageFrom, generatedCharacters, estimateTokens } from "./usage.js";
 
-export interface Env extends UpstreamEnv {
+export interface Env extends UpstreamEnv, SiteEnv {
   DB: D1Database;
   ADMIN_TOKEN?: string;
 }
@@ -31,6 +34,8 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     try {
+      if (url.pathname === "/" && request.method === "GET") return home(request, env);
+      if (url.pathname === "/usage" && request.method === "GET") return usage();
       if (url.pathname === "/v1/models" && request.method === "GET") return models();
       if (url.pathname === "/v1/chat/completions" && request.method === "POST") return await chat(request, env, ctx);
       if (url.pathname === "/v1/balance" && request.method === "GET") return await balance(request, env);
