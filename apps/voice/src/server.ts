@@ -94,13 +94,14 @@ export class YaatalVoice extends VoiceAgent<Env> {
         ? "Votre solde Yaatal est épuisé. Rechargez-le pour continuer."
         : "Je n'arrive pas à joindre le modèle pour le moment. Réessayez dans un instant.";
     }
-    const playground = this.env.PLAYGROUND_URL.replace(/\/+$/, "");
+    // No public Playground yet: send the brief alone and let the page offer to copy it.
+    const playground = (this.env.PLAYGROUND_URL ?? "").trim().replace(/\/+$/, "");
     const deltas = chatDeltas(response, { reasoningIsAnswer: this.env.VOICE_REASONING_IS_ANSWER === "true" });
     return speakAndCaptureBrief(deltas, brief => {
       context.connection.send(JSON.stringify({
         type: "playground_brief",
         brief,
-        url: `${playground}/?prompt=${encodeURIComponent(brief)}`,
+        ...(playground ? { url: `${playground}/?prompt=${encodeURIComponent(brief)}` } : {}),
       }));
     });
   }

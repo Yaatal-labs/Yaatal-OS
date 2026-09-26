@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { useVoiceAgent } from "agents/voice/react";
 import "./styles.css";
 
-type Brief = { brief: string; url: string };
+type Brief = { brief: string; url?: string };
 
 const STATUS_LABEL: Record<string, string> = {
   idle: "Appuyez pour parler",
@@ -25,9 +25,12 @@ function sessionId(): string {
 }
 
 function isBrief(value: unknown): value is Brief & { type: "playground_brief" } {
+  // A brief comes with a Playground link only when a public Playground is configured.
   if (!value || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
-  if (v.type !== "playground_brief" || typeof v.brief !== "string" || typeof v.url !== "string") return false;
+  if (v.type !== "playground_brief" || typeof v.brief !== "string") return false;
+  if (v.url === undefined) return true;
+  if (typeof v.url !== "string") return false;
   try {
     const url = new URL(v.url);
     return url.protocol === "https:" || (url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname));
@@ -128,7 +131,9 @@ function App() {
           <section className="brief" aria-label="Consigne prête">
             <p className="kicker">Consigne prête</p>
             <p className="brief-text">{brief.brief}</p>
-            <a className="btn" href={brief.url}>Ouvrir dans le Playground</a>
+            {brief.url
+              ? <a className="btn" href={brief.url}>Ouvrir dans le Playground</a>
+              : <button type="button" className="btn" onClick={() => { void navigator.clipboard?.writeText(brief.brief); }}>Copier la consigne</button>}
           </section>
         )}
 
