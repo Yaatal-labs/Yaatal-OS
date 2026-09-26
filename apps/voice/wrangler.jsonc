@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "yaatal-voice",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/server.ts",
+  // Workers AI for the ears (Nova-3, French) and the mouth (MeloTTS, French). No provider keys.
+  "ai": { "binding": "AI", "remote": true },
+  "durable_objects": {
+    "bindings": [{ "class_name": "YaatalVoice", "name": "YaatalVoice" }]
+  },
+  "migrations": [{ "new_sqlite_classes": ["YaatalVoice"], "tag": "v1" }],
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/agents/*"]
+  },
+  "vars": {
+    // The brain: the Yaatal API (OpenAI-compatible), so voice turns are metered in FCFA.
+    "YAATAL_API_URL": "http://127.0.0.1:8790",
+    "VOICE_MODEL": "yaatal/llama-3.3-70b",
+    // Where the "Ouvrir dans le Playground" button sends the build prompt.
+    "PLAYGROUND_URL": "http://localhost:8787"
+  }
+  // Secret: YAATAL_API_KEY (a Yaatal key; .dev.vars locally, wrangler secret put in production)
+}
