@@ -363,3 +363,14 @@ describe("playground hand-off", () => {
     expect(html).not.toContain("/blueprint/");
   });
 });
+
+describe("photos", () => {
+  it("shows real photos only alongside their licence credits", async () => {
+    const html = await (await call("/")).text();
+    for (const img of ["market", "wax", "tailor", "ngor"]) expect(html).toContain(`/img/${img}.webp`);
+    for (const credit of ["Sanghesenegalafrica", "Lucas Takerkart", "dimworld", "GuillaumeG", "CC BY-SA 4.0", "CC BY 2.0"]) {
+      expect(html).toContain(credit);
+    }
+    expect(html).not.toMatch(/<img(?![^>]*\balt=")[^>]*>/);
+  });
+});

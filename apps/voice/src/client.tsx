@@ -94,6 +94,7 @@ function App() {
         <span className={`dot ${connected ? "on" : ""}`}>{connected ? "Connecté" : "Connexion…"}</span>
       </header>
 
+      <div className="band" role="img" aria-label="Rouleaux de tissus wax colorés" />
       <main className="main">
         <h1>Dites ce que vous voulez construire.</h1>
         <p className="lede">Parlez en français. Yaatal vous pose quelques questions, puis prépare la consigne pour le Playground.</p>
@@ -145,6 +146,7 @@ function App() {
           <button className="btn ghost" type="submit" disabled={!connected || !text.trim()}>Envoyer</button>
         </form>
         <p className="note">Prototype : écoute et voix en français. Chaque réponse est décomptée en FCFA sur l'API Yaatal.</p>
+        <p className="credit">Photo : Lucas Takerkart, Wikimedia Commons, CC BY-SA 4.0.</p>
       </main>
     </div>
   );

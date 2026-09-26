@@ -170,6 +170,21 @@ h1 em{font-style:normal;color:var(--accent-strong)}
 .chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:18px auto 0;max-width:820px}
 .chip{min-height:40px;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:8px 14px;font:500 .9rem "Instrument Sans",sans-serif;cursor:pointer;transition:border-color .2s,background-color .2s}
 .chip:hover{border-color:var(--accent);background:var(--card)}
+.eyebrow{display:inline-block;font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-strong);margin-bottom:18px}
+.scribble{position:relative;white-space:nowrap}.scribble svg{position:absolute;left:-2%;bottom:-.12em;width:104%;height:.32em;overflow:visible}
+.people{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:18px;align-items:end;margin-top:8px}
+.people figure{margin:0;position:relative}
+.people img{display:block;width:100%;height:100%;object-fit:cover;border-radius:18px;box-shadow:var(--shadow)}
+.people figure:nth-child(1){transform:rotate(-2deg)}.people figure:nth-child(1) img{aspect-ratio:4/5}
+.people figure:nth-child(2) img{aspect-ratio:16/10}
+.people figure:nth-child(3){transform:rotate(2deg)}.people figure:nth-child(3) img{aspect-ratio:4/3}
+.people figcaption{font-size:.82rem;color:var(--muted);margin-top:8px}
+.pay{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:center;margin-bottom:36px}
+.pay img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:18px;box-shadow:var(--shadow)}
+.pay figure{margin:0}.pay figcaption{font-size:.82rem;color:var(--muted);margin-top:8px}
+.credits{font-size:.78rem;color:var(--muted);max-width:60rem}
+@media (max-width:900px){.people{grid-template-columns:1fr 1fr}.people figure:nth-child(2){grid-column:1/-1;order:-1}.pay{grid-template-columns:1fr}}
+@media (max-width:600px){.people figure{transform:none!important}}
 .trust{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 28px;margin-top:36px;color:var(--muted);font-size:.92rem}
 .trust span{display:inline-flex;align-items:center;gap:8px}.trust i{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block}
 section{padding-top:88px;padding-bottom:88px}
@@ -260,7 +275,7 @@ function page(title: string, body: string, options: { script?: string; formActio
     "default-src 'none'",
     "style-src 'unsafe-inline' https://fonts.googleapis.com",
     "font-src https://fonts.gstatic.com",
-    "img-src data:",
+    "img-src 'self' data:",
     "connect-src 'self'",
     scriptNonce ? `script-src 'nonce-${scriptNonce}'` : "",
     `form-action ${options.formAction ?? "'none'"}`,
@@ -322,11 +337,23 @@ export function home(request: Request, env: SiteEnv): Response {
 ${topNav(playground, contact)}
 <main id="main">
 <div class="wrap hero">
-  <h1 class="reveal d1">De l'idée à l'outil <em>qui tourne</em>.</h1>
+  <span class="eyebrow reveal">Dalal ak jàmm · fait à Dakar</span>
+  <h1 class="reveal d1">De l'idée à l'outil <em class="scribble">qui tourne<svg viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8c30-5 62-6 96-4 32 2 66 1 100-3" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></em>.</h1>
   <p class="lede reveal d2">Site marchand, assistant WhatsApp, tableau de bord ou boîtier ESP32 : décrivez-le, Yaatal le construit avec vous. Chaque appel d'IA se paie en FCFA.</p>
   ${ask}
   <div class="trust reveal d4"><span><i></i>Français et wolof</span><span><i></i>Paiement en FCFA, sans carte internationale</span><span><i></i>API compatible OpenAI</span></div>
 </div>
+
+<section id="gens" style="padding-top:24px"><div class="wrap">
+  <p class="kicker">Pour qui</p>
+  <h2>Pour celles et ceux qui vendent déjà.</h2>
+  <p class="sub">Couturières, commerçantes, vendeurs de rue : le travail se fait déjà sur WhatsApp et au marché. Yaatal part de là et en fait des outils, sans carte bancaire ni jargon.</p>
+  <div class="people">
+    <figure><img src="/img/market.webp" alt="Une commerçante trie des graines dans des paniers devant son étal." loading="lazy" width="1000" height="1153"><figcaption>Commerce de rue, Sénégal</figcaption></figure>
+    <figure><img src="/img/wax.webp" alt="Des rouleaux de tissus wax aux motifs colorés empilés sur des étagères." loading="lazy" width="1400" height="786"><figcaption>Tissus wax</figcaption></figure>
+    <figure><img src="/img/tailor.webp" alt="Une couturière coud un tissu wax orange et blanc à la machine." loading="lazy" width="1000" height="750"><figcaption>Couturière au Sénégal</figcaption></figure>
+  </div>
+</div></section>
 
 <section id="modeles"><div class="wrap">
   <p class="kicker">Modèles</p>
@@ -409,8 +436,13 @@ reply = yaatal.chat.completions.create(
 
 <section id="tarifs"><div class="wrap">
   <p class="kicker">Tarifs</p>
-  <h2>Vous payez ce que vous consommez, en FCFA.</h2>
-  <p class="sub">Le prix se compte en jetons, les morceaux de texte que le modèle lit et écrit. Un appel qui échoue n'est pas facturé. Pendant la bêta, les recharges se font avec notre équipe.</p>
+  <div class="pay">
+    <div>
+      <h2>Vous payez ce que vous consommez, en FCFA.</h2>
+      <p class="sub" style="margin-bottom:0">Recharger Yaatal doit être aussi simple qu'acheter du crédit au coin de la rue. Le prix se compte en jetons, les morceaux de texte que le modèle lit et écrit, et un appel qui échoue n'est pas facturé. Pendant la bêta, les recharges se font avec notre équipe.</p>
+    </div>
+    <figure><img src="/img/ngor.webp" alt="Deux jeunes vendeurs de recharges téléphoniques au bord d'une route." loading="lazy" width="1200" height="800"><figcaption>Vendeurs de recharges téléphoniques, Ngor, Dakar</figcaption></figure>
+  </div>
   <div class="table-wrap"><table>
     <thead><tr><th>Modèle</th><th>Gamme</th><th class="num">Entrée · FCFA / 1M jetons</th><th class="num">Sortie · FCFA / 1M jetons</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
@@ -443,7 +475,8 @@ reply = yaatal.chat.completions.create(
   </div>
 </div></section>
 </main>
-<footer class="wrap"><span>© Yaatal · Dakar</span><span><a href="/usage">Consommation</a> · <a href="/v1/models">Modèles</a> · Bêta</span></footer>`;
+<footer class="wrap"><span>© Yaatal · Dakar</span><span><a href="/usage">Consommation</a> · <a href="/v1/models">Modèles</a> · Bêta</span>
+<p class="credits">Photos, Wikimedia Commons : Sanghesenegalafrica (CC BY-SA 4.0), Lucas Takerkart (CC BY-SA 4.0), dimworld (CC BY 2.0), GuillaumeG (CC BY-SA 4.0).</p></footer>`;
 
   const script = playground ? `
 const box = document.getElementById("prompt");

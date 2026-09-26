@@ -9,8 +9,11 @@ a{color:inherit}
 .logo{display:flex;align-items:center;gap:10px;font:800 1.2rem "Bricolage Grotesque",sans-serif;text-decoration:none;letter-spacing:-.03em}
 .dot{font-size:.85rem;color:var(--muted);display:inline-flex;align-items:center;gap:8px}
 .dot::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--line)}.dot.on::before{background:#1f7a4d}
+.band{height:180px;margin:0 16px;border-radius:24px;background:url(/wax.webp) center 40%/cover;position:relative;overflow:hidden;max-width:1080px;width:calc(100% - 32px);align-self:center}
+.band::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,color-mix(in srgb,var(--paper) 35%,transparent))}
+.credit{font-size:.75rem;color:var(--muted);margin-top:6px}
 .main{flex:1;max-width:720px;width:100%;margin:0 auto;padding:24px 16px 48px;text-align:center}
-h1{font:800 clamp(1.9rem,5vw,3rem)/1.05 "Bricolage Grotesque",sans-serif;letter-spacing:-.03em;margin:24px 0 12px}
+h1{font:800 clamp(1.9rem,5vw,3rem)/1.05 "Bricolage Grotesque",sans-serif;letter-spacing:-.03em;margin:28px 0 12px}
 .lede{color:var(--muted);margin:0 auto;max-width:34rem}
 .call{margin:40px 0 24px;display:flex;flex-direction:column;align-items:center;gap:14px}
 .mic{width:112px;height:112px;border-radius:50%;border:0;background:var(--ink);color:var(--paper);display:grid;place-items:center;cursor:pointer;transition:background-color .2s,box-shadow .12s}
