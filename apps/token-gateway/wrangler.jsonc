@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "yaatal-token-gateway",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  // Workers AI, reached through AI Gateway over the binding: no provider key needed.
+  "ai": { "binding": "AI", "remote": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "yaatal-token-gateway",
+      // Local development only. A deployment replaces this with its own database id.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    // AI Gateway used for Workers AI calls over the binding.
+    "AI_GATEWAY_ID": "default"
+  },
+  // Secrets (wrangler secret put, or .dev.vars locally):
+  //   ADMIN_TOKEN        bearer token for /admin/* (account, key and credit management)
+  //   UPSTREAM_API_KEY   key for "openai"-kind upstreams, when a model uses one
+  "observability": { "enabled": true }
+}
