@@ -5,7 +5,7 @@
 // The target models (Qwen3-Omni, Nemotron VoiceChat) replace these parts after the post-tuning bake-off.
 import { Agent, routeAgentRequest, type Connection } from "agents";
 import { withVoice, WorkersAINova3STT, type TTSProvider, type VoiceTurnContext } from "agents/voice";
-import { BRIEF_MARKER, chatDeltas, speakAndCaptureBrief } from "./stream.ts";
+import { BRIEF_MARKER, chatDeltas, speakAndCaptureBrief, speakable } from "./stream.ts";
 
 export interface Env {
   AI: Ai;
@@ -13,12 +13,14 @@ export interface Env {
   YAATAL_API_URL: string;
   YAATAL_API_KEY?: string;
   VOICE_MODEL: string;
+  /** "true" for models whose answer arrives in `reasoning` once thinking is disabled (Nemotron). */
+  VOICE_REASONING_IS_ANSWER?: string;
   PLAYGROUND_URL: string;
 }
 
 const SYSTEM_PROMPT = `Tu es l'assistant vocal de Yaatal, une plateforme de Dakar où l'on construit des sites, des outils, des assistants WhatsApp et des objets connectés avec des agents d'IA.
 
-Tu parles, tu n'écris pas : réponds en français, en une ou deux phrases courtes, sans liste, sans markdown, sans émoji.
+Tu parles, tu n'écris pas : réponds en français, en une ou deux phrases courtes. Jamais de liste, de titre, de markdown, d'émoji ni de proposition de nom de site : pose ta question et arrête-toi.
 
 Ton rôle : aider la personne à décrire ce qu'elle veut construire. Pose une seule question à la fois : quoi, pour qui, et les détails qui manquent (nom de la boutique, produits, langue, numéro WhatsApp). Ne donne jamais de prix ni de stock que la personne n'a pas donnés. Tu ne gères aucun paiement.
 
@@ -64,6 +66,10 @@ export class YaatalVoice extends VoiceAgent<Env> {
     return false;
   }
 
+  beforeSynthesize(text: string): string | null {
+    return speakable(text);
+  }
+
   async onTurn(transcript: string, context: VoiceTurnContext) {
     const response = await fetch(`${this.env.YAATAL_API_URL.replace(/\/+$/, "")}/v1/chat/completions`, {
       method: "POST",
@@ -73,6 +79,8 @@ export class YaatalVoice extends VoiceAgent<Env> {
         model: this.env.VOICE_MODEL,
         stream: true,
         max_tokens: 600,
+        // Voice cannot wait for a reasoning phase: answer directly.
+        chat_template_kwargs: { enable_thinking: false },
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           ...context.messages.map(m => ({ role: m.role, content: m.content })),
@@ -87,7 +95,8 @@ export class YaatalVoice extends VoiceAgent<Env> {
         : "Je n'arrive pas à joindre le modèle pour le moment. Réessayez dans un instant.";
     }
     const playground = this.env.PLAYGROUND_URL.replace(/\/+$/, "");
-    return speakAndCaptureBrief(chatDeltas(response), brief => {
+    const deltas = chatDeltas(response, { reasoningIsAnswer: this.env.VOICE_REASONING_IS_ANSWER === "true" });
+    return speakAndCaptureBrief(deltas, brief => {
       context.connection.send(JSON.stringify({
         type: "playground_brief",
         brief,

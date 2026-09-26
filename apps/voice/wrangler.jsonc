@@ -17,7 +17,9 @@
   "vars": {
     // The brain: the Yaatal API (OpenAI-compatible), so voice turns are metered in FCFA.
     "YAATAL_API_URL": "http://127.0.0.1:8790",
-    "VOICE_MODEL": "yaatal/llama-3.3-70b",
+    "VOICE_MODEL": "yaatal/nemotron-3-super",
+    // Nemotron streams its answer in `reasoning` once thinking is off (Workers AI parser quirk).
+    "VOICE_REASONING_IS_ANSWER": "true",
     // Where the "Ouvrir dans le Playground" button sends the build prompt.
     "PLAYGROUND_URL": "http://localhost:8787"
   }
