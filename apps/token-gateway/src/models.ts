@@ -70,20 +70,21 @@ function offer(
 
 const PAID = { paidPlan: true } as const;
 
-// Costs are Workers AI list prices (USD per million tokens, catalog of 2026-09-26), newest first.
+// Costs are Workers AI list prices (USD per million tokens, catalog of 2026-09-26). Order is display
+// order: the frontier models people ask for first, the older open models last.
 // Checked on 2026-09-26 against a Workers Free account: models marked PAID answer 403 there.
 export const MODELS: readonly ModelOffer[] = [
-  offer("yaatal/qwen3.8-27b", "standard", [WORKERS_AI("@cf/qwen/qwen3.8-27b")], { input: 0.45, output: 3.2 }),
-  offer("yaatal/gemma-4-26b", "standard", [WORKERS_AI("@cf/google/gemma-4-26b-a4b-it")], { input: 0.1, output: 0.3 }),
-  offer("yaatal/nemotron-3-super", "standard", [WORKERS_AI("@cf/nvidia/nemotron-3-120b-a12b")], { input: 0.5, output: 1.5 }),
-  offer("yaatal/llama-3.3-70b", "standard", [WORKERS_AI("@cf/meta/llama-3.3-70b-instruct-fp8-fast")], { input: 0.293, output: 2.253 }),
-  offer("yaatal/glm-5.3-flash", "standard", [WORKERS_AI("@cf/zai-org/glm-5.3-flash")], { input: 0.15, output: 0.5 }, PAID),
-  offer("yaatal/deepseek-v4-flash", "standard", [WORKERS_AI("@cf/deepseek-ai/deepseek-v4-flash-0731")], { input: 0.44, output: 1.32 }, PAID),
+  offer("yaatal/kimi-k2.7-code", "reasoning", [WORKERS_AI("@cf/moonshotai/kimi-k2.7-code")], { input: 0.95, output: 4 }, PAID),
   offer("yaatal/glm-5.3", "reasoning", [WORKERS_AI("@cf/zai-org/glm-5.3")], { input: 1.4, output: 4.4 }, PAID),
   offer("yaatal/deepseek-v4-pro", "reasoning", [WORKERS_AI("@cf/deepseek-ai/deepseek-v4-pro-0813")], { input: 1.32, output: 3.96 }, PAID),
-  offer("yaatal/kimi-k2.7-code", "reasoning", [WORKERS_AI("@cf/moonshotai/kimi-k2.7-code")], { input: 0.95, output: 4 }, PAID),
+  offer("yaatal/qwen3.8-27b", "standard", [WORKERS_AI("@cf/qwen/qwen3.8-27b")], { input: 0.45, output: 3.2 }),
+  offer("yaatal/deepseek-v4-flash", "standard", [WORKERS_AI("@cf/deepseek-ai/deepseek-v4-flash-0731")], { input: 0.44, output: 1.32 }, PAID),
+  offer("yaatal/glm-5.3-flash", "standard", [WORKERS_AI("@cf/zai-org/glm-5.3-flash")], { input: 0.15, output: 0.5 }, PAID),
+  offer("yaatal/nemotron-3-super", "standard", [WORKERS_AI("@cf/nvidia/nemotron-3-120b-a12b")], { input: 0.5, output: 1.5 }),
   offer("yaatal/glm-4.7-flash", "micro",
     [WHOLESALE("glm-4.7-flash"), WORKERS_AI("@cf/zai-org/glm-4.7-flash")], { input: 0.0605, output: 0.4 }),
+  offer("yaatal/gemma-4-26b", "standard", [WORKERS_AI("@cf/google/gemma-4-26b-a4b-it")], { input: 0.1, output: 0.3 }),
+  offer("yaatal/llama-3.3-70b", "standard", [WORKERS_AI("@cf/meta/llama-3.3-70b-instruct-fp8-fast")], { input: 0.293, output: 2.253 }),
   offer("yaatal/granite-4.0-micro", "micro", [WORKERS_AI("@cf/ibm-granite/granite-4.0-h-micro")], { input: 0.017, output: 0.112 }),
 ];
 

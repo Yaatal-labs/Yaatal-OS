@@ -399,6 +399,8 @@ describe("plan-gated models", () => {
     const { ai } = fakeAi(() => completion(1, 1));
     const served = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-5.3") }, { AI: ai, WORKERS_PAID: "true" });
     expect(served.status).toBe(200);
-    expect(await (await call("/")).text()).not.toContain("yaatal/glm-5.3<");
+    const page = await (await call("/")).text();
+    expect(page).toContain('yaatal/glm-5.3</code> <span class="soon">bientôt</span>'); // listed, marked as coming
+    expect(await (await call("/", {}, { WORKERS_PAID: "true" })).text()).not.toContain('class="soon"');
   });
 });

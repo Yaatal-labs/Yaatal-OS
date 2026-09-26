@@ -2,7 +2,7 @@
 // website to a device's firmware, on one AI API billed in FCFA. Every idea goes straight to the
 // Playground (the Yaatal OS) through its `/?prompt=` deep link. Prices are rendered from the model
 // catalog so the page cannot drift from billing. No supplier or upstream model name appears here.
-import { availableModels } from "./models.js";
+import { availableModels, MODELS } from "./models.js";
 
 export interface SiteEnv {
   /** "true" on Workers Paid: the page then lists the models that need it. */
@@ -227,6 +227,7 @@ h2{font-size:clamp(1.9rem,4vw,3rem);line-height:1.05;margin:0 0 14px;max-width:1
 table{width:100%;border-collapse:collapse;min-width:560px}
 th,td{text-align:left;padding:15px 18px;border-bottom:1px solid var(--line)}tr:last-child td{border-bottom:0}
 th{color:var(--muted);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+.soon{font:600 .68rem "JetBrains Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-left:6px;white-space:nowrap}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}td code{color:var(--accent-strong);font-size:.9rem}
 .qa{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.qa .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
 .qa h3{font-family:"Instrument Sans",sans-serif;font-size:1.02rem;margin:0 0 6px;letter-spacing:0}.qa p{margin:0;color:var(--muted)}
@@ -562,7 +563,9 @@ export function home(request: Request, env: SiteEnv): Response {
     .map((word, i) => `<span${i % 2 ? ' class="o"' : ""}>${word}</span><i></i>`).join("");
   const marquee = band + band;
   const example = models.find(model => model.tier === "standard") ?? models[0]!;
-  const rows = models.map(model => `<tr><td><code>${escape(model.id)}</code></td><td>${TIER_LABEL[model.tier]}</td><td class="num">${fcfa(model.inputFcfaPerMillion)}</td><td class="num">${fcfa(model.outputFcfaPerMillion)}</td></tr>`).join("");
+  const live = new Set(models.map(model => model.id));
+  // Every model is listed; those the current plan cannot serve yet are marked "bientôt" (and the API refuses them).
+  const rows = MODELS.map(model => `<tr><td><code>${escape(model.id)}</code>${live.has(model.id) ? "" : ' <span class="soon">bientôt</span>'}</td><td>${TIER_LABEL[model.tier]}</td><td class="num">${fcfa(model.inputFcfaPerMillion)}</td><td class="num">${fcfa(model.outputFcfaPerMillion)}</td></tr>`).join("");
   const chips = IDEAS.map(idea =>
     `<button class="chip" type="button" data-prompt="${escape(idea.prompt)}" data-example="${escape(idea.example)}">${escape(idea.title)}</button>`).join("");
   const tiles = IDEAS.map(idea => {
