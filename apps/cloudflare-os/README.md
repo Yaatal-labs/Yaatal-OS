@@ -23,6 +23,7 @@ business data, payments and inference policy.
 | `yaatal/smoke/agent-build.mjs` | One agent build per model on a fixed prompt with fictional data |
 | `yaatal/smoke/review-changes.mjs` | Prints an agent's provisional code for human review |
 | `yaatal/smoke/publish-blueprint.mjs` | Accepts reviewed changes (`--accept`), publishes and features a Blueprint |
+| `yaatal/smoke/catalog-gatekeeper.mjs` | End-to-end catalog check through the OS, no model needed |
 
 The agent instructions encode Yaatal's rules: models propose and the Engine disposes; no payments,
 orders or messages; never invent prices or stock; treat personal data as sensitive; never trust a
@@ -103,6 +104,14 @@ pnpm --filter @yaatal/gatekeeper-yaatal run test:run    # denial and leak tests,
 pnpm run-local
 ```
 
+Each user opts in once (Connectors page, or `provisionAmbientAccount("yaatal")`); an admin can make it
+automatic for everyone with `setGatekeeperMode("yaatal", "enabled")`. Workspaces then get it as the
+`YAATAL_CATALOG` capsule. Check it end to end, without a model:
+
+```sh
+node yaatal/smoke/catalog-gatekeeper.mjs <workspaceId>
+```
+
 ## Observed on the pin (local run, Workers AI free tier)
 
 - Nemotron 3 Super built the live-sale prep Gadget from one prompt (141 s, no errors). Review found a
@@ -112,5 +121,7 @@ pnpm run-local
   `innerHTML` unescaped; GLM invented Wolof text. Review agent code before accepting it.
 - Upstream issue cloudflare/cloudflare-os#54 (multi-turn 400s on some Workers AI models) did not
   affect these four models; `gpt-oss-120b` is reported affected.
+- The catalog Gatekeeper read a live Engine end to end (20 of 30 products in about 0.5 s); path-like
+  and unknown ids were refused, and a merchant passed in by the caller changed nothing.
 - Agent-written Wolof is unreliable: the instructions ask for an editable Wolof field rather than
   generated Wolof.
