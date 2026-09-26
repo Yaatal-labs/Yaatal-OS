@@ -311,6 +311,8 @@ describe("customer pages", () => {
     expect(html).toContain("Facturé en FCFA");
     expect(html).toContain("yaatal/qwen3.8-27b");
     expect(html).toMatch(/550<\/td><td class="num">3 850/); // qwen3.8-27b, the newest free-plan model
+    expect(html).toContain('data-out="3850"'); // the hero meter counts at the same catalog price
+    expect(html).not.toContain("jetons");
     for (const word of ["siliconflow", "openrouter", "@cf/", "workers-ai", "wholesale"]) {
       expect(html.toLowerCase()).not.toContain(word);
     }

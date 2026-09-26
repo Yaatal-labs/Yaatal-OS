@@ -18,7 +18,7 @@ export interface SiteEnv {
 /** The Playground's own limit for a prefilled prompt. */
 const MAX_PROMPT = 4000;
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
-const TIER_LABEL = { micro: "Micro", standard: "Standard", reasoning: "Raisonnement" } as const;
+const TIER_LABEL = { micro: "Micro", standard: "Standard", reasoning: "Reasoning" } as const;
 
 interface Idea {
   tag: string;
@@ -31,7 +31,7 @@ interface Idea {
 const IDEAS: readonly Idea[] = [
   {
     tag: "Site · Commerce",
-    title: "Site marchand en marque blanche",
+    title: "Site e-commerce pour votre boutique",
     line: "Catalogue, prix en FCFA, commande sur WhatsApp.",
     example: "un site pour ma boutique de bazin, avec commande sur WhatsApp",
     prompt:
@@ -39,40 +39,40 @@ const IDEAS: readonly Idea[] = [
   },
   {
     tag: "Outil · Live",
-    title: "Fiche de préparation live",
-    line: "Trier les produits et l'ordre de passage avant le direct.",
+    title: "Prépa live TikTok",
+    line: "Classer les produits et l'ordre de passage avant le live.",
     example: "une fiche pour préparer mon live TikTok de ce soir",
     prompt:
-      "Construis une fiche de préparation pour une vente en direct sur TikTok ou WhatsApp : je colle mes produits (nom, prix en FCFA, stock), tu les tries, signales les ruptures et proposes l'ordre de passage. N'invente aucun prix ni aucun stock.",
+      "Construis une fiche de prépa pour un live de vente sur TikTok ou WhatsApp : je colle mes produits (nom, prix en FCFA, stock), tu les tries, signales les ruptures et proposes l'ordre de passage. N'invente aucun prix ni aucun stock.",
   },
   {
     tag: "WhatsApp · Clients",
-    title: "Assistant WhatsApp",
-    line: "Répond depuis votre catalogue, vous validez les commandes.",
-    example: "un assistant qui répond à mes clients en wolof",
+    title: "Bot WhatsApp",
+    line: "Répond aux clients depuis votre catalogue, vous validez les commandes.",
+    example: "un bot WhatsApp qui répond à mes clients en wolof",
     prompt:
-      "Crée un assistant qui répond aux questions de mes clients sur WhatsApp à partir de mon catalogue, en français et en wolof, et me transmet les commandes pour validation. Il ne prend jamais de paiement lui-même.",
+      "Crée un bot WhatsApp qui répond aux questions de mes clients sur WhatsApp à partir de mon catalogue, en français et en wolof, et me transmet les commandes pour validation. Il ne prend jamais de paiement lui-même.",
   },
   {
     tag: "Données · Ventes",
-    title: "Tableau de bord des ventes",
-    line: "Du fichier CSV aux décisions du jour.",
-    example: "un tableau de bord de mes ventes de la semaine",
+    title: "Dashboard des ventes",
+    line: "Du fichier Excel aux chiffres du jour.",
+    example: "un dashboard de mes ventes de la semaine",
     prompt:
-      "Transforme un export de mes ventes (CSV que je vais coller) en tableau de bord : chiffre du jour, meilleurs produits, stocks à réapprovisionner et trois recommandations concrètes.",
+      "Transforme un export de mes ventes (Excel ou CSV que je vais coller) en dashboard : ventes du jour, meilleurs produits, stocks à réapprovisionner et trois recommandations concrètes.",
   },
   {
     tag: "ESP32 · Paiements",
-    title: "Boîtier qui annonce les paiements",
-    line: "Firmware, schéma de câblage et composants.",
-    example: "le firmware d'un boîtier qui annonce les paiements reçus",
+    title: "Soundbox qui annonce les paiements",
+    line: "Firmware, câblage et liste des pièces.",
+    example: "le firmware d'une Soundbox qui annonce les paiements reçus",
     prompt:
-      "Conçois un boîtier ESP32-S3 qui annonce à voix haute, en wolof et en français, les paiements reçus. Donne le firmware, le schéma de câblage et la liste des composants (BOM) avec un prix indicatif par pièce. Prototype virtuel uniquement.",
+      "Conçois une Soundbox ESP32-S3 qui annonce à voix haute, en wolof et en français, les paiements reçus. Donne le firmware, le schéma de câblage et la liste des composants (BOM) avec un prix indicatif par pièce. Prototype virtuel uniquement.",
   },
   {
     tag: "ESP32 · Stock",
     title: "Balance connectée pour le stock",
-    line: "Pèse, compte et prévient quand il faut recommander.",
+    line: "Pèse le stock et vous prévient quand il faut recommander.",
     example: "une balance connectée qui suit mon stock de riz",
     prompt:
       "Conçois une balance connectée à base d'ESP32 et de capteur HX711 qui suit le stock d'un produit vendu au poids (riz, sucre) et envoie une alerte quand il passe sous un seuil. Donne le firmware, le câblage et la liste des composants. Prototype virtuel uniquement.",
@@ -83,15 +83,15 @@ const FAQ: readonly [string, string][] = [
   ["C'est quoi, Yaatal ?",
     "Un espace où des agents d'IA construisent avec vous des sites, des outils, des assistants et des prototypes d'objets connectés. Tout ce qui est construit utilise la même API d'IA, que vous payez en FCFA."],
   ["Faut-il savoir coder ?",
-    "Non. Vous décrivez ce que vous voulez en français ; l'agent pose ses questions, construit, et vous montre le résultat. Chaque changement attend votre accord avant d'être appliqué. Si vous codez, tout reste modifiable."],
+    "Non. Vous décrivez ce que vous voulez en français, ou en français-wolof comme au quotidien ; l'agent pose ses questions, construit, et vous montre le résultat. Chaque changement attend votre accord avant d'être appliqué. Si vous codez, tout reste modifiable."],
   ["Comment je paie ?",
-    "À la consommation, en FCFA, sans carte bancaire internationale. Vous rechargez un solde ; chaque appel d'IA en déduit le prix affiché dans les tarifs. Pendant la bêta, les recharges se font avec notre équipe."],
+    "À la consommation, en FCFA, sans carte Visa ni Mastercard. Vous rechargez un solde, comme du crédit ; chaque appel d'IA en déduit le prix affiché dans les tarifs. Pendant la bêta, les recharges se font avec l'équipe."],
   ["Et pour les objets, vous fabriquez ?",
-    "Le Playground produit le firmware, le schéma de câblage et la liste des composants, que vous relisez avant tout achat. La fabrication se fait sur commande, avec nos partenaires : impression 3D, fournisseurs de composants, conseil technique."],
+    "Le Playground produit le firmware, le schéma de câblage et la liste des pièces, que vous relisez avant tout achat. La fabrication se fait sur commande, avec nos partenaires : impression 3D, fournisseurs de composants, conseil technique."],
   ["Puis-je utiliser l'API dans mon propre code ?",
     "Oui. L'API Yaatal est compatible OpenAI : vous changez l'adresse et la clé, votre code et vos SDK restent les mêmes."],
   ["Que devient ce que j'envoie ?",
-    "Yaatal ne garde ni vos requêtes ni les réponses. Nous gardons le décompte (modèle, jetons, montant, date), et nous supprimons votre compte et cet historique sur demande."],
+    "Yaatal ne garde ni vos requêtes ni les réponses. Nous gardons le décompte (modèle, tokens, montant, date), et nous supprimons votre compte et cet historique sur demande."],
 ];
 
 function escape(text: string): string {
@@ -160,20 +160,24 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:16px;min-h
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;background:var(--ink);color:var(--paper);border:0;border-radius:12px;padding:10px 18px;font:600 .98rem "Instrument Sans",sans-serif;text-decoration:none;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s}
 .btn:hover{background:var(--accent-strong);color:#fff}.btn.accent{background:var(--accent-strong);color:#fff}.btn.accent:hover{background:var(--ink);color:var(--paper)}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{border-color:var(--ink);background:transparent;color:var(--ink)}
-.hero{text-align:center;padding-top:72px;padding-bottom:56px}
-h1{font-size:clamp(2.4rem,6vw,4.4rem);line-height:1.02;margin:0 auto 18px;max-width:14ch}
+.hero>*{min-width:0}
+.hero{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);gap:48px;align-items:center;padding-top:64px;padding-bottom:40px}
+h1{font-size:clamp(2.5rem,5.6vw,4.6rem);line-height:1;margin:0 0 20px;max-width:11ch;text-wrap:balance}
 h1 em{font-style:normal;color:var(--accent-strong)}
-.lede{font-size:1.15rem;color:var(--muted);max-width:40rem;margin:0 auto}
-.ask{max-width:780px;margin:36px auto 0;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);text-align:left;overflow:hidden}
+.fill{position:relative;color:var(--accent-strong);white-space:nowrap}
+.fill::after{content:"";position:absolute;left:-.04em;right:-.04em;bottom:-.06em;height:.2em;border-radius:.1em;background:url(/img/wax.webp) 20% 45%/240% auto;transform-origin:left;animation:draw .9s .55s cubic-bezier(.6,0,.2,1) both,drift 18s 1.5s ease-in-out infinite alternate}
+@keyframes draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes drift{to{background-position:80% 55%}}
+.lede{font-size:1.15rem;color:var(--muted);max-width:36rem;margin:0}
+.ask{max-width:780px;margin:30px 0 0;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);text-align:left;overflow:hidden}
 .ask textarea{display:block;width:100%;min-height:132px;resize:vertical;border:0;background:transparent;color:var(--ink);font:1.08rem/1.55 "Instrument Sans",sans-serif;padding:20px 22px;outline:none}
 .ask textarea::placeholder{color:color-mix(in srgb,var(--muted) 75%,transparent)}
 .ask .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding:12px 12px 12px 22px;background:var(--paper-2)}
 .ask small{color:var(--muted);font-size:.88rem}
-.chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:18px auto 0;max-width:820px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 0;max-width:820px}
 .chip{min-height:40px;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:8px 14px;font:500 .9rem "Instrument Sans",sans-serif;cursor:pointer;transition:border-color .2s,background-color .2s}
 .chip:hover{border-color:var(--accent);background:var(--card)}
 .eyebrow{display:inline-block;font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-strong);margin-bottom:18px}
-.scribble{position:relative;white-space:nowrap}.scribble svg{position:absolute;left:-2%;bottom:-.12em;width:104%;height:.32em;overflow:visible}
 .people{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:18px;align-items:end;margin-top:8px}
 .people figure{margin:0;position:relative}
 .people img{display:block;width:100%;height:100%;object-fit:cover;border-radius:18px;box-shadow:var(--shadow)}
@@ -187,7 +191,7 @@ h1 em{font-style:normal;color:var(--accent-strong)}
 .credits{font-size:.78rem;color:var(--muted);max-width:60rem}
 @media (max-width:900px){.people{grid-template-columns:1fr 1fr}.people figure:nth-child(2){grid-column:1/-1;order:-1}.pay{grid-template-columns:1fr}}
 @media (max-width:600px){.people figure{transform:none!important}}
-.trust{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 28px;margin-top:36px;color:var(--muted);font-size:.92rem}
+.trust{display:flex;flex-wrap:wrap;gap:10px 24px;margin-top:28px;color:var(--muted);font-size:.92rem}
 .trust span{display:inline-flex;align-items:center;gap:8px}.trust i{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block}
 section{padding-top:88px;padding-bottom:88px}
 .kicker{font:600 .78rem "JetBrains Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-strong);margin:0 0 12px}
@@ -246,8 +250,60 @@ footer{border-top:1px solid var(--line);padding-top:28px;padding-bottom:44px;col
 footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .reveal{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}.d1{animation-delay:.06s}.d2{animation-delay:.14s}.d3{animation-delay:.24s}.d4{animation-delay:.34s}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.reveal{animation:none}html{scroll-behavior:auto}*{transition:none!important}}
-@media (max-width:900px){.gallery{grid-template-columns:1fr 1fr}.flow,.split{grid-template-columns:1fr}.links{display:none}.band{padding:28px}}
+.stage{position:relative;background:var(--deep) url("${WEAVE}");background-size:120px 60px;border-radius:26px;padding:16px;box-shadow:0 30px 70px -30px rgba(21,48,44,.6)}
+.st-win{background:var(--card);border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+.st-top{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--paper-2);font:500 .74rem "JetBrains Mono",monospace;color:var(--muted)}
+.st-top>i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
+.meter{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.meter b{width:7px;height:7px;border-radius:50%;background:#1f7a4d;animation:blink 1.2s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+.st-body{padding:14px;height:376px;overflow:hidden}
+.scene{display:none;flex-direction:column;gap:10px}
+.stage[data-scene="1"] .s1,.stage[data-scene="2"] .s2,.stage[data-scene="3"] .s3{display:flex}
+.prompt{font:500 .8rem "JetBrains Mono",monospace;background:var(--paper-2);border-radius:10px;padding:9px 12px;white-space:nowrap;overflow:hidden}
+.prompt::before{content:"› ";color:var(--accent-strong)}
+.prompt span{display:inline-block;animation:type 1.3s steps(34) both}
+@keyframes type{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.agent{font-size:.84rem;color:var(--muted);display:flex;align-items:center;gap:8px}
+.agent::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none}
+.pop{animation:pop .55s cubic-bezier(.2,.8,.2,1.15) both;animation-delay:calc(var(--d,0) * 1s)}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+.mini{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.mini-h{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#15302c;color:#f3ead9;font:700 .88rem "Bricolage Grotesque",sans-serif}
+.mini-h small{font:500 .68rem "JetBrains Mono",monospace;opacity:.75}
+.prods{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px}
+.prod{font-size:.72rem;line-height:1.35}.prod em{font-style:normal;font-weight:600;display:block;color:var(--accent-strong)}
+.prod b{display:block;aspect-ratio:1;border-radius:8px;margin-bottom:6px;background:url(/img/wax.webp) var(--x) 50%/420% auto}
+.wa-btn{margin:0 10px 10px;background:#1f7a4d;color:#fff;border-radius:8px;padding:8px;text-align:center;font-weight:600;font-size:.76rem}
+.wa{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.wa-h{background:#1f5c45;color:#fff;padding:9px 12px;font-weight:600;font-size:.8rem}
+.wa-b{background:color-mix(in srgb,#d9cfb8 30%,var(--card));padding:12px;display:flex;flex-direction:column;gap:8px;min-height:212px}
+.msg{max-width:80%;padding:7px 10px;border-radius:10px;font-size:.79rem;background:#fffdf9;color:#1b1813;box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.msg.out{align-self:flex-end;background:#d7f5c8;color:#10251a}
+.fw{display:grid;grid-template-columns:1.3fr .7fr;gap:12px;align-items:center}
+.code{margin:0;background:var(--code);color:var(--code-ink);border-radius:10px;padding:12px;font-size:.7rem;line-height:1.65;overflow:hidden;white-space:pre}
+.code span{display:block}.code .k{display:inline;color:#ff9a6a}.code .s{display:inline;color:#9fd8a8}.code .c{display:inline;color:#8a8478}
+.box{position:relative;justify-self:center;width:112px;height:144px;border-radius:26px;background:linear-gradient(160deg,#2c2823,#131110);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:16px 12px}
+.grille{width:72px;height:56px;border-radius:12px;background:radial-gradient(circle,#4a443c 1.6px,transparent 2px) 0 0/9px 9px}
+.lcd{background:#0d1f1b;color:#7ef0b0;font:600 .74rem "JetBrains Mono",monospace;padding:4px 8px;border-radius:6px;font-variant-numeric:tabular-nums}
+.ring{position:absolute;inset:-4px;border:2px solid var(--accent);border-radius:30px;opacity:0;animation:ring 1.8s ease-out infinite;animation-delay:calc(var(--d,0) * 1s)}
+@keyframes ring{from{opacity:.7;transform:scale(1)}to{opacity:0;transform:scale(1.4)}}
+.said{justify-self:center;font-size:.78rem;background:var(--paper-2);border-radius:10px;padding:6px 10px;grid-column:1/-1;text-align:center}
+.switch{display:flex;gap:6px;margin-top:12px}
+.sw{flex:1;position:relative;overflow:hidden;min-height:44px;background:transparent;color:color-mix(in srgb,#f3ead9 72%,transparent);border:1px solid rgba(243,234,217,.22);border-radius:10px;font:500 .76rem "JetBrains Mono",monospace;cursor:pointer;transition:color .2s,border-color .2s}
+.sw:hover{color:#fff}.sw[aria-pressed=true]{color:#fff;border-color:#ff9a6a}
+.sw::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:0;background:#ff9a6a}
+.stage.auto .sw[aria-pressed=true]::after{animation:prog 6.5s linear both}
+@keyframes prog{to{width:100%}}
+.weave{height:34px;border-radius:10px;background:var(--deep) url("${WEAVE}") 0 -4px/120px 60px;animation:slide 40s linear infinite}
+@keyframes slide{to{background-position:-1200px -4px}}
+@keyframes inview{from{opacity:.25;translate:0 28px}to{opacity:1;translate:0 0}}
+@supports (animation-timeline:view()){@media (prefers-reduced-motion:no-preference){
+  .tile,.step,.partner,.people figure,.qa .card,.pay figure{animation:inview linear both;animation-timeline:view();animation-range:entry 0% entry 70%}
+}}
+@media (prefers-reduced-motion:reduce){.reveal,.stage *,.weave,.fill::after{animation:none!important}html{scroll-behavior:auto}*{transition:none!important}}
+@media (max-width:900px){.hero{grid-template-columns:1fr;gap:36px}.gallery{grid-template-columns:1fr 1fr}.flow,.split{grid-template-columns:1fr}.links{display:none}.band{padding:28px}}
+@media (max-width:460px){.st-body{height:auto;min-height:340px}.fw{grid-template-columns:1fr}.box{display:none}.meter span.l{display:none}}
 @media (max-width:600px){.gallery,.qa{grid-template-columns:1fr}.window .body{grid-template-columns:1fr}.window .chat{border-right:0;border-bottom:1px solid var(--line)}.ask .bar{flex-direction:column;align-items:stretch}.hero{padding-top:44px}}
 input[type=password]{width:100%;min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:inherit}
 .row{display:flex;gap:10px;margin:18px 0}.row input{flex:1}
@@ -300,9 +356,88 @@ function topNav(playground: string | null, contact: string | null): string {
     : contact ? `<a class="btn" href="${escape(contact)}" rel="noopener">Accès bêta</a>` : "";
   return `<header class="top"><nav class="wrap" aria-label="Principale">
 <a class="logo" href="/"><svg width='28' height='28' aria-hidden='true' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><rect width='256' height='256' rx='56' fill='#15302c'/><rect x='52' y='74' width='66' height='20' rx='10' fill='#f3dcc0'/><rect x='136' y='74' width='68' height='20' rx='10' fill='#f3dcc0'/><rect x='52' y='115' width='116' height='26' rx='13' fill='#e85a25'/><rect x='186' y='115' width='18' height='26' rx='13' fill='#e85a25'/><rect x='52' y='162' width='32' height='20' rx='10' fill='#f3dcc0'/><rect x='102' y='162' width='102' height='20' rx='10' fill='#f3dcc0'/></svg>Yaatal</a>
-<div class="links"><a href="/#modeles">Modèles</a><a href="/#comment">Comment ça marche</a><a href="/#objets">Objets</a><a href="/#api">API</a><a href="/#tarifs">Tarifs</a></div>
+<div class="links"><a href="/#modeles">Templates</a><a href="/#comment">Comment ça marche</a><a href="/#objets">Objets</a><a href="/#api">API</a><a href="/#tarifs">Tarifs</a></div>
 ${cta}</nav></header>`;
 }
+
+/**
+ * The hero's motion moment: three builds play in turn (a shop site, a WhatsApp bot, a Soundbox
+ * firmware) while a meter counts the tokens in FCFA at a real catalog price. Scene 1 is the resting
+ * state without script; the script only cycles scenes and runs the meter.
+ */
+function stage(outputFcfaPerMillion: number): string {
+  const prods = [["Grand boubou", "25 000 F", "8%"], ["Ensemble brodé", "18 500 F", "46%"], ["Wax 6 yards", "12 000 F", "88%"]]
+    .map(([name, price, x], i) => `<div class="prod pop" style="--d:${1.9 + i * 0.18};--x:${x}"><b></b>${name}<em>${price}</em></div>`).join("");
+  return `<div class="stage reveal d2" id="stage" data-scene="1" data-out="${outputFcfaPerMillion}">
+  <div class="st-win" aria-hidden="true">
+    <div class="st-top"><i></i><i></i><i></i>&nbsp;playground<span class="meter"><b></b><span id="tok">${fcfa(1840)}</span>&nbsp;<span class="l">tokens ·</span>&nbsp;≈&nbsp;<span id="fc">${(1840 * outputFcfaPerMillion / 1e6).toFixed(2).replace(".", ",")}</span>&nbsp;F</span></div>
+    <div class="st-body">
+      <div class="scene s1">
+        <div class="prompt"><span>un site pour ma boutique de bazin, commande WhatsApp</span></div>
+        <div class="agent pop" style="--d:1.4">Je construis : catalogue, prix en FCFA, bouton WhatsApp.</div>
+        <div class="mini pop" style="--d:1.7"><div class="mini-h">Bazin Riche Médina<small>FR · WO</small></div>
+          <div class="prods">${prods}</div>
+          <div class="wa-btn pop" style="--d:2.6">Commander sur WhatsApp</div></div>
+      </div>
+      <div class="scene s2">
+        <div class="prompt"><span>un bot WhatsApp qui répond à mes clients</span></div>
+        <div class="wa pop" style="--d:1.4"><div class="wa-h">Bazin Riche Médina · bot</div>
+          <div class="wa-b">
+            <div class="msg pop" style="--d:1.8">Salam, le grand boubou est dispo ?</div>
+            <div class="msg out pop" style="--d:2.5">Waaw ! Taille L et XL, 25 000 FCFA.</div>
+            <div class="msg pop" style="--d:3.2">Ok, je prends le L.</div>
+            <div class="msg out pop" style="--d:3.9">C'est noté. J'envoie la commande à la boutique pour validation.</div>
+          </div></div>
+      </div>
+      <div class="scene s3">
+        <div class="prompt"><span>le firmware d'une Soundbox qui annonce les paiements</span></div>
+        <div class="fw">
+<pre class="code"><span class="pop" style="--d:1.4"><span class="c">// Soundbox · ESP32-S3 + 4G</span></span><span class="pop" style="--d:1.6"><span class="k">void</span> setup() {</span><span class="pop" style="--d:1.8">  modem.attach4G();</span><span class="pop" style="--d:2.0">  audio.begin(I2S_SPEAKER);</span><span class="pop" style="--d:2.2">}</span><span class="pop" style="--d:2.4"><span class="k">void</span> onPayment(<span class="k">int</span> fcfa) {</span><span class="pop" style="--d:2.6">  say(<span class="s">"Paiement reçu"</span>, fcfa);</span><span class="pop" style="--d:2.8">  say_wo(<span class="s">"Xaalis bi agsi na"</span>);</span><span class="pop" style="--d:3.0">}</span></pre>
+          <div class="box pop" style="--d:3.1"><span class="ring" style="--d:3.4"></span><span class="ring" style="--d:4.3"></span><div class="grille"></div><div class="lcd">+5 000 F</div></div>
+          <div class="said pop" style="--d:3.6">« Paiement reçu : 5 000 FCFA »</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="switch" role="group" aria-label="Exemples de constructions">
+    <button class="sw" type="button" data-scene="1" aria-pressed="true">Site</button>
+    <button class="sw" type="button" data-scene="2" aria-pressed="false">WhatsApp</button>
+    <button class="sw" type="button" data-scene="3" aria-pressed="false">Soundbox</button>
+  </div>
+</div>`;
+}
+
+const STAGE_SCRIPT = `
+const stage = document.getElementById("stage");
+if (stage) {
+  const price = Number(stage.dataset.out) || 0;
+  const tok = document.getElementById("tok"), fc = document.getElementById("fc");
+  const targets = { 1: 1840, 2: 960, 3: 2310 };
+  const buttons = [...stage.querySelectorAll(".sw")];
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const whole = new Intl.NumberFormat("fr-FR"), cents = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let frame = 0, timer = 0;
+  const meter = n => {
+    cancelAnimationFrame(frame);
+    const start = performance.now(), length = still ? 0 : 3200;
+    const tick = now => {
+      const p = length ? Math.min(1, (now - start) / length) : 1, v = Math.round(n * (1 - Math.pow(1 - p, 3)));
+      tok.textContent = whole.format(v); fc.textContent = cents.format(v * price / 1e6);
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+  };
+  const show = (n, byUser) => {
+    stage.dataset.scene = String(n);
+    stage.classList.toggle("auto", !still && !byUser);
+    for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.scene === String(n)));
+    meter(targets[n]);
+    clearTimeout(timer);
+    if (!still && !byUser) timer = setTimeout(() => show(n % 3 + 1, false), 6500);
+  };
+  for (const b of buttons) b.addEventListener("click", () => show(Number(b.dataset.scene), true));
+  show(1, false);
+}`;
 
 function buildLink(playground: string, prompt: string): string {
   return `${playground}/?prompt=${encodeURIComponent(prompt)}`;
@@ -340,14 +475,19 @@ export function home(request: Request, env: SiteEnv): Response {
 ${topNav(playground, contact)}
 <main id="main">
 <div class="wrap hero">
+ <div>
   <span class="eyebrow reveal">Dalal ak jàmm · fait à Dakar</span>
-  <h1 class="reveal d1">De l'idée à l'outil <em class="scribble">qui tourne<svg viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8c30-5 62-6 96-4 32 2 66 1 100-3" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></em>.</h1>
-  <p class="lede reveal d2">Site marchand, assistant WhatsApp, tableau de bord ou boîtier ESP32 : décrivez-le, Yaatal le construit avec vous. Chaque appel d'IA se paie en FCFA.</p>
+  <h1 class="reveal d1">De l'idée à l'outil <em class="fill">qui tourne</em>.</h1>
+  <p class="lede reveal d2">Site e-commerce, bot WhatsApp, dashboard ou Soundbox ESP32 : décrivez-le, Yaatal le construit avec vous. L'IA se paie en FCFA, au token près.</p>
   ${ask}
-  <div class="trust reveal d4"><span><i></i>Français et wolof</span><span><i></i>Paiement en FCFA, sans carte internationale</span><span><i></i>API compatible OpenAI</span></div>
+  <div class="trust reveal d4"><span><i></i>Français, wolof, ou les deux mélangés</span><span><i></i>Payé en FCFA, pas besoin de carte Visa</span><span><i></i>API compatible OpenAI</span></div>
+ </div>
+ ${stage(example.outputFcfaPerMillion)}
 </div>
 
-<section id="gens" style="padding-top:24px"><div class="wrap">
+<div class="wrap"><div class="weave" aria-hidden="true"></div></div>
+
+<section id="gens" style="padding-top:56px"><div class="wrap">
   <p class="kicker">Pour qui</p>
   <h2>Pour celles et ceux qui vendent déjà.</h2>
   <p class="sub">Couturières, commerçantes, vendeurs de rue : le travail se fait déjà sur WhatsApp et au marché. Yaatal part de là et en fait des outils, sans carte bancaire ni jargon.</p>
@@ -359,11 +499,11 @@ ${topNav(playground, contact)}
 </div></section>
 
 <section id="modeles"><div class="wrap">
-  <p class="kicker">Modèles</p>
-  <h2>Choisissez un point de départ. Adaptez-le.</h2>
+  <p class="kicker">Templates</p>
+  <h2>Partez d'un template. Adaptez-le.</h2>
   <p class="sub">Chaque carte ouvre le Playground avec une consigne déjà écrite. Vous la modifiez, l'agent pose ses questions, puis construit.</p>
   <div class="gallery">${tiles}</div>
-  ${featuredLink ? `<p style="margin-top:22px"><a class="btn ghost" href="${escape(featuredLink)}">Ouvrir un modèle déjà construit : fiche de préparation live ${icon.arrow}</a></p>` : ""}
+  ${featuredLink ? `<p style="margin-top:22px"><a class="btn ghost" href="${escape(featuredLink)}">Ouvrir un template déjà construit : prépa live TikTok ${icon.arrow}</a></p>` : ""}
 </div></section>
 
 <section id="comment"><div class="wrap flow">
@@ -372,8 +512,8 @@ ${topNav(playground, contact)}
     <h2>Décrire. Construire. Publier.</h2>
     <div class="steps">
       <div class="step"><span class="ic">${icon.chat}</span><div><h3>Décrire</h3><p>En français, avec vos mots. L'agent demande ce qui manque : vos produits, vos prix, votre numéro.</p></div></div>
-      <div class="step"><span class="ic">${icon.build}</span><div><h3>Construire</h3><p>L'agent écrit et teste le code dans un espace isolé. Vous voyez le résultat en direct.</p></div></div>
-      <div class="step"><span class="ic">${icon.check}</span><div><h3>Valider et publier</h3><p>Aucun changement n'est appliqué sans votre accord. Ensuite, vous le partagez ou le gardez comme modèle.</p></div></div>
+      <div class="step"><span class="ic">${icon.build}</span><div><h3>Construire</h3><p>L'agent écrit et teste le code dans une sandbox. Vous voyez le résultat en live.</p></div></div>
+      <div class="step"><span class="ic">${icon.check}</span><div><h3>Valider et publier</h3><p>Aucun changement n'est appliqué sans votre accord. Ensuite, vous le partagez ou le gardez comme template.</p></div></div>
     </div>
   </div>
   <div class="frame" aria-hidden="true"><div class="window">
@@ -396,13 +536,13 @@ ${topNav(playground, contact)}
 <section id="objets"><div class="wrap split">
   <div>
     <p class="kicker">Objets connectés</p>
-    <h2>Du prototype au boîtier.</h2>
-    <p class="sub">Décrivez l'objet : le Playground produit le firmware, le schéma de câblage et la liste des composants, que vous relisez avant d'acheter quoi que ce soit. On fabrique seulement ce qui est commandé.</p>
+    <h2>Du prototype à l'objet fini.</h2>
+    <p class="sub">Décrivez l'objet : le Playground produit le firmware, le schéma de câblage et la liste des pièces, que vous relisez avant d'acheter quoi que ce soit. On fabrique seulement ce qui est commandé.</p>
     <div class="boards" aria-label="Cartes courantes"><span>ESP32-S3</span><span>ESP32</span><span>Raspberry Pi Pico</span><span>Arduino</span><span>STM32</span></div>
   </div>
   <div class="partners">
     <div class="partner"><span class="ic">${icon.chip}</span><div><h3>Composants</h3><p>La liste des pièces avec des prix indicatifs, pour commander chez nos fournisseurs.</p></div></div>
-    <div class="partner"><span class="ic">${icon.build}</span><div><h3>Boîtier en impression 3D</h3><p>Le boîtier est imprimé par un atelier partenaire, sur commande.</p></div></div>
+    <div class="partner"><span class="ic">${icon.build}</span><div><h3>Coque en impression 3D</h3><p>La coque est imprimée par un atelier partenaire, sur commande.</p></div></div>
     <div class="partner"><span class="ic">${icon.check}</span><div><h3>Montage et conseil</h3><p>Des techniciens partenaires relisent le montage et accompagnent les séries.</p></div></div>
   </div>
 </div></section>
@@ -442,12 +582,12 @@ reply = yaatal.chat.completions.create(
   <div class="pay">
     <div>
       <h2>Vous payez ce que vous consommez, en FCFA.</h2>
-      <p class="sub" style="margin-bottom:0">Recharger Yaatal doit être aussi simple qu'acheter du crédit au coin de la rue. Le prix se compte en jetons, les morceaux de texte que le modèle lit et écrit, et un appel qui échoue n'est pas facturé. Pendant la bêta, les recharges se font avec notre équipe.</p>
+      <p class="sub" style="margin-bottom:0">Recharger Yaatal, c'est comme acheter du crédit au coin de la rue. Le prix se compte en tokens (les bouts de texte que le modèle lit et écrit), et un appel qui échoue n'est pas facturé. Pendant la bêta, les recharges se font avec l'équipe.</p>
     </div>
     <figure><img src="/img/ngor.webp" alt="Deux jeunes vendeurs de recharges téléphoniques au bord d'une route." loading="lazy" width="1200" height="800"><figcaption>Vendeurs de recharges téléphoniques, Ngor, Dakar</figcaption></figure>
   </div>
   <div class="table-wrap"><table>
-    <thead><tr><th>Modèle</th><th>Gamme</th><th class="num">Entrée · FCFA / 1M jetons</th><th class="num">Sortie · FCFA / 1M jetons</th></tr></thead>
+    <thead><tr><th>Modèle</th><th>Gamme</th><th class="num">Input · FCFA / 1M tokens</th><th class="num">Output · FCFA / 1M tokens</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
   <p class="sub" style="margin-top:16px;margin-bottom:0">Liste à jour : <a href="/v1/models">/v1/models</a> · Votre solde : <a href="/usage">/usage</a></p>
 </div></section>
@@ -456,12 +596,12 @@ reply = yaatal.chat.completions.create(
   <p class="kicker">Données</p>
   <h2>Les quatre questions qu'on nous pose.</h2>
   <div class="qa">
-    <div class="card"><h3>Où sont-elles traitées ?</h3><p>Par le fournisseur de calcul du modèle choisi, le temps de produire la réponse.</p></div>
+    <div class="card"><h3>Où sont-elles traitées ?</h3><p>Chez le fournisseur cloud du modèle choisi, le temps de produire la réponse.</p></div>
     <div class="card"><h3>Combien de temps sont-elles gardées ?</h3><p>Yaatal ne conserve ni vos requêtes ni les réponses.</p></div>
-    <div class="card"><h3>Sont-elles journalisées ?</h3><p>Nous gardons seulement le décompte : modèle, jetons, montant, date.</p></div>
+    <div class="card"><h3>Sont-elles journalisées ?</h3><p>Nous gardons seulement le décompte : modèle, tokens, montant, date.</p></div>
     <div class="card"><h3>Peut-on les supprimer ?</h3><p>Oui : sur demande, votre compte et son historique de consommation.</p></div>
   </div>
-  <p class="sub" style="margin-top:18px;margin-bottom:0">Seul le contenu de votre requête part chez le fournisseur de calcul, jamais votre clé ni l'identifiant de votre compte. Évitez d'y mettre des données personnelles sensibles.</p>
+  <p class="sub" style="margin-top:18px;margin-bottom:0">Seul le contenu de votre requête part chez le fournisseur cloud, jamais votre clé ni l'identifiant de votre compte. Évitez d'y mettre des données personnelles sensibles.</p>
 </div></section>
 
 <section id="faq"><div class="wrap" style="max-width:860px">
@@ -481,7 +621,7 @@ reply = yaatal.chat.completions.create(
 <footer class="wrap"><span>© Yaatal · Dakar</span><span><a href="/usage">Consommation</a> · <a href="/v1/models">Modèles</a> · Bêta</span>
 <p class="credits">Photos, Wikimedia Commons : Sanghesenegalafrica (CC BY-SA 4.0), Lucas Takerkart (CC BY-SA 4.0), dimworld (CC BY 2.0), GuillaumeG (CC BY-SA 4.0).</p></footer>`;
 
-  const script = playground ? `
+  const script = STAGE_SCRIPT + (playground ? `
 const box = document.getElementById("prompt");
 for (const chip of document.querySelectorAll(".chip")) {
   chip.addEventListener("click", () => { box.value = chip.dataset.prompt; box.focus(); });
@@ -490,7 +630,7 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
   const ideas = [...document.querySelectorAll(".chip")].map(c => "Ex. : " + c.dataset.example + "…");
   let i = 0;
   setInterval(() => { if (!box.value && document.activeElement !== box) { i = (i + 1) % ideas.length; box.placeholder = ideas[i]; } }, 4000);
-}` : undefined;
+}` : "");
 
   return page("Yaatal · De l'idée à l'outil qui tourne. Facturé en FCFA.", body, {
     script,
@@ -512,7 +652,7 @@ form.addEventListener("submit", async e => {
   const data = await res.json(); out.textContent = "";
   const h = document.createElement("h2"); h.textContent = money(data.balance_fcfa); out.appendChild(h);
   const table = document.createElement("table"), head = document.createElement("tr");
-  for (const t of ["Date", "Opération", "Modèle", "Jetons", "Montant"]) { const th = document.createElement("th"); th.textContent = t; head.appendChild(th); }
+  for (const t of ["Date", "Opération", "Modèle", "Tokens", "Montant"]) { const th = document.createElement("th"); th.textContent = t; head.appendChild(th); }
   table.appendChild(head);
   for (const r of data.recent) {
     const tr = document.createElement("tr");

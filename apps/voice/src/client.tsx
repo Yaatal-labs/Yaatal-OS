@@ -100,7 +100,7 @@ function App() {
       <div className="band" role="img" aria-label="Rouleaux de tissus wax colorés" />
       <main className="main">
         <h1>Dites ce que vous voulez construire.</h1>
-        <p className="lede">Parlez en français. Yaatal vous pose quelques questions, puis prépare la consigne pour le Playground.</p>
+        <p className="lede">Parlez en français. Yaatal vous pose quelques questions, puis prépare le brief pour le Playground.</p>
 
         <div className="call">
           <button
@@ -128,12 +128,12 @@ function App() {
         </section>
 
         {brief && (
-          <section className="brief" aria-label="Consigne prête">
-            <p className="kicker">Consigne prête</p>
+          <section className="brief" aria-label="Brief prêt">
+            <p className="kicker">Brief prêt</p>
             <p className="brief-text">{brief.brief}</p>
             {brief.url
               ? <a className="btn" href={brief.url}>Ouvrir dans le Playground</a>
-              : <button type="button" className="btn" onClick={() => { void navigator.clipboard?.writeText(brief.brief); }}>Copier la consigne</button>}
+              : <button type="button" className="btn" onClick={() => { void navigator.clipboard?.writeText(brief.brief); }}>Copier le brief</button>}
           </section>
         )}
 
@@ -150,7 +150,7 @@ function App() {
           />
           <button className="btn ghost" type="submit" disabled={!connected || !text.trim()}>Envoyer</button>
         </form>
-        <p className="note">Prototype : écoute et voix en français. Chaque réponse est décomptée en FCFA sur l'API Yaatal.</p>
+        <p className="note">Prototype : STT et voix en français. Chaque réponse est décomptée en FCFA sur l'API Yaatal.</p>
         <p className="credit">Photo : Lucas Takerkart, Wikimedia Commons, CC BY-SA 4.0.</p>
       </main>
     </div>
