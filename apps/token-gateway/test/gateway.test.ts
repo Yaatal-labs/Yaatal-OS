@@ -342,7 +342,7 @@ describe("playground hand-off", () => {
   it("sends the idea to the Playground's prompt deep link, allowed by the form policy", async () => {
     const response = await call("/", {}, { PLAYGROUND_URL: "https://os.yaatal.test", FEATURED_BLUEPRINT_ID: "8f3639f6abcdef12" });
     const html = await response.text();
-    expect(html).toContain('<form class="ask reveal d2" method="get" action="https://os.yaatal.test/">');
+    expect(html).toContain('<form class="ask reveal d3" method="get" action="https://os.yaatal.test/">');
     expect(html).toContain('name="prompt" maxlength="4000"');
     expect(html).toContain("https://os.yaatal.test/blueprint/8f3639f6abcdef12");
     expect(html).toContain("https://os.yaatal.test/signup");
