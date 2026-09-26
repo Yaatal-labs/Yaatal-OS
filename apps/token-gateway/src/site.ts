@@ -2,7 +2,7 @@
 // website to a device's firmware, on one AI API billed in FCFA. Every idea goes straight to the
 // Playground (the Yaatal OS) through its `/?prompt=` deep link. Prices are rendered from the model
 // catalog so the page cannot drift from billing. No supplier or upstream model name appears here.
-import { availableModels, type ModelOffer } from "./models.js";
+import { availableModels } from "./models.js";
 
 export interface SiteEnv {
   /** "true" on Workers Paid: the page then lists the models that need it. */
@@ -331,12 +331,6 @@ html.pin .beat{opacity:.32}
 html.pin .story[data-step="0"] .beat:nth-child(1),html.pin .story[data-step="1"] .beat:nth-child(2),html.pin .story[data-step="2"] .beat:nth-child(3){opacity:1}
 html.pin .beats::before,html.pin .beats::after{content:"";position:absolute;left:-22px;top:18px;bottom:18px;width:2px;border-radius:1px;background:var(--line)}
 html.pin .beats::after{background:var(--accent);transform-origin:top;transform:scaleY(var(--p,0))}
-.receipt{max-width:460px;margin-top:26px;background:var(--card);border:1px solid var(--line);border-radius:8px 8px 0 0;padding:20px 22px 28px;font:500 .86rem "JetBrains Mono",monospace;box-shadow:var(--shadow);-webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/14px 100%;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/14px 100%}
-.rc-head{display:flex;justify-content:space-between;gap:10px;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-strong);margin-bottom:10px}
-.rc-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:6px 0;font-variant-numeric:tabular-nums}
-.rc-row small{display:block;color:var(--muted);font-size:.72rem}
-.rc-total{border-top:1px dashed var(--line);margin-top:6px;padding-top:12px;font-weight:700;font-size:1.02rem}
-.rc-note{font:400 .8rem "Instrument Sans",sans-serif;color:var(--muted);margin:12px 0 0}
 @supports (animation-timeline:view()){@media (prefers-reduced-motion:no-preference){
   .tile,html:not(.pin) .beat,.partner,.people figure,.qa .card,.pay figure{animation:inview linear both;animation-timeline:view();animation-range:entry 0% entry 70%}
 }}
@@ -401,24 +395,18 @@ ${cta}</nav></header>`;
 
 /**
  * The hero's motion moment: three builds play in turn (a shop site, a WhatsApp bot, a Soundbox
- * firmware) while a meter counts the tokens in FCFA at a real catalog price. Scene 1 is the resting
+ * firmware) while a meter counts the tokens the agent uses. Scene 1 is the resting
  * state without script; the script only cycles scenes and runs the meter.
  */
-/** FCFA per million tokens for a typical agent build: 3 input tokens for every output token. */
-function blended(input: number, output: number): number {
-  return (3 * input + output) / 4;
-}
-
 /** A simple shop site: about 184,000 tokens once the agent has written and tested it. */
-const BUILD_TOKENS = { input: 138_000, output: 46_000 };
+const BUILD_TOKENS = 184_000;
 
-function stage(inputFcfaPerMillion: number, outputFcfaPerMillion: number): string {
-  const buildFcfa = Math.round((BUILD_TOKENS.input + BUILD_TOKENS.output) * blended(inputFcfaPerMillion, outputFcfaPerMillion) / 1e6);
+function stage(): string {
   const prods = [["Grand boubou", "25 000 F", "8%"], ["Ensemble brodé", "18 500 F", "46%"], ["Wax 6 yards", "12 000 F", "88%"]]
     .map(([name, price, x], i) => `<div class="prod pop" style="--d:${1.9 + i * 0.18};--x:${x}"><b></b>${name}<em>${price}</em></div>`).join("");
-  return `<div class="stage reveal d2" id="stage" data-scene="1" data-in="${inputFcfaPerMillion}" data-out="${outputFcfaPerMillion}">
+  return `<div class="stage reveal d2" id="stage" data-scene="1">
   <div class="st-win" aria-hidden="true">
-    <div class="st-top"><i></i><i></i><i></i>&nbsp;playground<span class="meter"><b></b><span id="tok">${fcfa(BUILD_TOKENS.input + BUILD_TOKENS.output)}</span>&nbsp;<span class="l">tokens ·</span>&nbsp;≈&nbsp;<span id="fc">${fcfa(buildFcfa)}</span>&nbsp;F</span></div>
+    <div class="st-top"><i></i><i></i><i></i>&nbsp;playground<span class="meter"><b></b><span id="tok">${fcfa(BUILD_TOKENS)}</span>&nbsp;tokens</span></div>
     <div class="st-body">
       <div class="scene s1">
         <div class="prompt"><span>un site pour ma boutique de bazin, commande WhatsApp</span></div>
@@ -458,8 +446,7 @@ function stage(inputFcfaPerMillion: number, outputFcfaPerMillion: number): strin
 const STAGE_SCRIPT = `
 const stage = document.getElementById("stage");
 if (stage) {
-  const price = (3 * Number(stage.dataset.in) + Number(stage.dataset.out)) / 4 || 0;
-  const tok = document.getElementById("tok"), fc = document.getElementById("fc");
+  const tok = document.getElementById("tok");
   const targets = { 1: 184000, 2: 96000, 3: 231000 };
   const buttons = [...stage.querySelectorAll(".sw")];
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -470,7 +457,7 @@ if (stage) {
     const start = performance.now(), length = still ? 0 : 3200;
     const tick = now => {
       const p = length ? Math.min(1, (now - start) / length) : 1, v = Math.round(n * (1 - Math.pow(1 - p, 3)));
-      tok.textContent = whole.format(v); fc.textContent = whole.format(Math.round(v * price / 1e6));
+      tok.textContent = whole.format(v);
       if (p < 1) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -492,8 +479,7 @@ if (stage) {
  * panel from the chat, to the build, to the published site. Without script, or with reduced
  * motion, the three panels simply stack.
  */
-function story(inputFcfaPerMillion: number, outputFcfaPerMillion: number): string {
-  const buildFcfa = Math.round((BUILD_TOKENS.input + BUILD_TOKENS.output) * blended(inputFcfaPerMillion, outputFcfaPerMillion) / 1e6);
+function story(): string {
   const prods = [["Grand boubou", "25 000 F", "8%"], ["Ensemble brodé", "18 500 F", "46%"], ["Wax 6 yards", "12 000 F", "88%"]]
     .map(([name, price, x]) => `<div class="prod" style="--x:${x}"><b></b>${name}<em>${price}</em></div>`).join("");
   return `<section id="comment" class="story" data-step="0"><div class="wrap pin-box">
@@ -520,12 +506,12 @@ function story(inputFcfaPerMillion: number, outputFcfaPerMillion: number): strin
       <div class="st-top"><i></i><i></i><i></i>&nbsp;sandbox · build</div>
       <div class="files"><span class="on">catalogue.ts</span><span>index.html</span><span>whatsapp.ts</span></div>
 <pre class="code big"><span><span class="k">export const</span> catalogue = [</span><span>  { nom: <span class="s">"Grand boubou"</span>, prix: 25000 },</span><span>  { nom: <span class="s">"Ensemble brodé"</span>, prix: 18500 },</span><span>  { nom: <span class="s">"Wax 6 yards"</span>, prix: 12000 },</span><span>];</span><span> </span><span><span class="k">export const</span> commander = (p) =&gt;</span><span>  whatsapp(BOUTIQUE, <span class="s">"Je veux : "</span> + p.nom);</span></pre>
-      <div class="checks"><span class="ok">✓ 12 tests OK</span><span>build 2,1 s</span><span>${fcfa(BUILD_TOKENS.input + BUILD_TOKENS.output)} tokens</span></div>
+      <div class="checks"><span class="ok">✓ 12 tests OK</span><span>build 2,1 s</span><span>${fcfa(BUILD_TOKENS)} tokens</span></div>
     </div></div>
     <div class="panel pc"><div class="pw">
       <div class="st-top"><i></i><i></i><i></i>&nbsp;aperçu · bazin-riche-medina<span class="meter"><b></b>prêt</span></div>
       <div class="mini"><div class="mini-h">Bazin Riche Médina<small>FR · WO</small></div><div class="prods">${prods}</div><div class="wa-btn">Commander sur WhatsApp</div></div>
-      <div class="ship"><span>build ≈ ${fcfa(buildFcfa)} FCFA</span><b>Publier</b></div>
+      <div class="ship"><span>prêt à publier</span><b>Publier</b></div>
     </div></div>
   </div>
 </div></section>`;
@@ -558,40 +544,7 @@ const PAGE_SCRIPT = `
       tile.style.setProperty("--my", (e.clientY - box.top) + "px");
     });
   }
-  const counters = document.querySelectorAll("[data-count]");
-  if (!still && counters.length && "IntersectionObserver" in window) {
-    const money = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const run = el => {
-      const target = Number(el.dataset.count), start = performance.now();
-      const tick = now => {
-        const p = Math.min(1, (now - start) / 1400);
-        el.textContent = money.format(target * (1 - Math.pow(1 - p, 3)));
-        if (p < 1) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    };
-    const seen = new IntersectionObserver(entries => {
-      for (const entry of entries) if (entry.isIntersecting) { seen.unobserve(entry.target); run(entry.target); }
-    }, { threshold: 0.6 });
-    for (const el of counters) seen.observe(el);
-  }
 }`;
-
-/** A worked example of what a simple site costs, computed from the catalog price of `model`. */
-function receipt(model: ModelOffer): string {
-  const money = (v: number) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v).replace(/ | /g, " ");
-  const inCost = BUILD_TOKENS.input * model.inputFcfaPerMillion / 1e6;
-  const outCost = BUILD_TOKENS.output * model.outputFcfaPerMillion / 1e6;
-  const row = (label: string, detail: string, value: number, cls = "") =>
-    `<div class="rc-row${cls}"><span>${label}<small>${detail}</small></span><span><span data-count="${value.toFixed(2)}">${money(value)}</span> F</span></div>`;
-  return `<div class="receipt" role="group" aria-label="Exemple de ticket">
-  <div class="rc-head"><span>Ticket · exemple</span><span>${escape(model.id)}</span></div>
-  ${row("Input", `${fcfa(BUILD_TOKENS.input)} tokens × ${fcfa(model.inputFcfaPerMillion)} F / 1M`, inCost)}
-  ${row("Output", `${fcfa(BUILD_TOKENS.output)} tokens × ${fcfa(model.outputFcfaPerMillion)} F / 1M`, outCost)}
-  ${row("Total", "site e-commerce simple", inCost + outCost, " rc-total")}
-  <p class="rc-note">Estimation. Le vrai compte dépend de vos échanges avec l'agent ; il s'affiche dans votre usage, appel par appel.</p>
-</div>`;
-}
 
 function buildLink(playground: string, prompt: string): string {
   return `${playground}/?prompt=${encodeURIComponent(prompt)}`;
@@ -639,7 +592,7 @@ ${topNav(playground, contact)}
   ${ask}
   <div class="trust reveal d4"><span><i></i>Français, wolof, ou les deux mélangés</span><span><i></i>Payé en FCFA, pas besoin de carte Visa</span><span><i></i>API compatible OpenAI</span></div>
  </div>
- ${stage(example.inputFcfaPerMillion, example.outputFcfaPerMillion)}
+ ${stage()}
 </div>
 
 <div class="wrap"><div class="weave" aria-hidden="true"></div></div>
@@ -665,7 +618,7 @@ ${topNav(playground, contact)}
   ${featuredLink ? `<p style="margin-top:22px"><a class="btn ghost" href="${escape(featuredLink)}">Ouvrir un template déjà construit : prépa live TikTok ${icon.arrow}</a></p>` : ""}
 </div></section>
 
-${story(example.inputFcfaPerMillion, example.outputFcfaPerMillion)}
+${story()}
 
 <section id="objets"><div class="wrap split">
   <div>
@@ -717,7 +670,6 @@ reply = yaatal.chat.completions.create(
     <div>
       <h2>Vous payez ce que vous consommez, en FCFA.</h2>
       <p class="sub" style="margin-bottom:0">Recharger Yaatal, c'est comme acheter du crédit au coin de la rue. Le prix se compte en tokens (les bouts de texte que le modèle lit et écrit), et un appel qui échoue n'est pas facturé. Pendant la bêta, les recharges se font avec l'équipe.</p>
-      ${receipt(example)}
     </div>
     <figure><img src="/img/ngor.webp" alt="Deux jeunes vendeurs de recharges téléphoniques au bord d'une route." loading="lazy" width="1200" height="800"><figcaption>Vendeurs de recharges téléphoniques, Ngor, Dakar</figcaption></figure>
   </div>
