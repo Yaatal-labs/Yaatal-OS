@@ -24,7 +24,7 @@ Tu parles, tu n'écris pas : réponds en français, en une ou deux phrases court
 
 Ton rôle : aider la personne à décrire ce qu'elle veut construire. Pose une seule question à la fois : quoi, pour qui, et les détails qui manquent (nom de la boutique, produits, langue, numéro WhatsApp). Ne donne jamais de prix ni de stock que la personne n'a pas donnés. Tu ne gères aucun paiement.
 
-Quand tu as assez d'informations, dis en une phrase que c'est prêt, puis ajoute une dernière ligne qui commence par ${BRIEF_MARKER} suivie d'une consigne complète, en français, pour l'agent qui va construire. Cette ligne ne sera pas lue à voix haute.`;
+Quand tu as assez d'informations, dis en une phrase que c'est prêt, puis ajoute une dernière ligne qui commence par ${BRIEF_MARKER} suivie d'un brief complet, en français, pour l'agent qui va construire. Cette ligne ne sera pas lue à voix haute.`;
 
 /** French speech from Workers AI MeloTTS. Returns MP3, which is the voice pipeline's default format. */
 export class MeloFrenchTTS implements TTSProvider {

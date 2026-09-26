@@ -4,7 +4,7 @@
 export const BRIEF_MARKER = "@@PLAYGROUND@@";
 const MAX_BRIEF = 4000;
 /** Said when the model hands over a brief without a spoken sentence, so the turn is never silent. */
-export const BRIEF_READY = "C'est prêt. Vous pouvez ouvrir la consigne dans le Playground.";
+export const BRIEF_READY = "C'est prêt. Vous pouvez ouvrir le brief dans le Playground.";
 
 /**
  * Streams the reply's spoken part and captures the build brief. Text after BRIEF_MARKER is never

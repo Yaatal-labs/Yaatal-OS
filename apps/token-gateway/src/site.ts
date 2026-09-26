@@ -89,9 +89,9 @@ const FAQ: readonly [string, string][] = [
   ["Et pour les objets, vous fabriquez ?",
     "Le Playground produit le firmware, le schéma de câblage et la liste des pièces, que vous relisez avant tout achat. La fabrication se fait sur commande, avec nos partenaires : impression 3D, fournisseurs de composants, conseil technique."],
   ["Puis-je utiliser l'API dans mon propre code ?",
-    "Oui. L'API Yaatal est compatible OpenAI : vous changez l'adresse et la clé, votre code et vos SDK restent les mêmes."],
+    "Oui. L'API Yaatal est compatible OpenAI : vous changez la base URL et la clé API, votre code et vos SDK restent les mêmes."],
   ["Que devient ce que j'envoie ?",
-    "Yaatal ne garde ni vos requêtes ni les réponses. Nous gardons le décompte (modèle, tokens, montant, date), et nous supprimons votre compte et cet historique sur demande."],
+    "Yaatal ne garde ni vos prompts ni les réponses. Nous gardons seulement l'usage (modèle, tokens, montant, date), et nous supprimons votre compte et cet historique sur demande."],
 ];
 
 function escape(text: string): string {
@@ -501,7 +501,7 @@ ${topNav(playground, contact)}
 <section id="modeles"><div class="wrap">
   <p class="kicker">Templates</p>
   <h2>Partez d'un template. Adaptez-le.</h2>
-  <p class="sub">Chaque carte ouvre le Playground avec une consigne déjà écrite. Vous la modifiez, l'agent pose ses questions, puis construit.</p>
+  <p class="sub">Chaque carte ouvre le Playground avec un prompt déjà écrit. Vous le modifiez, l'agent pose ses questions, puis construit.</p>
   <div class="gallery">${tiles}</div>
   ${featuredLink ? `<p style="margin-top:22px"><a class="btn ghost" href="${escape(featuredLink)}">Ouvrir un template déjà construit : prépa live TikTok ${icon.arrow}</a></p>` : ""}
 </div></section>
@@ -587,7 +587,7 @@ reply = yaatal.chat.completions.create(
     <figure><img src="/img/ngor.webp" alt="Deux jeunes vendeurs de recharges téléphoniques au bord d'une route." loading="lazy" width="1200" height="800"><figcaption>Vendeurs de recharges téléphoniques, Ngor, Dakar</figcaption></figure>
   </div>
   <div class="table-wrap"><table>
-    <thead><tr><th>Modèle</th><th>Gamme</th><th class="num">Input · FCFA / 1M tokens</th><th class="num">Output · FCFA / 1M tokens</th></tr></thead>
+    <thead><tr><th>Modèle</th><th>Tier</th><th class="num">Input · FCFA / 1M tokens</th><th class="num">Output · FCFA / 1M tokens</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
   <p class="sub" style="margin-top:16px;margin-bottom:0">Liste à jour : <a href="/v1/models">/v1/models</a> · Votre solde : <a href="/usage">/usage</a></p>
 </div></section>
@@ -597,11 +597,11 @@ reply = yaatal.chat.completions.create(
   <h2>Les quatre questions qu'on nous pose.</h2>
   <div class="qa">
     <div class="card"><h3>Où sont-elles traitées ?</h3><p>Chez le fournisseur cloud du modèle choisi, le temps de produire la réponse.</p></div>
-    <div class="card"><h3>Combien de temps sont-elles gardées ?</h3><p>Yaatal ne conserve ni vos requêtes ni les réponses.</p></div>
-    <div class="card"><h3>Sont-elles journalisées ?</h3><p>Nous gardons seulement le décompte : modèle, tokens, montant, date.</p></div>
-    <div class="card"><h3>Peut-on les supprimer ?</h3><p>Oui : sur demande, votre compte et son historique de consommation.</p></div>
+    <div class="card"><h3>Combien de temps sont-elles gardées ?</h3><p>Yaatal ne garde ni vos prompts ni les réponses.</p></div>
+    <div class="card"><h3>Y a-t-il des logs ?</h3><p>Seulement l'usage : modèle, tokens, montant, date.</p></div>
+    <div class="card"><h3>Peut-on les supprimer ?</h3><p>Oui : sur demande, votre compte et son historique d'usage.</p></div>
   </div>
-  <p class="sub" style="margin-top:18px;margin-bottom:0">Seul le contenu de votre requête part chez le fournisseur cloud, jamais votre clé ni l'identifiant de votre compte. Évitez d'y mettre des données personnelles sensibles.</p>
+  <p class="sub" style="margin-top:18px;margin-bottom:0">Seul votre prompt part chez le fournisseur cloud, jamais votre clé API ni l'identifiant de votre compte. Évitez d'y mettre des données personnelles sensibles.</p>
 </div></section>
 
 <section id="faq"><div class="wrap" style="max-width:860px">
@@ -648,7 +648,7 @@ form.addEventListener("submit", async e => {
   let res;
   try { res = await fetch("/v1/balance", {headers: {authorization: "Bearer " + key.value.trim()}}); }
   catch { out.textContent = "Réseau indisponible."; return; }
-  if (!res.ok) { out.textContent = res.status === 401 ? "Clé invalide." : "Erreur " + res.status + "."; return; }
+  if (!res.ok) { out.textContent = res.status === 401 ? "Clé API invalide." : "Erreur " + res.status + "."; return; }
   const data = await res.json(); out.textContent = "";
   const h = document.createElement("h2"); h.textContent = money(data.balance_fcfa); out.appendChild(h);
   const table = document.createElement("table"), head = document.createElement("tr");
@@ -669,8 +669,8 @@ form.addEventListener("submit", async e => {
 <main id="main" class="wrap" style="padding-top:56px;padding-bottom:88px;max-width:860px">
 <p class="kicker">Consommation</p>
 <h2>Votre solde en FCFA</h2>
-<p class="sub">Collez votre clé pour voir votre solde et vos derniers appels. La clé n'est ni enregistrée ni envoyée ailleurs.</p>
-<form id="f" class="row"><input id="k" type="password" autocomplete="off" placeholder="yk_…" required aria-label="Clé Yaatal"><button class="btn accent" type="submit">Voir</button></form>
+<p class="sub">Collez votre clé API pour voir votre solde et vos derniers appels. Elle n'est ni enregistrée ni envoyée ailleurs.</p>
+<form id="f" class="row"><input id="k" type="password" autocomplete="off" placeholder="yk_…" required aria-label="Clé API Yaatal"><button class="btn accent" type="submit">Voir</button></form>
 <div id="out" aria-live="polite"></div>
 </main>`;
   return page("Yaatal · Consommation", body, { script });
