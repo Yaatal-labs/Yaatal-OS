@@ -3,3 +3,5 @@
 *.json text eol=lf
 *.ts text eol=lf
 *.jsonc text eol=lf
+*.patch text eol=lf
+*.png binary

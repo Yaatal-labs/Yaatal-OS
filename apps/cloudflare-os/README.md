@@ -4,8 +4,9 @@ Yaatal's creation workspace runs on upstream [Cloudflare OS](https://github.com/
 instead of a bespoke agent runtime. The OS already ships agent chat, sandboxed Gadgets, Blueprints,
 Gatekeepers and a human review gate for agent-written code; this folder only adapts it.
 
-Customization order: `/admin` settings → `deployment.jsonc` → custom Gatekeeper → upstream fork, the
-last only for a demonstrated gap. Yaatal Engine stays the authority for identity, merchant scope,
+Customization order: `/admin` settings → `deployment.jsonc` → custom Gatekeeper → a small patch set →
+upstream fork, the last two only for a demonstrated gap. The patch set covers what the Admin API cannot
+change; `overlay.sh` applies each patch or stops if upstream moved the lines, so nothing is lost silently. Yaatal Engine stays the authority for identity, merchant scope,
 business data, payments and inference policy.
 
 ## Contents
@@ -14,7 +15,9 @@ business data, payments and inference policy.
 | --- | --- |
 | `upstream.json` | Pinned starter and upstream commits, and the required toolchain |
 | `scripts/bootstrap.sh` | Clones the starter at the pin, checks out the pinned upstream, runs the overlay |
-| `scripts/overlay.sh` | Copies `gatekeepers/*` into a checkout's upstream `packages/` (re-run after edits) |
+| `scripts/overlay.sh` | Copies `gatekeepers/*` into a checkout's upstream `packages/` and applies `patches/*.patch` (re-run after edits) |
+| `patches/0001-yaatal-home-fr.patch` | What the Admin API cannot set: French home copy, Yaatal starting points, a free-tier default model |
+| `yaatal/brand/yaatal-mark.png` | Site logo (PNG, as the OS requires), applied by `apply-admin.mjs` |
 | `gatekeepers/gatekeeper-yaatal` | Read-only Engine catalog for agents and Gadgets, pinned to one merchant |
 | `yaatal/admin-settings.json` | Yaatal identity: site name, accent, announcement, agent instructions |
 | `yaatal/apply-admin.mjs` | Applies the settings through the Admin API and verifies each field |

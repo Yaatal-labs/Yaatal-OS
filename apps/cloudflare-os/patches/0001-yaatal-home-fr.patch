@@ -1,0 +1,143 @@
+diff --git a/packages/workshop-frontend/src/components/AppShell/HomeTaskSuggestions.tsx b/packages/workshop-frontend/src/components/AppShell/HomeTaskSuggestions.tsx
+index b6878b32..ace0a71d 100644
+--- a/packages/workshop-frontend/src/components/AppShell/HomeTaskSuggestions.tsx
++++ b/packages/workshop-frontend/src/components/AppShell/HomeTaskSuggestions.tsx
+@@ -1,10 +1,11 @@
+ import { useMemo } from 'react'
+ import {
+-  AppWindow,
+   ChartLineUp,
+-  FileText,
+-  Lightning,
+-  Presentation,
++  Cpu,
++  Scales,
++  Storefront,
++  VideoCamera,
++  WhatsappLogo,
+   type Icon,
+ } from '@phosphor-icons/react'
+ 
+@@ -23,44 +24,52 @@ type TaskSuggestion = {
+ // first move isn't "pick a file type". The formats themselves are in the composer's `+` menu.
+ const SUGGESTIONS: TaskSuggestion[] = [
+   {
+-    id: 'one-on-one',
+-    label: 'Write a 1:1 pre-read',
+-    description: 'A doc with a snapshot, things to inspect, and one ask',
+-    icon: FileText,
++    id: "merchant-site",
++    label: "Site marchand en marque blanche",
++    description: "Catalogue, prix en FCFA, commande sur WhatsApp",
++    icon: Storefront,
+     prompt:
+-      'Create a document to prepare for my next 1:1 with a direct report: a current snapshot, a coaching frame, things to inspect, carryover items from last time, and one clear ask.',
++      "Construis un site vitrine en marque blanche pour une boutique de Dakar : catalogue avec photos et prix en FCFA, bouton « Commander sur WhatsApp », en français et en wolof. Demande-moi d'abord le nom de la boutique et mes produits.",
+   },
+   {
+-    id: 'team-meeting',
+-    label: 'Build a team meeting deck',
+-    description: 'Slides with progress, risks, and what needs a decision',
+-    icon: Presentation,
++    id: "live-prep",
++    label: "Fiche de préparation live",
++    description: "Trier les produits et l'ordre de passage avant le direct",
++    icon: VideoCamera,
+     prompt:
+-      'Create a slide deck for my next team meeting: where things stand, what shipped, risks and blockers, and the decisions I need from the room. Ask me what the team is working on first.',
++      "Construis une fiche de préparation pour une vente en direct sur TikTok ou WhatsApp : je colle mes produits (nom, prix en FCFA, stock), tu les tries, signales les ruptures et proposes l'ordre de passage. N'invente aucun prix ni aucun stock.",
+   },
+   {
+-    id: 'insights',
+-    label: 'Find insights in my data',
+-    description: 'Turn a spreadsheet or CSV into trends and recommendations',
++    id: "whatsapp-assistant",
++    label: "Assistant WhatsApp",
++    description: "Répond depuis votre catalogue, vous validez les commandes",
++    icon: WhatsappLogo,
++    prompt:
++      "Crée un assistant qui répond aux questions de mes clients sur WhatsApp à partir de mon catalogue, en français et en wolof, et me transmet les commandes pour validation. Il ne prend jamais de paiement lui-même.",
++  },
++  {
++    id: "sales-dashboard",
++    label: "Tableau de bord des ventes",
++    description: "Du fichier CSV aux décisions du jour",
+     icon: ChartLineUp,
+     prompt:
+-      'Turn a dataset I will share (a spreadsheet, CSV, or pasted table) into a narrative analysis: key trends, anomalies, the "so what", and concrete recommendations.',
++      "Transforme un export de mes ventes (CSV que je vais coller) en tableau de bord : chiffre du jour, meilleurs produits, stocks à réapprovisionner et trois recommandations concrètes.",
+   },
+   {
+-    id: 'workflow',
+-    label: 'Automate a workflow',
+-    description: 'Trigger an agent when a new email arrives',
+-    icon: Lightning,
++    id: "payment-box",
++    label: "Boîtier qui annonce les paiements",
++    description: "Firmware ESP32, câblage et composants",
++    icon: Cpu,
+     prompt:
+-      'Create an agent workflow that runs automatically when a new email arrives: read the message, decide what to do, and take action or draft a reply. Ask me which inbox to watch and what it should handle.',
++      "Conçois un boîtier ESP32-S3 qui annonce à voix haute, en wolof et en français, les paiements reçus. Donne le firmware, le schéma de câblage et la liste des composants (BOM) avec un prix indicatif par pièce. Prototype virtuel uniquement.",
+   },
+   {
+-    id: 'app',
+-    label: 'Build a quick tool',
+-    description: 'A small interactive app, calculator, or dashboard',
+-    icon: AppWindow,
++    id: "stock-scale",
++    label: "Balance connectée pour le stock",
++    description: "Pèse, compte et prévient quand il faut recommander",
++    icon: Scales,
+     prompt:
+-      'Build a small interactive tool I can use right here — a calculator, dashboard, or explorer. Ask me what it should do, then create it.',
++      "Conçois une balance connectée à base d'ESP32 et de capteur HX711 qui suit le stock d'un produit vendu au poids (riz, sucre) et envoie une alerte quand il passe sous un seuil. Donne le firmware, le câblage et la liste des composants. Prototype virtuel uniquement.",
+   },
+ ]
+ 
+@@ -122,9 +131,9 @@ export default function HomeTaskSuggestions({
+   const visible = useMemo(pickSuggestions, [])
+ 
+   return (
+-    <section aria-label="Example tasks" className="flex flex-col gap-1">
++    <section aria-label="Exemples pour commencer" className="flex flex-col gap-1">
+       <h3 className="px-1 pb-1 text-[12px] font-medium uppercase tracking-[0.06em] text-kumo-inactive">
+-        Get started
++        Pour commencer
+       </h3>
+       <ul className="flex flex-col gap-0.5">
+         {visible.map((suggestion) => (
+diff --git a/packages/workshop-frontend/src/routes/index.tsx b/packages/workshop-frontend/src/routes/index.tsx
+index c24afd5a..6e341cf8 100644
+--- a/packages/workshop-frontend/src/routes/index.tsx
++++ b/packages/workshop-frontend/src/routes/index.tsx
+@@ -173,10 +173,10 @@ export function HomePageContent({ prompt }: HomeSearch) {
+         {/* Hero */}
+         <header className="text-center">
+           <h1 className="text-3xl font-semibold tracking-tight leading-tight text-kumo-default sm:text-4xl">
+-            What are we working on?
++            Qu'est-ce qu'on construit ?
+           </h1>
+           <p className="mx-auto mt-3 max-w-md text-[14px] leading-5 tracking-[-0.25px] text-kumo-subtle">
+-            Ask a question, create an output, or create an app that works with your tools and data.
++            Décrivez un site, un outil ou un objet connecté : l'agent le construit avec vous, et vous validez chaque changement.
+           </p>
+         </header>
+ 
+diff --git a/packages/workshop-shared/src/api.ts b/packages/workshop-shared/src/api.ts
+index 8c8e2c83..48d17226 100644
+--- a/packages/workshop-shared/src/api.ts
++++ b/packages/workshop-shared/src/api.ts
+@@ -1300,6 +1300,12 @@ type SuggestedModel = {
+ // The literal is kept apart from the export so SuggestedModelId can derive the model ids from it.
+ const SUGGESTED_MODEL_CATALOG = {
+   "cloudflare": {
++    // Yaatal: listed first so it is the default. It runs on the Workers AI free tier; the models
++    // below it are Workers Paid only.
++    "@cf/nvidia/nemotron-3-120b-a12b": {
++      name: "Nemotron 3 Super (Workers AI)", contextWindow: 131072,
++      outputLimit: WORKERS_AI_OUTPUT_LIMIT,
++    },
+     "@cf/moonshotai/kimi-k2.7-code": {
+       name: "Kimi K2.7 Code (Workers AI)", contextWindow: 262144,
+       outputLimit: WORKERS_AI_OUTPUT_LIMIT,

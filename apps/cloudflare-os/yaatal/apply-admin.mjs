@@ -19,6 +19,10 @@ await adminApi.setAnnouncement(settings.announcement);
 await adminApi.setBanner(settings.banner.text, settings.banner.color);
 await adminApi.setSignupsEnabled(settings.signupsEnabled);
 await adminApi.setInstanceInstructions(instructions);
+if (settings.logo) {
+  // The OS only accepts a PNG logo; brand/yaatal-mark.png is the woven-strip mark.
+  await adminApi.setSiteLogo(new Uint8Array(readFileSync(new URL(settings.logo, import.meta.url))));
+}
 
 const after = await adminApi.getSettings();
 const applied = {
@@ -27,6 +31,7 @@ const applied = {
   announcement: after.announcement === settings.announcement,
   signupsEnabled: after.signupsEnabled === settings.signupsEnabled,
   instanceInstructions: after.instanceInstructions === instructions,
+  logo: !settings.logo || Boolean(after.siteLogo),
 };
 console.log(JSON.stringify({ applied, instructionsChars: instructions.length }, null, 1));
 process.exit(Object.values(applied).every(Boolean) ? 0 : 1);
