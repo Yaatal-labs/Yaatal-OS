@@ -1,6 +1,8 @@
 import { applyD1Migrations, createExecutionContext, env, waitOnExecutionContext, type D1Migration } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import worker from "../src/index.js";
+import { MODELS, retailFcfa } from "../src/models.js";
+import { callUpstreams } from "../src/upstream.js";
 
 declare global {
   namespace Cloudflare {
@@ -97,8 +99,9 @@ describe("catalog", () => {
     const { data } = (await response.json()) as { data: { id: string; tier: string; pricing: Record<string, unknown> }[] };
     expect(data.map(model => model.id)).toContain("yaatal/glm-4.7-flash");
     const glm = data.find(model => model.id === "yaatal/glm-4.7-flash")!;
-    expect(glm.tier).toBe("standard");
-    expect(glm.pricing).toEqual({ currency: "XOF", input_per_million: 1000, output_per_million: 1000 });
+    expect(glm.tier).toBe("micro");
+    // Workers AI cost $0.0605 / $0.40 per million, at 600 FCFA per dollar and a 2x markup.
+    expect(glm.pricing).toEqual({ currency: "XOF", input_per_million: 100, output_per_million: 500 });
   });
 });
 
@@ -160,10 +163,10 @@ describe("chat completions", () => {
     expect(json.model).toBe("yaatal/nemotron-3-super");
     expect(seen[0]!.url).toContain("/workers-ai/v1/chat/completions");
     expect(seen[0]!.body.model).toBe("@cf/nvidia/nemotron-3-120b-a12b");
-    // 1,500 tokens at 3,500 FCFA per million = 5.25 FCFA.
+    // 1,000 input tokens at 600 FCFA/M plus 500 output tokens at 1,800 FCFA/M = 1.5 FCFA.
     const { balance_fcfa, recent } = await balanceOf(api_key);
-    expect(balance_fcfa).toBeCloseTo(5_000 - 5.25, 6);
-    expect(recent[0]).toMatchObject({ kind: "usage", amount_fcfa: -5.25, input_tokens: 1_000, output_tokens: 500, estimated: false });
+    expect(balance_fcfa).toBeCloseTo(5_000 - 1.5, 6);
+    expect(recent[0]).toMatchObject({ kind: "usage", amount_fcfa: -1.5, input_tokens: 1_000, output_tokens: 500, estimated: false });
   });
 
   it("keeps no data upstream: logging off, and no user, metadata or store fields forwarded", async () => {
@@ -203,8 +206,8 @@ describe("chat completions", () => {
     expect(await response.text()).toBe(upstreamText);
     expect(seen[0]!.body.stream_options).toEqual({ include_usage: true });
     const { recent } = await balanceOf(api_key);
-    // 3,000 tokens at 3,500 FCFA per million = 10.5 FCFA.
-    expect(recent[0]).toMatchObject({ amount_fcfa: -10.5, input_tokens: 2_000, output_tokens: 1_000, estimated: false });
+    // 2,000 input tokens at 600 FCFA/M plus 1,000 output tokens at 1,800 FCFA/M = 3 FCFA.
+    expect(recent[0]).toMatchObject({ amount_fcfa: -3, input_tokens: 2_000, output_tokens: 1_000, estimated: false });
   });
 
   it("estimates and flags a stream that reports no usage", async () => {
@@ -234,7 +237,7 @@ describe("failover", () => {
     expect(seen[0]!.body.model).toBe("@cf/zai-org/glm-4.7-flash");
     const { recent } = await balanceOf(api_key);
     expect(recent.filter(row => row.kind === "usage")).toHaveLength(1);
-    expect(recent[0]!.amount_fcfa).toBe(-2); // 2,000 tokens at 1,000 FCFA per million
+    expect(recent[0]!.amount_fcfa).toBeCloseTo(-0.6, 6); // 1,000 in at 100 + 1,000 out at 500 FCFA/M
   });
 
   it("sends nothing identifying the customer to the wholesale supplier", async () => {
@@ -270,12 +273,9 @@ describe("failover", () => {
     expect(recent.filter(row => row.kind === "usage")).toHaveLength(0);
   });
 
-  it("answers 503 when a model has no configured upstream", async () => {
-    const { api_key } = await newAccount();
-    const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/deepseek-r1"),
-    }, { AI: fakeAi(() => completion(1, 1)).ai });
-    expect(response.status).toBe(503);
+  it("finds no upstream when the only one is an unconfigured wholesale server", async () => {
+    const offer = { ...MODELS[0]!, upstreams: [{ kind: "openai", baseUrlVar: "WHOLESALE_BASE_URL", apiKeyVar: "WHOLESALE_API_KEY", model: "x" }] } as const;
+    expect(await callUpstreams({ ...env, AI: fakeAi(() => completion(1, 1)).ai } as never, offer, { messages: [] })).toBeNull();
   });
 });
 
@@ -309,8 +309,8 @@ describe("customer pages", () => {
     expect(response.status).toBe(200);
     const html = await response.text();
     expect(html).toContain("Facturé en FCFA");
-    expect(html).toContain("yaatal/glm-4.7-flash");
-    expect(html).toMatch(/1 000<\/td><td class="num">1 000/);
+    expect(html).toContain("yaatal/qwen3.8-27b");
+    expect(html).toMatch(/550<\/td><td class="num">3 850/); // qwen3.8-27b, the newest free-plan model
     for (const word of ["siliconflow", "openrouter", "@cf/", "workers-ai", "wholesale"]) {
       expect(html.toLowerCase()).not.toContain(word);
     }
@@ -372,5 +372,31 @@ describe("photos", () => {
       expect(html).toContain(credit);
     }
     expect(html).not.toMatch(/<img(?![^>]*\balt=")[^>]*>/);
+  });
+});
+
+describe("pricing", () => {
+  it("never sells a model below its upstream cost", () => {
+    expect(retailFcfa(3.2)).toBe(3850); // Qwen3.8 output: cost 1,920 FCFA
+    for (const model of MODELS) {
+      expect(model.inputFcfaPerMillion).toBeGreaterThan(0);
+      expect(model.outputFcfaPerMillion).toBeGreaterThanOrEqual(model.inputFcfaPerMillion > 0 ? 50 : 0);
+    }
+  });
+});
+
+describe("plan-gated models", () => {
+  it("hides and refuses Workers Paid models on a free account, and serves them once enabled", async () => {
+    const list = async (extra = {}) =>
+      ((await (await call("/v1/models", {}, extra)).json()) as { data: { id: string }[] }).data.map(m => m.id);
+    expect(await list()).not.toContain("yaatal/glm-5.3");
+    expect(await list({ WORKERS_PAID: "true" })).toContain("yaatal/glm-5.3");
+    const { api_key } = await newAccount();
+    const refused = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-5.3") });
+    expect(refused.status).toBe(404);
+    const { ai } = fakeAi(() => completion(1, 1));
+    const served = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-5.3") }, { AI: ai, WORKERS_PAID: "true" });
+    expect(served.status).toBe(200);
+    expect(await (await call("/")).text()).not.toContain("yaatal/glm-5.3<");
   });
 });

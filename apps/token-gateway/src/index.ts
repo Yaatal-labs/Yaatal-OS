@@ -14,7 +14,7 @@
 //
 // Credits are granted by an administrator here. Taking payment (Wave, Orange Money, PI-SPI) is a
 // separate, explicitly approved step that ends in one of these credit calls.
-import { MODELS, costOf, findModel, type ModelOffer } from "./models.js";
+import { availableModels, costOf, findModel, type ModelOffer } from "./models.js";
 import { UnknownAccountError, accountForKey, createAccount, createKey, credit, debitUsage, recentLedger, revokeKey } from "./ledger.js";
 import { callUpstreams, type UpstreamEnv } from "./upstream.js";
 import { home, usage, type SiteEnv } from "./site.js";
@@ -22,6 +22,8 @@ import { countStream, requestCharacters, usageFrom, generatedCharacters, estimat
 
 export interface Env extends UpstreamEnv, SiteEnv {
   DB: D1Database;
+  /** "true" once the account is on Workers Paid: unlocks the models that need it. */
+  WORKERS_PAID?: string;
   ADMIN_TOKEN?: string;
 }
 
@@ -36,7 +38,7 @@ export default {
     try {
       if (url.pathname === "/" && request.method === "GET") return home(request, env);
       if (url.pathname === "/usage" && request.method === "GET") return usage(request, env);
-      if (url.pathname === "/v1/models" && request.method === "GET") return models();
+      if (url.pathname === "/v1/models" && request.method === "GET") return models(env);
       if (url.pathname === "/v1/chat/completions" && request.method === "POST") return await chat(request, env, ctx);
       if (url.pathname === "/v1/balance" && request.method === "GET") return await balance(request, env);
       if (url.pathname.startsWith("/admin/") && request.method === "POST") return await admin(request, env, url.pathname);
@@ -60,10 +62,10 @@ function error(status: number, type: string, message: string): Response {
   return Response.json({ error: { type, message } }, { status });
 }
 
-function models(): Response {
+function models(env: Env): Response {
   return Response.json({
     object: "list",
-    data: MODELS.map(model => ({
+    data: availableModels(env).map(model => ({
       id: model.id,
       object: "model",
       owned_by: "yaatal",
@@ -106,7 +108,7 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
 async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const account = await authenticate(request, env);
   const body = await readJson(request);
-  const offer = findModel(body.model);
+  const offer = findModel(body.model, availableModels(env));
   if (!offer) throw new HttpError(404, "model_not_found", "Unknown model. GET /v1/models lists what is available.");
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     throw new HttpError(400, "invalid_request", "messages must be a non-empty array.");

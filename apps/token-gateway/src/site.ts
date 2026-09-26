@@ -2,9 +2,11 @@
 // website to a device's firmware, on one AI API billed in FCFA. Every idea goes straight to the
 // Playground (the Yaatal OS) through its `/?prompt=` deep link. Prices are rendered from the model
 // catalog so the page cannot drift from billing. No supplier or upstream model name appears here.
-import { MODELS } from "./models.js";
+import { availableModels } from "./models.js";
 
 export interface SiteEnv {
+  /** "true" on Workers Paid: the page then lists the models that need it. */
+  WORKERS_PAID?: string;
   /** Public origin of the Playground (the Yaatal OS). HTTPS, or HTTP on loopback. */
   PLAYGROUND_URL?: string;
   /** Blueprint id featured as a one-click template in the Playground. */
@@ -313,8 +315,9 @@ export function home(request: Request, env: SiteEnv): Response {
   const featured = env.FEATURED_BLUEPRINT_ID?.trim();
   const featuredLink = playground && featured && /^[A-Za-z0-9_-]{8,64}$/.test(featured)
     ? `${playground}/blueprint/${featured}` : null;
-  const example = MODELS.find(model => model.tier === "standard") ?? MODELS[0]!;
-  const rows = MODELS.map(model => `<tr><td><code>${escape(model.id)}</code></td><td>${TIER_LABEL[model.tier]}</td><td class="num">${fcfa(model.inputFcfaPerMillion)}</td><td class="num">${fcfa(model.outputFcfaPerMillion)}</td></tr>`).join("");
+  const models = availableModels(env);
+  const example = models.find(model => model.tier === "standard") ?? models[0]!;
+  const rows = models.map(model => `<tr><td><code>${escape(model.id)}</code></td><td>${TIER_LABEL[model.tier]}</td><td class="num">${fcfa(model.inputFcfaPerMillion)}</td><td class="num">${fcfa(model.outputFcfaPerMillion)}</td></tr>`).join("");
   const chips = IDEAS.map(idea =>
     `<button class="chip" type="button" data-prompt="${escape(idea.prompt)}" data-example="${escape(idea.example)}">${escape(idea.title)}</button>`).join("");
   const tiles = IDEAS.map(idea => {
