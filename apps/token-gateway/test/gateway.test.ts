@@ -337,3 +337,29 @@ describe("customer pages", () => {
     expect(await (await call("/", {}, { CONTACT_WHATSAPP: "javascript:alert(1)" })).text()).not.toContain("wa.me");
   });
 });
+
+describe("playground hand-off", () => {
+  it("sends the idea to the Playground's prompt deep link, allowed by the form policy", async () => {
+    const response = await call("/", {}, { PLAYGROUND_URL: "https://os.yaatal.test", FEATURED_BLUEPRINT_ID: "8f3639f6abcdef12" });
+    const html = await response.text();
+    expect(html).toContain('<form class="ask reveal d2" method="get" action="https://os.yaatal.test/">');
+    expect(html).toContain('name="prompt" maxlength="4000"');
+    expect(html).toContain("https://os.yaatal.test/blueprint/8f3639f6abcdef12");
+    expect(html).toContain("https://os.yaatal.test/signup");
+    expect(response.headers.get("content-security-policy")).toContain("form-action https://os.yaatal.test");
+  });
+
+  it("refuses an unsafe Playground address and hides the form", async () => {
+    for (const bad of ["http://os.yaatal.test", "javascript:alert(1)", "https://u:p@os.yaatal.test"]) {
+      const response = await call("/", {}, { PLAYGROUND_URL: bad });
+      const html = await response.text();
+      expect(html).not.toContain('name="prompt"');
+      expect(response.headers.get("content-security-policy")).toContain("form-action 'none'");
+    }
+  });
+
+  it("ignores a malformed featured Blueprint id", async () => {
+    const html = await (await call("/", {}, { PLAYGROUND_URL: "https://os.yaatal.test", FEATURED_BLUEPRINT_ID: "../admin" })).text();
+    expect(html).not.toContain("/blueprint/");
+  });
+});
