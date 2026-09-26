@@ -302,3 +302,38 @@ describe("guards", () => {
     expect((await balanceOf(api_key)).balance_fcfa).toBe(5_000);
   });
 });
+
+describe("customer pages", () => {
+  it("shows the offer with prices from the catalog and names no supplier or upstream model", async () => {
+    const response = await call("/");
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain("Facturé en FCFA");
+    expect(html).toContain("yaatal/glm-4.7-flash");
+    expect(html).toMatch(/1 000<\/td><td class="num">1 000/);
+    for (const word of ["wenshu", "siliconflow", "openrouter", "@cf/", "workers-ai", "wholesale"]) {
+      expect(html.toLowerCase()).not.toContain(word);
+    }
+  });
+
+  it("serves the pages with a strict content security policy", async () => {
+    for (const path of ["/", "/usage"]) {
+      const csp = (await call(path)).headers.get("content-security-policy") ?? "";
+      expect(csp).toContain("default-src 'none'");
+      expect(csp).toContain("frame-ancestors 'none'");
+      expect(csp).not.toContain("unsafe-eval");
+    }
+    const usage = await call("/usage");
+    const html = await usage.text();
+    const nonce = /script-src 'nonce-([^']+)'/.exec(usage.headers.get("content-security-policy") ?? "")?.[1];
+    expect(nonce).toBeTruthy();
+    expect(html).toContain(`<script nonce="${nonce}">`);
+    expect(html).not.toContain("innerHTML");
+  });
+
+  it("shows the WhatsApp button only for a valid configured number", async () => {
+    expect(await (await call("/")).text()).not.toContain("wa.me");
+    expect(await (await call("/", {}, { CONTACT_WHATSAPP: "221770000000" })).text()).toContain("https://wa.me/221770000000?text=");
+    expect(await (await call("/", {}, { CONTACT_WHATSAPP: "javascript:alert(1)" })).text()).not.toContain("wa.me");
+  });
+});

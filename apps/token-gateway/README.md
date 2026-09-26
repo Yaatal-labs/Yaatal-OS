@@ -8,6 +8,8 @@ OpenAI-compatible server such as a self-hosted model. Switching a model's suppli
 
 | Route | Auth | Purpose |
 | --- | --- | --- |
+| `GET /` | none | Public page (French): offer, FCFA prices from the catalog, quickstart, data handling, WhatsApp access button when `CONTACT_WHATSAPP` is set |
+| `GET /usage` | none | Usage page: paste a key to see balance and recent calls (the key stays in the tab) |
 | `GET /v1/models` | none | Models, tier and FCFA price per million tokens |
 | `POST /v1/chat/completions` | Yaatal key | OpenAI chat completions, streaming or not |
 | `GET /v1/balance` | Yaatal key | Balance and recent ledger rows |
@@ -42,7 +44,7 @@ OpenAI-compatible server such as a self-hosted model. Switching a model's suppli
 pnpm install
 printf 'ADMIN_TOKEN=%s\n' "$(openssl rand -hex 24)" > .dev.vars   # plus WHOLESALE_BASE_URL / WHOLESALE_API_KEY if used
 pnpm dev                                                          # applies migrations, serves :8787
-pnpm check && pnpm test                                           # types, and 17 tests in workerd with fake upstreams
+pnpm check && pnpm test                                           # types, and 20 tests in workerd with fake upstreams
 ```
 
 Workers AI upstreams need `wrangler login`; usage counts against that account.
