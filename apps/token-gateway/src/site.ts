@@ -154,8 +154,6 @@ code,pre,.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
 header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(10px)}
 nav{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:68px}
 .logo{display:flex;align-items:center;gap:10px;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:1.25rem;text-decoration:none;letter-spacing:-.03em}
-.mark{width:28px;height:28px;border-radius:8px;background:var(--deep);display:grid;place-items:center}
-.mark span{display:block;width:16px;height:3px;border-radius:2px;background:var(--accent);box-shadow:0 6px 0 #f3dcc0,0 -6px 0 #f3dcc0}
 .links{display:flex;gap:26px;font-size:.95rem;color:var(--muted)}.links a{text-decoration:none;padding:10px 0}.links a:hover{color:var(--ink)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;background:var(--ink);color:var(--paper);border:0;border-radius:12px;padding:10px 18px;font:600 .98rem "Instrument Sans",sans-serif;text-decoration:none;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s}
 .btn:hover{background:var(--accent-strong);color:#fff}.btn.accent{background:var(--accent-strong);color:#fff}.btn.accent:hover{background:var(--ink);color:var(--paper)}
@@ -284,7 +282,7 @@ function topNav(playground: string | null, contact: string | null): string {
     ? `<a class="btn" href="${escape(playground)}/">Ouvrir le Playground</a>`
     : contact ? `<a class="btn" href="${escape(contact)}" rel="noopener">Accès bêta</a>` : "";
   return `<header class="top"><nav class="wrap" aria-label="Principale">
-<a class="logo" href="/"><span class="mark" aria-hidden="true"><span></span></span>Yaatal</a>
+<a class="logo" href="/"><svg width='28' height='28' aria-hidden='true' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><rect width='256' height='256' rx='56' fill='#15302c'/><rect x='52' y='74' width='66' height='20' rx='10' fill='#f3dcc0'/><rect x='136' y='74' width='68' height='20' rx='10' fill='#f3dcc0'/><rect x='52' y='115' width='116' height='26' rx='13' fill='#e85a25'/><rect x='186' y='115' width='18' height='26' rx='13' fill='#e85a25'/><rect x='52' y='162' width='32' height='20' rx='10' fill='#f3dcc0'/><rect x='102' y='162' width='102' height='20' rx='10' fill='#f3dcc0'/></svg>Yaatal</a>
 <div class="links"><a href="/#modeles">Modèles</a><a href="/#comment">Comment ça marche</a><a href="/#objets">Objets</a><a href="/#api">API</a><a href="/#tarifs">Tarifs</a></div>
 ${cta}</nav></header>`;
 }
