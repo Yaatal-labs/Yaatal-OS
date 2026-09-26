@@ -55,6 +55,11 @@ export const MODELS: readonly ModelOffer[] = [
     { ...WHOLESALE, model: "qwen3-27b" },
     { kind: "workers-ai", model: "@cf/qwen/qwen3.8-27b" },
   ]),
+  // No reasoning phase, so it answers at once: the default for voice.
+  offer("yaatal/llama-3.3-70b", "standard", [
+    { ...WHOLESALE, model: "llama-3.3-70b-instruct" },
+    { kind: "workers-ai", model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
+  ]),
   offer("yaatal/nemotron-3-super", "reasoning", [
     { kind: "workers-ai", model: "@cf/nvidia/nemotron-3-120b-a12b" },
   ]),
