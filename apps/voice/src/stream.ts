@@ -3,6 +3,8 @@
 /** The line that separates what is spoken from the build brief handed to the Playground. */
 export const BRIEF_MARKER = "@@PLAYGROUND@@";
 const MAX_BRIEF = 4000;
+/** Said when the model hands over a brief without a spoken sentence, so the turn is never silent. */
+export const BRIEF_READY = "C'est prêt. Vous pouvez ouvrir la consigne dans le Playground.";
 
 /**
  * Streams the reply's spoken part and captures the build brief. Text after BRIEF_MARKER is never
@@ -30,11 +32,17 @@ export async function* speakAndCaptureBrief(
     return;
   }
   const brief = full.slice(marker + BRIEF_MARKER.length).trim().slice(0, MAX_BRIEF);
-  if (brief) onBrief(brief);
+  if (!brief) return;
+  if (!/[\p{L}\p{N}]/u.test(full.slice(0, marker))) yield BRIEF_READY;
+  onBrief(brief);
 }
 
-/** Reads the text deltas of an OpenAI-style chat completions stream. Reasoning is skipped. */
-export async function* chatDeltas(response: Response): AsyncGenerator<string> {
+/**
+ * Reads the text deltas of an OpenAI-style chat completions stream. Reasoning is skipped, unless
+ * `reasoningIsAnswer` is set: with thinking disabled, Workers AI streams Nemotron's answer in the
+ * `reasoning` field (its parser labels everything reasoning when there is no think block).
+ */
+export async function* chatDeltas(response: Response, options: { reasoningIsAnswer?: boolean } = {}): AsyncGenerator<string> {
   if (!response.body) return;
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = "";
@@ -50,9 +58,12 @@ export async function* chatDeltas(response: Response): AsyncGenerator<string> {
       const data = line.slice(5).trim();
       if (!data || data === "[DONE]") continue;
       try {
-        const chunk = JSON.parse(data) as { choices?: { delta?: { content?: string | null } }[] };
-        const content = chunk.choices?.[0]?.delta?.content;
-        if (content) yield content;
+        const chunk = JSON.parse(data) as {
+          choices?: { delta?: { content?: string | null; reasoning?: string | null } }[];
+        };
+        const delta = chunk.choices?.[0]?.delta;
+        const text = delta?.content || (options.reasoningIsAnswer ? delta?.reasoning : null);
+        if (text) yield text;
       } catch {
         // Ignore keep-alives and malformed lines.
       }
@@ -60,3 +71,22 @@ export async function* chatDeltas(response: Response): AsyncGenerator<string> {
   }
 }
 
+
+/**
+ * Text as it should be spoken: markdown markers, emoji, links and separators removed, so the voice
+ * says the words and not the symbols. Returns null when nothing speakable is left.
+ */
+export function speakable(text: string): string | null {
+  const cleaned = text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+[.)])\s+/gm, "")
+    .replace(/^\s*(-{3,}|\*{3,}|_{3,})\s*$/gm, " ")
+    .replace(/[*_`~#|]/g, "")
+    .replace(/\p{Extended_Pictographic}|\uFE0F|\u200D/gu, "")
+    .replace(/\s*[—–]\s*/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return /[\p{L}\p{N}]/u.test(cleaned) ? cleaned : null;
+}
