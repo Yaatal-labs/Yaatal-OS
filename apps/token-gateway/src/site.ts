@@ -2,7 +2,7 @@
 // website to a device's firmware, on one AI API billed in FCFA. Every idea goes straight to the
 // Playground (the Yaatal OS) through its `/?prompt=` deep link. Prices are rendered from the model
 // catalog so the page cannot drift from billing. No supplier or upstream model name appears here.
-import { availableModels } from "./models.js";
+import { availableModels, type ModelOffer } from "./models.js";
 
 export interface SiteEnv {
   /** "true" on Workers Paid: the page then lists the models that need it. */
@@ -143,6 +143,13 @@ const WEAVE =
     "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='60'><rect width='120' height='60' fill='#15302c'/><g fill='#e85a25' fill-opacity='.9'><rect x='0' y='8' width='44' height='6' rx='3'/><rect x='56' y='8' width='64' height='6' rx='3'/><rect x='0' y='38' width='70' height='6' rx='3'/><rect x='82' y='38' width='38' height='6' rx='3'/></g><g fill='#f3dcc0' fill-opacity='.55'><rect x='20' y='23' width='36' height='4' rx='2'/><rect x='70' y='23' width='50' height='4' rx='2'/><rect x='0' y='52' width='28' height='4' rx='2'/><rect x='40' y='52' width='58' height='4' rx='2'/></g></svg>",
   );
 
+// Film grain over the page, kept faint.
+const GRAIN =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .9 0'/></filter><rect width='160' height='160' filter='url(#n)'/></svg>",
+  );
+
 const STYLE = `
 :root{--paper:#f7f3ec;--paper-2:#efe8dc;--ink:#1b1813;--muted:#5f584d;--line:#e2d9c9;--card:#fffdf9;--accent:#e85a25;--accent-strong:#c2410c;--deep:#15302c;--deep-ink:#f3ead9;--code:#15171a;--code-ink:#e8e2d6;--shadow:0 1px 2px rgba(27,24,19,.06),0 12px 32px -12px rgba(27,24,19,.18)}
 @media (prefers-color-scheme:dark){:root{--paper:#121312;--paper-2:#1a1b19;--ink:#f1ece2;--muted:#b3ab9d;--line:#2d2c28;--card:#191a18;--accent:#f06a35;--accent-strong:#e85a25;--deep:#0f2421;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.6)}}
@@ -165,7 +172,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:16px;min-h
 h1{font-size:clamp(2.5rem,5.6vw,4.6rem);line-height:1;margin:0 0 20px;max-width:11ch;text-wrap:balance}
 h1 em{font-style:normal;color:var(--accent-strong)}
 .fill{position:relative;color:var(--accent-strong);white-space:nowrap}
-.fill::after{content:"";position:absolute;left:-.04em;right:-.04em;bottom:-.06em;height:.2em;border-radius:.1em;background:url(/img/wax.webp) 20% 45%/240% auto;transform-origin:left;animation:draw .9s .55s cubic-bezier(.6,0,.2,1) both,drift 18s 1.5s ease-in-out infinite alternate}
+.fill::after{content:"";position:absolute;left:-.04em;right:-.04em;bottom:-.06em;height:.2em;border-radius:.1em;background:url(/img/wax.webp) 20% 45%/240% auto;transform-origin:left;animation:draw .9s 1s cubic-bezier(.6,0,.2,1) both,drift 18s 1.5s ease-in-out infinite alternate}
 @keyframes draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes drift{to{background-position:80% 55%}}
 .lede{font-size:1.15rem;color:var(--muted);max-width:36rem;margin:0}
@@ -186,7 +193,7 @@ h1 em{font-style:normal;color:var(--accent-strong)}
 .people figure:nth-child(3){transform:rotate(2deg)}.people figure:nth-child(3) img{aspect-ratio:4/3}
 .people figcaption{font-size:.82rem;color:var(--muted);margin-top:8px}
 .pay{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:center;margin-bottom:36px}
-.pay img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:18px;box-shadow:var(--shadow)}
+.pay img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover;border-radius:18px;box-shadow:var(--shadow)}
 .pay figure{margin:0}.pay figcaption{font-size:.82rem;color:var(--muted);margin-top:8px}
 .credits{font-size:.78rem;color:var(--muted);max-width:60rem}
 @media (max-width:900px){.people{grid-template-columns:1fr 1fr}.people figure:nth-child(2){grid-column:1/-1;order:-1}.pay{grid-template-columns:1fr}}
@@ -203,24 +210,6 @@ h2{font-size:clamp(1.9rem,4vw,3rem);line-height:1.05;margin:0 0 14px;max-width:1
 .tile .tag{font:600 .72rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .tile h3{font-size:1.25rem;margin:4px 0 0;line-height:1.2}.tile p{margin:0;color:var(--muted);font-size:.97rem}
 .tile .go{margin-top:auto;display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--accent-strong)}
-.flow{display:grid;grid-template-columns:.9fr 1.1fr;gap:40px;align-items:center}
-.steps{display:flex;flex-direction:column;gap:6px}
-.step{display:grid;grid-template-columns:44px 1fr;gap:14px;padding:16px;border-radius:16px}
-.step:hover{background:var(--card)}
-.step .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--card);border:1px solid var(--line);color:var(--accent-strong)}
-.step h3{margin:0 0 4px;font-size:1.15rem}.step p{margin:0;color:var(--muted);font-size:.97rem}
-.frame{background:var(--deep) url("${WEAVE}");background-size:120px 60px;border-radius:24px;padding:28px}
-.window{background:var(--card);border-radius:14px;box-shadow:0 24px 60px -20px rgba(0,0,0,.45);overflow:hidden;border:1px solid var(--line)}
-.window .bar{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--paper-2)}
-.window .bar i{width:10px;height:10px;border-radius:50%;background:var(--line);display:block}
-.window .body{display:grid;grid-template-columns:1fr 1.2fr;min-height:280px}
-.window .chat{padding:16px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:10px;font-size:.84rem}
-.bubble{padding:9px 12px;border-radius:12px;background:var(--paper-2);max-width:92%}.bubble.me{align-self:flex-end;background:var(--ink);color:var(--paper)}
-.window .preview{padding:16px;display:flex;flex-direction:column;gap:10px}
-.pv-title{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:1.05rem}
-.pv-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pv-item{border:1px solid var(--line);border-radius:10px;padding:8px;font-size:.78rem}
-.pv-item b{display:block;height:44px;border-radius:6px;background:var(--paper-2);margin-bottom:6px}
-.pv-cta{align-self:flex-start;background:#1f7a4d;color:#fff;border-radius:8px;padding:6px 10px;font-size:.78rem;font-weight:600}
 .split{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
 .boards{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}.boards span{border:1px solid var(--line);border-radius:10px;padding:6px 10px;font:500 .85rem "JetBrains Mono",monospace;background:var(--card)}
 .partners{display:grid;gap:10px}.partner{display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:start;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
@@ -298,11 +287,61 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .weave{height:34px;border-radius:10px;background:var(--deep) url("${WEAVE}") 0 -4px/120px 60px;animation:slide 40s linear infinite}
 @keyframes slide{to{background-position:-1200px -4px}}
 @keyframes inview{from{opacity:.25;translate:0 28px}to{opacity:1;translate:0 0}}
+.w{display:inline-block;overflow:hidden;vertical-align:bottom;padding:0 .02em .14em;margin-bottom:-.14em}
+.w>*{display:inline-block;animation:up .95s cubic-bezier(.2,.7,.1,1) both;animation-delay:calc(.07s * var(--i,0))}
+@keyframes up{from{transform:translateY(108%)}}
+.wf{padding-inline:.06em}
+.tile{background:radial-gradient(260px circle at var(--mx,-400px) var(--my,-400px),color-mix(in srgb,var(--accent) 16%,transparent),transparent 70%) var(--card)}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.045;background:url("${GRAIN}")}
+@supports (animation-timeline:scroll()){header.top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent);transform-origin:left;animation:grow linear both;animation-timeline:scroll(root)}}
+@keyframes grow{from{transform:scaleX(0)}}
+.marquee{overflow:hidden;border-block:1px solid var(--line);padding-block:10px}
+.track{display:flex;width:max-content;align-items:center;gap:30px;animation:mq 42s linear infinite}
+.track span{font:800 clamp(2.4rem,6.5vw,5.2rem)/1.1 "Bricolage Grotesque",sans-serif;letter-spacing:-.04em;white-space:nowrap}
+.track span.o{color:transparent;-webkit-text-stroke:1.5px var(--ink)}
+.track i{width:44px;height:14px;border-radius:7px;background:var(--accent);flex:none}.track i:nth-of-type(2n){background:var(--deep)}
+@keyframes mq{to{transform:translateX(-50%)}}
+.pin-box{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:56px;align-items:center}
+.beats{list-style:none;margin:28px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;position:relative}
+.beat{display:grid;grid-template-columns:52px 1fr;gap:12px;padding:14px 0;transition:opacity .45s}
+.beat .num{font:700 .9rem "JetBrains Mono",monospace;color:var(--accent-strong);padding-top:5px}
+.beat h3{margin:0 0 4px;font-size:1.3rem}.beat p{margin:0;color:var(--muted);font-size:.98rem;max-width:30rem}
+.panels{display:flex;flex-direction:column;gap:18px}
+.panel{background:var(--deep) url("${WEAVE}");background-size:120px 60px;border-radius:24px;padding:14px}
+.pw{background:var(--card);border-radius:14px;border:1px solid var(--line);overflow:hidden;min-height:330px;display:flex;flex-direction:column}
+.chatx{padding:16px;display:flex;flex-direction:column;gap:10px;font-size:.9rem}
+.cx{align-self:flex-start;max-width:84%;padding:9px 13px;border-radius:14px 14px 14px 4px;background:color-mix(in srgb,var(--line) 75%,var(--card))}
+.cx.me{align-self:flex-end;background:var(--ink);color:var(--paper);border-radius:14px 14px 4px 14px}
+.cx.typing{display:flex;gap:5px;padding:12px 14px}.cx.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}.cx.typing i:nth-child(2){animation-delay:.2s}.cx.typing i:nth-child(3){animation-delay:.4s}
+.files{display:flex;gap:2px;padding:8px 10px 0;font:500 .74rem "JetBrains Mono",monospace;color:var(--muted);border-bottom:1px solid var(--line)}
+.files span{padding:6px 10px;border-radius:8px 8px 0 0}.files span.on{background:var(--code);color:var(--code-ink)}
+.code.big{border-radius:0;font-size:.76rem;flex:1}
+.checks{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;font:500 .74rem "JetBrains Mono",monospace;border-top:1px solid var(--line)}
+.checks span{border:1px solid var(--line);border-radius:999px;padding:3px 9px}.checks span.ok{color:#1f7a4d;border-color:color-mix(in srgb,#1f7a4d 45%,var(--line))}
+.pw .mini{margin:12px}
+.ship{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 12px 12px;font:500 .78rem "JetBrains Mono",monospace;color:var(--muted)}
+.ship b{background:var(--accent-strong);color:#fff;border-radius:8px;padding:7px 14px;font:600 .8rem "Instrument Sans",sans-serif}
+html.pin .story{height:340vh}
+html.pin .pin-box{position:sticky;top:calc(env(safe-area-inset-top,0px) + 84px);min-height:calc(100vh - 110px)}
+html.pin .panels{position:relative;height:440px;perspective:1400px}
+html.pin .panel .pw{height:100%}
+html.pin .panel{position:absolute;inset:0;opacity:0;transform:translateY(46px) rotateX(12deg) scale(.94);transition:opacity .5s ease,transform .85s cubic-bezier(.2,.7,.1,1);pointer-events:none}
+html.pin .story[data-step="0"] .pa,html.pin .story[data-step="1"] .pb,html.pin .story[data-step="2"] .pc{opacity:1;transform:none}
+html.pin .beat{opacity:.32}
+html.pin .story[data-step="0"] .beat:nth-child(1),html.pin .story[data-step="1"] .beat:nth-child(2),html.pin .story[data-step="2"] .beat:nth-child(3){opacity:1}
+html.pin .beats::before,html.pin .beats::after{content:"";position:absolute;left:-22px;top:18px;bottom:18px;width:2px;border-radius:1px;background:var(--line)}
+html.pin .beats::after{background:var(--accent);transform-origin:top;transform:scaleY(var(--p,0))}
+.receipt{max-width:460px;margin-top:26px;background:var(--card);border:1px solid var(--line);border-radius:8px 8px 0 0;padding:20px 22px 28px;font:500 .86rem "JetBrains Mono",monospace;box-shadow:var(--shadow);-webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/14px 100%;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/14px 100%}
+.rc-head{display:flex;justify-content:space-between;gap:10px;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-strong);margin-bottom:10px}
+.rc-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:6px 0;font-variant-numeric:tabular-nums}
+.rc-row small{display:block;color:var(--muted);font-size:.72rem}
+.rc-total{border-top:1px dashed var(--line);margin-top:6px;padding-top:12px;font-weight:700;font-size:1.02rem}
+.rc-note{font:400 .8rem "Instrument Sans",sans-serif;color:var(--muted);margin:12px 0 0}
 @supports (animation-timeline:view()){@media (prefers-reduced-motion:no-preference){
-  .tile,.step,.partner,.people figure,.qa .card,.pay figure{animation:inview linear both;animation-timeline:view();animation-range:entry 0% entry 70%}
+  .tile,html:not(.pin) .beat,.partner,.people figure,.qa .card,.pay figure{animation:inview linear both;animation-timeline:view();animation-range:entry 0% entry 70%}
 }}
-@media (prefers-reduced-motion:reduce){.reveal,.stage *,.weave,.fill::after{animation:none!important}html{scroll-behavior:auto}*{transition:none!important}}
-@media (max-width:900px){.hero{grid-template-columns:1fr;gap:36px}.gallery{grid-template-columns:1fr 1fr}.flow,.split{grid-template-columns:1fr}.links{display:none}.band{padding:28px}}
+@media (prefers-reduced-motion:reduce){.reveal,.stage *,.weave,.fill::after,.w>*,.track,.cx.typing i{animation:none!important}html{scroll-behavior:auto}*{transition:none!important}}
+@media (max-width:900px){.hero{grid-template-columns:1fr;gap:36px}.pin-box{grid-template-columns:1fr;gap:28px}.gallery{grid-template-columns:1fr 1fr}.flow,.split{grid-template-columns:1fr}.links{display:none}.band{padding:28px}}
 @media (max-width:460px){.st-body{height:auto;min-height:340px}.fw{grid-template-columns:1fr}.box{display:none}.meter span.l{display:none}}
 @media (max-width:600px){.gallery,.qa{grid-template-columns:1fr}.window .body{grid-template-columns:1fr}.window .chat{border-right:0;border-bottom:1px solid var(--line)}.ask .bar{flex-direction:column;align-items:stretch}.hero{padding-top:44px}}
 input[type=password]{width:100%;min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:inherit}
@@ -365,12 +404,21 @@ ${cta}</nav></header>`;
  * firmware) while a meter counts the tokens in FCFA at a real catalog price. Scene 1 is the resting
  * state without script; the script only cycles scenes and runs the meter.
  */
-function stage(outputFcfaPerMillion: number): string {
+/** FCFA per million tokens for a typical agent build: 3 input tokens for every output token. */
+function blended(input: number, output: number): number {
+  return (3 * input + output) / 4;
+}
+
+/** A simple shop site: about 184,000 tokens once the agent has written and tested it. */
+const BUILD_TOKENS = { input: 138_000, output: 46_000 };
+
+function stage(inputFcfaPerMillion: number, outputFcfaPerMillion: number): string {
+  const buildFcfa = Math.round((BUILD_TOKENS.input + BUILD_TOKENS.output) * blended(inputFcfaPerMillion, outputFcfaPerMillion) / 1e6);
   const prods = [["Grand boubou", "25 000 F", "8%"], ["Ensemble brodé", "18 500 F", "46%"], ["Wax 6 yards", "12 000 F", "88%"]]
     .map(([name, price, x], i) => `<div class="prod pop" style="--d:${1.9 + i * 0.18};--x:${x}"><b></b>${name}<em>${price}</em></div>`).join("");
-  return `<div class="stage reveal d2" id="stage" data-scene="1" data-out="${outputFcfaPerMillion}">
+  return `<div class="stage reveal d2" id="stage" data-scene="1" data-in="${inputFcfaPerMillion}" data-out="${outputFcfaPerMillion}">
   <div class="st-win" aria-hidden="true">
-    <div class="st-top"><i></i><i></i><i></i>&nbsp;playground<span class="meter"><b></b><span id="tok">${fcfa(1840)}</span>&nbsp;<span class="l">tokens ·</span>&nbsp;≈&nbsp;<span id="fc">${(1840 * outputFcfaPerMillion / 1e6).toFixed(2).replace(".", ",")}</span>&nbsp;F</span></div>
+    <div class="st-top"><i></i><i></i><i></i>&nbsp;playground<span class="meter"><b></b><span id="tok">${fcfa(BUILD_TOKENS.input + BUILD_TOKENS.output)}</span>&nbsp;<span class="l">tokens ·</span>&nbsp;≈&nbsp;<span id="fc">${fcfa(buildFcfa)}</span>&nbsp;F</span></div>
     <div class="st-body">
       <div class="scene s1">
         <div class="prompt"><span>un site pour ma boutique de bazin, commande WhatsApp</span></div>
@@ -410,19 +458,19 @@ function stage(outputFcfaPerMillion: number): string {
 const STAGE_SCRIPT = `
 const stage = document.getElementById("stage");
 if (stage) {
-  const price = Number(stage.dataset.out) || 0;
+  const price = (3 * Number(stage.dataset.in) + Number(stage.dataset.out)) / 4 || 0;
   const tok = document.getElementById("tok"), fc = document.getElementById("fc");
-  const targets = { 1: 1840, 2: 960, 3: 2310 };
+  const targets = { 1: 184000, 2: 96000, 3: 231000 };
   const buttons = [...stage.querySelectorAll(".sw")];
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const whole = new Intl.NumberFormat("fr-FR"), cents = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const whole = new Intl.NumberFormat("fr-FR");
   let frame = 0, timer = 0;
   const meter = n => {
     cancelAnimationFrame(frame);
     const start = performance.now(), length = still ? 0 : 3200;
     const tick = now => {
       const p = length ? Math.min(1, (now - start) / length) : 1, v = Math.round(n * (1 - Math.pow(1 - p, 3)));
-      tok.textContent = whole.format(v); fc.textContent = cents.format(v * price / 1e6);
+      tok.textContent = whole.format(v); fc.textContent = whole.format(Math.round(v * price / 1e6));
       if (p < 1) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -439,6 +487,112 @@ if (stage) {
   show(1, false);
 }`;
 
+/**
+ * "Comment ça marche" as a scroll story: on wide screens the section pins and scrolling moves the
+ * panel from the chat, to the build, to the published site. Without script, or with reduced
+ * motion, the three panels simply stack.
+ */
+function story(inputFcfaPerMillion: number, outputFcfaPerMillion: number): string {
+  const buildFcfa = Math.round((BUILD_TOKENS.input + BUILD_TOKENS.output) * blended(inputFcfaPerMillion, outputFcfaPerMillion) / 1e6);
+  const prods = [["Grand boubou", "25 000 F", "8%"], ["Ensemble brodé", "18 500 F", "46%"], ["Wax 6 yards", "12 000 F", "88%"]]
+    .map(([name, price, x]) => `<div class="prod" style="--x:${x}"><b></b>${name}<em>${price}</em></div>`).join("");
+  return `<section id="comment" class="story" data-step="0"><div class="wrap pin-box">
+  <div>
+    <p class="kicker">Comment ça marche</p>
+    <h2>Un message, un build, un site en ligne.</h2>
+    <ol class="beats">
+      <li class="beat"><span class="num">01</span><div><h3>Décrire</h3><p>Dans le Playground, avec vos mots, en français ou en wolof. L'agent demande ce qui manque : produits, prix, numéro.</p></div></li>
+      <li class="beat"><span class="num">02</span><div><h3>Construire</h3><p>L'agent écrit et teste le code dans une sandbox. Vous voyez chaque fichier et chaque test.</p></div></li>
+      <li class="beat"><span class="num">03</span><div><h3>Valider et publier</h3><p>Rien ne part en ligne sans votre accord. Vous payez les tokens utilisés, en FCFA, point.</p></div></li>
+    </ol>
+  </div>
+  <div class="panels" aria-hidden="true">
+    <div class="panel pa"><div class="pw">
+      <div class="st-top"><i></i><i></i><i></i>&nbsp;playground · nouveau projet</div>
+      <div class="chatx">
+        <div class="cx me">Salam ! Je veux un site pour ma boutique de bazin, avec commande sur WhatsApp.</div>
+        <div class="cx">Avec plaisir. Le nom de la boutique, et vos trois produits phares ?</div>
+        <div class="cx me">Bazin Riche Médina. Grand boubou, ensemble brodé, wax 6 yards.</div>
+        <div class="cx typing"><i></i><i></i><i></i></div>
+      </div>
+    </div></div>
+    <div class="panel pb"><div class="pw">
+      <div class="st-top"><i></i><i></i><i></i>&nbsp;sandbox · build</div>
+      <div class="files"><span class="on">catalogue.ts</span><span>index.html</span><span>whatsapp.ts</span></div>
+<pre class="code big"><span><span class="k">export const</span> catalogue = [</span><span>  { nom: <span class="s">"Grand boubou"</span>, prix: 25000 },</span><span>  { nom: <span class="s">"Ensemble brodé"</span>, prix: 18500 },</span><span>  { nom: <span class="s">"Wax 6 yards"</span>, prix: 12000 },</span><span>];</span><span> </span><span><span class="k">export const</span> commander = (p) =&gt;</span><span>  whatsapp(BOUTIQUE, <span class="s">"Je veux : "</span> + p.nom);</span></pre>
+      <div class="checks"><span class="ok">✓ 12 tests OK</span><span>build 2,1 s</span><span>${fcfa(BUILD_TOKENS.input + BUILD_TOKENS.output)} tokens</span></div>
+    </div></div>
+    <div class="panel pc"><div class="pw">
+      <div class="st-top"><i></i><i></i><i></i>&nbsp;aperçu · bazin-riche-medina<span class="meter"><b></b>prêt</span></div>
+      <div class="mini"><div class="mini-h">Bazin Riche Médina<small>FR · WO</small></div><div class="prods">${prods}</div><div class="wa-btn">Commander sur WhatsApp</div></div>
+      <div class="ship"><span>build ≈ ${fcfa(buildFcfa)} FCFA</span><b>Publier</b></div>
+    </div></div>
+  </div>
+</div></section>`;
+}
+
+const PAGE_SCRIPT = `
+{
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const story = document.querySelector(".story");
+  if (story && !still) {
+    const wide = matchMedia("(min-width: 900px)");
+    let queued = false;
+    const update = () => {
+      queued = false;
+      const box = story.getBoundingClientRect(), span = Math.max(1, box.height - innerHeight);
+      const p = Math.min(1, Math.max(0, -box.top / span));
+      story.style.setProperty("--p", p.toFixed(3));
+      story.dataset.step = String(Math.min(2, Math.floor(p * 3)));
+    };
+    addEventListener("scroll", () => { if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
+    const pin = () => { document.documentElement.classList.toggle("pin", wide.matches); update(); };
+    addEventListener("resize", update);
+    wide.addEventListener("change", pin);
+    pin();
+  }
+  for (const tile of document.querySelectorAll(".tile")) {
+    tile.addEventListener("pointermove", e => {
+      const box = tile.getBoundingClientRect();
+      tile.style.setProperty("--mx", (e.clientX - box.left) + "px");
+      tile.style.setProperty("--my", (e.clientY - box.top) + "px");
+    });
+  }
+  const counters = document.querySelectorAll("[data-count]");
+  if (!still && counters.length && "IntersectionObserver" in window) {
+    const money = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const run = el => {
+      const target = Number(el.dataset.count), start = performance.now();
+      const tick = now => {
+        const p = Math.min(1, (now - start) / 1400);
+        el.textContent = money.format(target * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    };
+    const seen = new IntersectionObserver(entries => {
+      for (const entry of entries) if (entry.isIntersecting) { seen.unobserve(entry.target); run(entry.target); }
+    }, { threshold: 0.6 });
+    for (const el of counters) seen.observe(el);
+  }
+}`;
+
+/** A worked example of what a simple site costs, computed from the catalog price of `model`. */
+function receipt(model: ModelOffer): string {
+  const money = (v: number) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v).replace(/ | /g, " ");
+  const inCost = BUILD_TOKENS.input * model.inputFcfaPerMillion / 1e6;
+  const outCost = BUILD_TOKENS.output * model.outputFcfaPerMillion / 1e6;
+  const row = (label: string, detail: string, value: number, cls = "") =>
+    `<div class="rc-row${cls}"><span>${label}<small>${detail}</small></span><span><span data-count="${value.toFixed(2)}">${money(value)}</span> F</span></div>`;
+  return `<div class="receipt" role="group" aria-label="Exemple de ticket">
+  <div class="rc-head"><span>Ticket · exemple</span><span>${escape(model.id)}</span></div>
+  ${row("Input", `${fcfa(BUILD_TOKENS.input)} tokens × ${fcfa(model.inputFcfaPerMillion)} F / 1M`, inCost)}
+  ${row("Output", `${fcfa(BUILD_TOKENS.output)} tokens × ${fcfa(model.outputFcfaPerMillion)} F / 1M`, outCost)}
+  ${row("Total", "site e-commerce simple", inCost + outCost, " rc-total")}
+  <p class="rc-note">Estimation. Le vrai compte dépend de vos échanges avec l'agent ; il s'affiche dans votre usage, appel par appel.</p>
+</div>`;
+}
+
 function buildLink(playground: string, prompt: string): string {
   return `${playground}/?prompt=${encodeURIComponent(prompt)}`;
 }
@@ -451,6 +605,9 @@ export function home(request: Request, env: SiteEnv): Response {
   const featuredLink = playground && featured && /^[A-Za-z0-9_-]{8,64}$/.test(featured)
     ? `${playground}/blueprint/${featured}` : null;
   const models = availableModels(env);
+  const band = ["Site e-commerce", "Bot WhatsApp", "Soundbox", "Dashboard", "Prépa live", "Balance connectée", "Firmware ESP32"]
+    .map((word, i) => `<span${i % 2 ? ' class="o"' : ""}>${word}</span><i></i>`).join("");
+  const marquee = band + band;
   const example = models.find(model => model.tier === "standard") ?? models[0]!;
   const rows = models.map(model => `<tr><td><code>${escape(model.id)}</code></td><td>${TIER_LABEL[model.tier]}</td><td class="num">${fcfa(model.inputFcfaPerMillion)}</td><td class="num">${fcfa(model.outputFcfaPerMillion)}</td></tr>`).join("");
   const chips = IDEAS.map(idea =>
@@ -477,12 +634,12 @@ ${topNav(playground, contact)}
 <div class="wrap hero">
  <div>
   <span class="eyebrow reveal">Dalal ak jàmm · fait à Dakar</span>
-  <h1 class="reveal d1">De l'idée à l'outil <em class="fill">qui tourne</em>.</h1>
+  <h1><span class="w"><span style="--i:0">De</span></span> <span class="w"><span style="--i:1">l'idée</span></span> <span class="w"><span style="--i:2">à</span></span> <span class="w"><span style="--i:3">l'outil</span></span> <span class="w wf"><span style="--i:4"><em class="fill">qui tourne</em>.</span></span></h1>
   <p class="lede reveal d2">Site e-commerce, bot WhatsApp, dashboard ou Soundbox ESP32 : décrivez-le, Yaatal le construit avec vous. L'IA se paie en FCFA, au token près.</p>
   ${ask}
   <div class="trust reveal d4"><span><i></i>Français, wolof, ou les deux mélangés</span><span><i></i>Payé en FCFA, pas besoin de carte Visa</span><span><i></i>API compatible OpenAI</span></div>
  </div>
- ${stage(example.outputFcfaPerMillion)}
+ ${stage(example.inputFcfaPerMillion, example.outputFcfaPerMillion)}
 </div>
 
 <div class="wrap"><div class="weave" aria-hidden="true"></div></div>
@@ -498,6 +655,8 @@ ${topNav(playground, contact)}
   </div>
 </div></section>
 
+<div class="marquee" aria-hidden="true"><div class="track">${marquee}</div></div>
+
 <section id="modeles"><div class="wrap">
   <p class="kicker">Templates</p>
   <h2>Partez d'un template. Adaptez-le.</h2>
@@ -506,32 +665,7 @@ ${topNav(playground, contact)}
   ${featuredLink ? `<p style="margin-top:22px"><a class="btn ghost" href="${escape(featuredLink)}">Ouvrir un template déjà construit : prépa live TikTok ${icon.arrow}</a></p>` : ""}
 </div></section>
 
-<section id="comment"><div class="wrap flow">
-  <div>
-    <p class="kicker">Comment ça marche</p>
-    <h2>Décrire. Construire. Publier.</h2>
-    <div class="steps">
-      <div class="step"><span class="ic">${icon.chat}</span><div><h3>Décrire</h3><p>En français, avec vos mots. L'agent demande ce qui manque : vos produits, vos prix, votre numéro.</p></div></div>
-      <div class="step"><span class="ic">${icon.build}</span><div><h3>Construire</h3><p>L'agent écrit et teste le code dans une sandbox. Vous voyez le résultat en live.</p></div></div>
-      <div class="step"><span class="ic">${icon.check}</span><div><h3>Valider et publier</h3><p>Aucun changement n'est appliqué sans votre accord. Ensuite, vous le partagez ou le gardez comme template.</p></div></div>
-    </div>
-  </div>
-  <div class="frame" aria-hidden="true"><div class="window">
-    <div class="bar"><i></i><i></i><i></i></div>
-    <div class="body">
-      <div class="chat">
-        <div class="bubble me">Un site pour ma boutique de bazin, commande sur WhatsApp.</div>
-        <div class="bubble">Quel est le nom de la boutique, et quels produits voulez-vous montrer en premier ?</div>
-        <div class="bubble me">Bazin Riche Médina. Les grands boubous d'abord.</div>
-      </div>
-      <div class="preview">
-        <div class="pv-title">Bazin Riche Médina</div>
-        <div class="pv-grid"><div class="pv-item"><b></b>Grand boubou</div><div class="pv-item"><b></b>Ensemble brodé</div></div>
-        <span class="pv-cta">Commander sur WhatsApp</span>
-      </div>
-    </div>
-  </div></div>
-</div></section>
+${story(example.inputFcfaPerMillion, example.outputFcfaPerMillion)}
 
 <section id="objets"><div class="wrap split">
   <div>
@@ -583,6 +717,7 @@ reply = yaatal.chat.completions.create(
     <div>
       <h2>Vous payez ce que vous consommez, en FCFA.</h2>
       <p class="sub" style="margin-bottom:0">Recharger Yaatal, c'est comme acheter du crédit au coin de la rue. Le prix se compte en tokens (les bouts de texte que le modèle lit et écrit), et un appel qui échoue n'est pas facturé. Pendant la bêta, les recharges se font avec l'équipe.</p>
+      ${receipt(example)}
     </div>
     <figure><img src="/img/ngor.webp" alt="Deux jeunes vendeurs de recharges téléphoniques au bord d'une route." loading="lazy" width="1200" height="800"><figcaption>Vendeurs de recharges téléphoniques, Ngor, Dakar</figcaption></figure>
   </div>
@@ -621,7 +756,7 @@ reply = yaatal.chat.completions.create(
 <footer class="wrap"><span>© Yaatal · Dakar</span><span><a href="/usage">Consommation</a> · <a href="/v1/models">Modèles</a> · Bêta</span>
 <p class="credits">Photos, Wikimedia Commons : Sanghesenegalafrica (CC BY-SA 4.0), Lucas Takerkart (CC BY-SA 4.0), dimworld (CC BY 2.0), GuillaumeG (CC BY-SA 4.0).</p></footer>`;
 
-  const script = STAGE_SCRIPT + (playground ? `
+  const script = STAGE_SCRIPT + PAGE_SCRIPT + (playground ? `
 const box = document.getElementById("prompt");
 for (const chip of document.querySelectorAll(".chip")) {
   chip.addEventListener("click", () => { box.value = chip.dataset.prompt; box.focus(); });
