@@ -35,7 +35,7 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.pathname === "/" && request.method === "GET") return home(request, env);
-      if (url.pathname === "/usage" && request.method === "GET") return usage();
+      if (url.pathname === "/usage" && request.method === "GET") return usage(request, env);
       if (url.pathname === "/v1/models" && request.method === "GET") return models();
       if (url.pathname === "/v1/chat/completions" && request.method === "POST") return await chat(request, env, ctx);
       if (url.pathname === "/v1/balance" && request.method === "GET") return await balance(request, env);
