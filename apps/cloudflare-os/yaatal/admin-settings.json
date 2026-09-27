@@ -1,7 +1,7 @@
 {
   "$comment": "Yaatal runtime identity for Cloudflare OS, applied through the Admin API (the /admin surface), not by editing upstream. Apply with yaatal/apply-admin.mjs; revert by applying a previous revision of this file.",
   "siteName": "Yaatal",
-  "accentColor": "#e85a25",
+  "accentColor": "#c2410c",
   "announcement": "Bêta : construisez des sites, des outils et des prototypes d'objets avec l'agent. Pas de vraies données clients, aucun paiement.",
   "banner": {
     "text": "",
