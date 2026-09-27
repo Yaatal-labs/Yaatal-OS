@@ -28,6 +28,20 @@ done
 # Patches: the few upstream strings and defaults the Admin API cannot change (French home copy,
 # Yaatal suggestions, a free default model). Each applies cleanly or the script stops, so an
 # upstream upgrade that touches the same lines is noticed instead of silently losing the change.
+# Starter patches (deploy tooling) apply to the starter checkout itself.
+for patch in "$here"/patches/starter/*.patch; do
+  [ -e "$patch" ] || continue
+  name="starter/$(basename "$patch")"
+  if git -C "$target" apply --reverse --check "$patch" 2>/dev/null; then
+    echo "patch    $name (already applied)"
+  elif git -C "$target" apply --check "$patch"; then
+    git -C "$target" apply "$patch"
+    echo "patch    $name"
+  else
+    echo "patch    $name does not apply to this starter revision; update it" >&2
+    exit 1
+  fi
+done
 for patch in "$here"/patches/*.patch; do
   [ -e "$patch" ] || continue
   name="$(basename "$patch")"
