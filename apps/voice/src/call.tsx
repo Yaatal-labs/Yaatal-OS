@@ -90,10 +90,12 @@ type CallProps = {
   /** Inside the landing page's call sheet: no home link, a close button instead. */
   embedded?: boolean;
   onClose?: () => void;
+  /** An idea the visitor picked on the page: sent as their first message once connected. */
+  firstMessage?: string;
 };
 
 /** The call screen: the ring, the controls, the live transcript and the brief. */
-export function Call({ embedded = false, onClose }: CallProps) {
+export function Call({ embedded = false, onClose, firstMessage }: CallProps) {
   const name = useMemo(sessionId, []);
   const {
     status, transcript, interimTranscript, audioLevel, connected, error, metrics, isMuted,
@@ -118,6 +120,12 @@ export function Call({ embedded = false, onClose }: CallProps) {
   useEffect(() => {
     if (isBrief(lastCustomMessage)) setBrief({ brief: lastCustomMessage.brief, url: lastCustomMessage.url });
   }, [lastCustomMessage]);
+  const sentFirst = useRef(false);
+  useEffect(() => {
+    if (!connected || !firstMessage || sentFirst.current) return;
+    sentFirst.current = true;
+    sendText(firstMessage);
+  }, [connected, firstMessage, sendText]);
   useEffect(() => { bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" }); }, [transcript.length, interimTranscript]);
 
   const toggleCall = async () => {
@@ -190,7 +198,7 @@ export function Call({ embedded = false, onClose }: CallProps) {
               <p className="kicker">Brief prêt</p>
               <p className="brief-text">{brief.brief}</p>
               {brief.url
-                ? <a className="btn" href={brief.url}>Ouvrir dans le Playground</a>
+                ? <a className="btn" href={brief.url}>Construire maintenant</a>
                 : <button type="button" className="btn" onClick={() => { void navigator.clipboard?.writeText(brief.brief); }}>Copier le brief</button>}
             </section>
           )}

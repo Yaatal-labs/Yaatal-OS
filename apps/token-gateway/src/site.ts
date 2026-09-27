@@ -132,6 +132,7 @@ function nonce(): string {
 
 const icon = {
   mic: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>`,
+  play: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>`,
   arrow: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
   chat: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>`,
   build: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>`,
@@ -155,8 +156,8 @@ const WORDMARK =
 const FAVICON = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'>${MARK_INNER}</svg>`);
 
 const STYLE = `
-:root{--paper:#f7f3ec;--paper-2:#efe8dc;--ink:#1b1813;--muted:#5f584d;--line:#e2d9c9;--card:#fffdf9;--accent:#e85a25;--accent-strong:#c2410c;--deep:#15302c;--deep-ink:#f3ead9;--code:#15171a;--code-ink:#e8e2d6;--shadow:0 1px 2px rgba(27,24,19,.06),0 12px 32px -12px rgba(27,24,19,.18)}
-@media (prefers-color-scheme:dark){:root{--paper:#121312;--paper-2:#1a1b19;--ink:#f1ece2;--muted:#b3ab9d;--line:#2d2c28;--card:#191a18;--accent:#f06a35;--accent-strong:#e85a25;--deep:#0f2421;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.6)}}
+:root{--paper:#f7f3ec;--paper-2:#efe8dc;--ink:#1b1813;--muted:#5f584d;--line:#e2d9c9;--card:#fffdf9;--accent:#e85a25;--accent-strong:#c2410c;--deep:#15302c;--deep-ink:#f3ead9;--code:#15171a;--code-ink:#e8e2d6;--shadow:0 1px 2px rgba(27,24,19,.06),0 12px 32px -12px rgba(27,24,19,.18);--talk-bg:#15302c;--talk-ink:#f3ead9;--talk-hover:#0d201d}
+@media (prefers-color-scheme:dark){:root{--paper:#121312;--paper-2:#1a1b19;--ink:#f1ece2;--muted:#b3ab9d;--line:#2d2c28;--card:#191a18;--accent:#f06a35;--accent-strong:#e85a25;--deep:#0f2421;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.6);--talk-bg:#f3dcc0;--talk-ink:#15302c;--talk-hover:#fff3e3}}
 *{box-sizing:border-box}html{scroll-behavior:smooth}
 body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Instrument Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit}.wrap{max-width:1140px;margin:0 auto;padding-left:16px;padding-right:16px}
@@ -199,20 +200,9 @@ h1 em{font-style:normal;color:var(--accent-strong)}
 .credits{font-size:.78rem;color:var(--muted);max-width:60rem}
 @media (max-width:900px){.people{grid-template-columns:1fr 1fr}.people figure:nth-child(2){grid-column:1/-1;order:-1}.pay{grid-template-columns:1fr}}
 @media (max-width:600px){.people figure{transform:none!important}}
-.trust{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:26px;color:var(--muted);font-size:.9rem}
-@media (min-width:900px){.trust{flex-wrap:nowrap;white-space:nowrap}}
-.talk{display:flex;align-items:center;gap:16px;width:100%;max-width:560px;margin-top:30px;padding:14px 22px 14px 14px;border:0;border-radius:20px;background:var(--accent-strong);color:#fff;text-align:left;cursor:pointer;box-shadow:0 18px 40px -18px color-mix(in srgb,var(--accent-strong) 70%,transparent);transition:transform .2s cubic-bezier(.2,.8,.2,1.2),background-color .2s}
-.talk:hover{background:#a8370a}.talk:active{transform:scale(.98)}
-.talk .ic{position:relative;flex:none;width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--accent-strong)}
-.talk .ic::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(255,255,255,.55);animation:ping 2.4s cubic-bezier(.2,.6,.3,1) infinite}
-@keyframes ping{from{transform:scale(.9);opacity:1}to{transform:scale(1.35);opacity:0}}
-.talk b{display:block;font:700 1.2rem "Bricolage Grotesque",sans-serif;letter-spacing:-.01em}.talk small{display:block;opacity:.88;font-size:.92rem}
-.or{margin:18px 0 0;color:var(--muted);font-size:.9rem}
-.talk~.ask{margin-top:16px}.talk~.ask textarea{min-height:84px}
 .call-sheet{width:min(1120px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:0;border:0;border-radius:24px;background:var(--paper);color:var(--ink);box-shadow:0 30px 80px -20px rgba(0,0,0,.5);overflow:auto}
 .call-sheet::backdrop{background:rgba(10,12,11,.55);backdrop-filter:blur(4px)}
 .call-wait{padding:48px;text-align:center;color:var(--muted)}
-.trust span{display:inline-flex;align-items:center;gap:8px}.trust i{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block}
 section{padding-top:88px;padding-bottom:88px}
 .kicker{font:600 .78rem "JetBrains Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-strong);margin:0 0 12px}
 h2{font-size:clamp(1.9rem,4vw,3rem);line-height:1.05;margin:0 0 14px;max-width:18ch}
@@ -253,22 +243,7 @@ footer{border-top:1px solid var(--line);padding-top:28px;padding-bottom:44px;col
 footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .reveal{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}.d1{animation-delay:.06s}.d2{animation-delay:.14s}.d3{animation-delay:.24s}.d4{animation-delay:.34s}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.stage{position:relative;background:var(--deep);border-radius:26px;padding:16px;box-shadow:0 30px 70px -30px rgba(21,48,44,.6)}
-.st-win{background:var(--card);border-radius:16px;overflow:hidden;border:1px solid var(--line)}
-.st-top{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--paper-2);font:500 .74rem "JetBrains Mono",monospace;color:var(--muted)}
-.st-top>i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
-.meter{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
-.meter b{width:7px;height:7px;border-radius:50%;background:#1f7a4d;animation:blink 1.2s ease-in-out infinite}
 @keyframes blink{50%{opacity:.25}}
-.st-body{padding:14px;height:376px;overflow:hidden}
-.scene{display:none;flex-direction:column;gap:10px}
-.stage[data-scene="1"] .s1,.stage[data-scene="2"] .s2,.stage[data-scene="3"] .s3{display:flex}
-.prompt{font:500 .8rem "JetBrains Mono",monospace;background:var(--paper-2);border-radius:10px;padding:9px 12px;white-space:nowrap;overflow:hidden}
-.prompt::before{content:"› ";color:var(--accent-strong)}
-.prompt span{display:inline-block;animation:type 1.3s steps(34) both}
-@keyframes type{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
-.agent{font-size:.84rem;color:var(--muted);display:flex;align-items:center;gap:8px}
-.agent::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none}
 .pop{animation:pop .55s cubic-bezier(.2,.8,.2,1.15) both;animation-delay:calc(var(--d,0) * 1s)}
 @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
 .mini{border:1px solid var(--line);border-radius:12px;overflow:hidden}
@@ -278,33 +253,46 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .prod{font-size:.72rem;line-height:1.35}.prod em{font-style:normal;font-weight:600;display:block;color:var(--accent-strong)}
 .prod b{display:block;aspect-ratio:1;border-radius:8px;margin-bottom:6px;background:url(/img/wax.webp) var(--x) 50%/420% auto}
 .wa-btn{margin:0 10px 10px;background:#1f7a4d;color:#fff;border-radius:8px;padding:8px;text-align:center;font-weight:600;font-size:.76rem}
-.wa{border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.wa-h{background:#1f5c45;color:#fff;padding:9px 12px;font-weight:600;font-size:.8rem}
-.wa-b{background:color-mix(in srgb,#d9cfb8 30%,var(--card));padding:12px;display:flex;flex-direction:column;gap:8px;min-height:212px}
-.msg{max-width:80%;padding:7px 10px;border-radius:10px;font-size:.79rem;background:#fffdf9;color:#1b1813;box-shadow:0 1px 0 rgba(0,0,0,.08)}
-.msg.out{align-self:flex-end;background:#d7f5c8;color:#10251a}
-.fw{display:grid;grid-template-columns:1.3fr .7fr;gap:12px;align-items:center}
 .code{margin:0;background:var(--code);color:var(--code-ink);border-radius:10px;padding:12px;font-size:.7rem;line-height:1.65;overflow:hidden;white-space:pre}
 .code span{display:block}.code .k{display:inline;color:#ff9a6a}.code .s{display:inline;color:#9fd8a8}.code .c{display:inline;color:#8a8478}
-.box{position:relative;justify-self:center;width:112px;height:144px;border-radius:26px;background:linear-gradient(160deg,#2c2823,#131110);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:16px 12px}
-.grille{width:72px;height:56px;border-radius:12px;background:radial-gradient(circle,#4a443c 1.6px,transparent 2px) 0 0/9px 9px}
-.lcd{background:#0d1f1b;color:#7ef0b0;font:600 .74rem "JetBrains Mono",monospace;padding:4px 8px;border-radius:6px;font-variant-numeric:tabular-nums}
-.ring{position:absolute;inset:-4px;border:2px solid var(--accent);border-radius:30px;opacity:0;animation:ring 1.8s ease-out infinite;animation-delay:calc(var(--d,0) * 1s)}
-@keyframes ring{from{opacity:.7;transform:scale(1)}to{opacity:0;transform:scale(1.4)}}
-.said{justify-self:center;font-size:.78rem;background:var(--paper-2);border-radius:10px;padding:6px 10px;grid-column:1/-1;text-align:center}
-.switch{display:flex;gap:6px;margin-top:12px}
-.sw{flex:1;position:relative;overflow:hidden;min-height:44px;background:transparent;color:color-mix(in srgb,#f3ead9 72%,transparent);border:1px solid rgba(243,234,217,.22);border-radius:10px;font:500 .76rem "JetBrains Mono",monospace;cursor:pointer;transition:color .2s,border-color .2s}
-.sw:hover{color:#fff}.sw[aria-pressed=true]{color:#fff;border-color:#ff9a6a}
-.sw::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:0;background:#ff9a6a}
-.stage.auto .sw[aria-pressed=true]::after{animation:prog 6.5s linear both}
-@keyframes prog{to{width:100%}}
-.wax{height:44px;border-radius:14px;background:var(--deep) url(/img/wax.webp) 0 46%/cover;animation:drift 30s ease-in-out infinite alternate}
-@keyframes drift{to{background-position:100% 54%}}
 @keyframes inview{from{opacity:.25;translate:0 28px}to{opacity:1;translate:0 0}}
 .w{display:inline-block;overflow:hidden;vertical-align:bottom;padding:0 .02em .14em;margin-bottom:-.14em}
 .w>*{display:inline-block;animation:up .95s cubic-bezier(.2,.7,.1,1) both;animation-delay:calc(.07s * var(--i,0))}
 @keyframes up{from{transform:translateY(108%)}}
 .wf{padding-inline:.06em}
+.st-top{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--paper-2);font:500 .74rem "JetBrains Mono",monospace;color:var(--muted)}
+.st-top>i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
+.meter{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.meter b{width:7px;height:7px;border-radius:50%;background:#1f7a4d;animation:blink 1.2s ease-in-out infinite}
+.hero{grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr)}
+.waxtext{color:var(--accent-strong);background:url(/img/wax.webp) 30% 48%/cover;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:1.5px var(--accent-strong)}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;margin-top:32px}
+.talk{display:inline-flex;align-items:center;gap:14px;min-height:64px;padding:0 30px 0 10px;border:0;border-radius:999px;background:var(--talk-bg);color:var(--talk-ink);font:600 1.15rem "Instrument Sans",sans-serif;cursor:pointer;transition:transform .2s cubic-bezier(.2,.8,.2,1.2),background-color .2s}
+.talk:hover{background:var(--talk-hover)}.talk:active{transform:scale(.98)}
+.talk .ic{position:relative;flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff}
+.talk .ic::before{content:"";position:absolute;inset:-7px;border-radius:50%;background:repeating-conic-gradient(var(--accent) 0 5deg,transparent 5deg 15deg);-webkit-mask:radial-gradient(circle,transparent 62%,#000 64%);mask:radial-gradient(circle,transparent 62%,#000 64%);animation:turn 14s linear infinite;opacity:.8}
+@keyframes turn{to{transform:rotate(1turn)}}
+.alt{color:var(--muted);font-size:.95rem}.alt a{color:var(--ink);font-weight:600}
+.said-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;border-top:1px solid var(--line);padding-top:22px;margin-top:8px}
+.said-row>*{display:flex;flex-direction:column;gap:4px;text-align:left;background:none;border:0;padding:0;font:inherit;color:inherit}
+.said-row button{cursor:pointer}.said-row button:hover b{color:var(--accent-strong)}
+.said-row span{color:var(--muted);font-size:.97rem}.said-row b{font-weight:600;transition:color .2s}
+.thread{background:var(--deep);border-radius:28px;padding:26px;display:flex;flex-direction:column;gap:12px;box-shadow:0 40px 80px -40px rgba(21,48,44,.55)}
+.note{align-self:flex-end;display:flex;align-items:center;gap:12px;width:min(330px,100%);background:#d7f5c8;color:#10251a;border-radius:18px 18px 4px 18px;padding:11px 15px}
+.play{flex:none;width:34px;height:34px;border-radius:50%;background:#1f7a4d;color:#fff;display:grid;place-items:center}
+.wave{flex:1;display:flex;align-items:center;gap:3px;height:30px}
+.wave i{display:block;width:3px;height:var(--h);border-radius:2px;background:#1f7a4d}
+.thread.run .wave i{animation:heard .1s linear both;animation-delay:calc(.05s * var(--k))}
+@keyframes heard{from{background:#8fb89c}}
+.dur{font-size:.8rem;font-variant-numeric:tabular-nums}
+.heard{align-self:flex-end;margin:0;font-size:.82rem;font-style:italic;color:rgba(243,234,217,.62)}
+.reply{align-self:flex-start;max-width:400px;background:#f3ead9;color:#1b1813;border-radius:18px 18px 18px 4px;padding:11px 15px;font-size:.95rem;line-height:1.45}
+.shop{align-self:flex-start;width:min(420px,100%);background:#fffdf9;color:#1b1813;border-radius:18px;overflow:hidden}
+.shop-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 14px 0}
+.shop-h strong{font:700 1.1rem "Bricolage Grotesque",sans-serif}.shop-h span{font-size:.72rem;color:#5f584d}
+.shop .prods{padding:10px 14px}
+.thread .pop{animation:none}.thread.run .pop{animation:pop .55s cubic-bezier(.2,.8,.2,1.15) both;animation-delay:calc(var(--d,0) * 1s)}
+@media (max-width:900px){.said-row{grid-template-columns:1fr;gap:14px}}
 .tile{background:radial-gradient(260px circle at var(--mx,-400px) var(--my,-400px),color-mix(in srgb,var(--accent) 16%,transparent),transparent 70%) var(--card)}
 @supports (animation-timeline:scroll()){header.top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent);transform-origin:left;animation:grow linear both;animation-timeline:scroll(root)}}
 @keyframes grow{from{transform:scaleX(0)}}
@@ -347,7 +335,7 @@ html.pin .beats::after{background:var(--accent);transform-origin:top;transform:s
 @supports (animation-timeline:view()){@media (prefers-reduced-motion:no-preference){
   .tile,html:not(.pin) .beat,.partner,.people figure,.qa .card,.pay figure{animation:inview linear both;animation-timeline:view();animation-range:entry 0% entry 70%}
 }}
-@media (prefers-reduced-motion:reduce){.reveal,.stage *,.wax,.talk .ic::after,.w>*,.track,.cx.typing i{animation:none!important}html{scroll-behavior:auto}*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){.reveal,.thread *,.talk .ic::before,.w>*,.track,.cx.typing i{animation:none!important}html{scroll-behavior:auto}*{transition:none!important}}
 @media (max-width:900px){.hero{grid-template-columns:1fr;gap:36px}.pin-box{grid-template-columns:1fr;gap:28px}.gallery{grid-template-columns:1fr 1fr}.flow,.split{grid-template-columns:1fr}.links{display:none}.band{padding:28px}}
 @media (max-width:460px){.st-body{height:auto;min-height:340px}.fw{grid-template-columns:1fr}.box{display:none}.meter span.l{display:none}}
 @media (max-width:600px){.gallery,.qa{grid-template-columns:1fr}.window .body{grid-template-columns:1fr}.window .chat{border-right:0;border-bottom:1px solid var(--line)}.ask .bar{flex-direction:column;align-items:stretch}.hero{padding-top:44px}}
@@ -399,93 +387,48 @@ function page(title: string, body: string, options: { script?: string; formActio
 
 function topNav(playground: string | null, contact: string | null): string {
   const cta = playground
-    ? `<a class="btn" href="${escape(playground)}/">Ouvrir le Playground</a>`
-    : contact ? `<a class="btn" href="${escape(contact)}" rel="noopener">Accès bêta</a>` : "";
+    ? `<a class="btn ghost" href="${escape(playground)}/">Ouvrir le Playground</a>`
+    : contact ? `<a class="btn ghost" href="${escape(contact)}" rel="noopener">Accès bêta</a>` : "";
   return `<header class="top"><nav class="wrap" aria-label="Principale">
 <a class="logo" href="/" aria-label="Yaatal, accueil">${MARK}${WORDMARK}</a>
-<div class="links"><a href="/#modeles">Templates</a><a href="/#comment">Comment ça marche</a><a href="/#objets">Objets</a><a href="/#api">API</a><a href="/#tarifs">Tarifs</a></div>
+<div class="links"><a href="/#modeles">Exemples</a><a href="/#comment">Comment ça marche</a><a href="/#tarifs">Tarifs</a><a href="/#api">API</a></div>
 ${cta}</nav></header>`;
 }
 
-/**
- * The hero's motion moment: three builds play in turn (a shop site, a WhatsApp bot, a Soundbox
- * firmware) while a meter counts the tokens the agent uses. Scene 1 is the resting
- * state without script; the script only cycles scenes and runs the meter.
- */
 /** A simple shop site: about 184,000 tokens once the agent has written and tested it. */
 const BUILD_TOKENS = 184_000;
 
-function stage(): string {
+/** Voice-note waveform heights (px), fixed so the page renders the same everywhere. */
+const WAVE = [8, 14, 22, 12, 26, 18, 10, 24, 30, 16, 9, 20, 28, 14, 22, 11, 18, 26, 12, 8, 16, 24, 20, 10, 14, 22, 18, 9, 12, 20];
+
+/**
+ * The hero's one moving moment: a WhatsApp voice note becomes a shop. The note plays, Yaatal asks
+ * back, the shop card builds. Everything is visible at rest; the script only replays it.
+ */
+function thread(): string {
+  const bars = WAVE.map((h, i) => `<i style="--h:${h}px;--k:${i}"></i>`).join("");
   const prods = [["Grand boubou", "25 000 F", "8%"], ["Ensemble brodé", "18 500 F", "46%"], ["Wax 6 yards", "12 000 F", "88%"]]
-    .map(([name, price, x], i) => `<div class="prod pop" style="--d:${1.9 + i * 0.18};--x:${x}"><b></b>${name}<em>${price}</em></div>`).join("");
-  return `<div class="stage reveal d2" id="stage" data-scene="1">
-  <div class="st-win" aria-hidden="true">
-    <div class="st-top"><i></i><i></i><i></i>&nbsp;playground<span class="meter"><b></b><span id="tok">${num(BUILD_TOKENS)}</span>&nbsp;tokens</span></div>
-    <div class="st-body">
-      <div class="scene s1">
-        <div class="prompt"><span>un site pour ma boutique de bazin, commande WhatsApp</span></div>
-        <div class="agent pop" style="--d:1.4">Je construis : catalogue, prix en FCFA, bouton WhatsApp.</div>
-        <div class="mini pop" style="--d:1.7"><div class="mini-h">Bazin Riche Médina<small>FR · WO</small></div>
-          <div class="prods">${prods}</div>
-          <div class="wa-btn pop" style="--d:2.6">Commander sur WhatsApp</div></div>
-      </div>
-      <div class="scene s2">
-        <div class="prompt"><span>un bot WhatsApp qui répond à mes clients</span></div>
-        <div class="wa pop" style="--d:1.4"><div class="wa-h">Bazin Riche Médina · bot</div>
-          <div class="wa-b">
-            <div class="msg pop" style="--d:1.8">Salam, le grand boubou est dispo ?</div>
-            <div class="msg out pop" style="--d:2.5">Waaw ! Taille L et XL, 25 000 FCFA.</div>
-            <div class="msg pop" style="--d:3.2">Ok, je prends le L.</div>
-            <div class="msg out pop" style="--d:3.9">C'est noté. J'envoie la commande à la boutique pour validation.</div>
-          </div></div>
-      </div>
-      <div class="scene s3">
-        <div class="prompt"><span>le firmware d'une Soundbox qui annonce les paiements</span></div>
-        <div class="fw">
-<pre class="code"><span class="pop" style="--d:1.4"><span class="c">// Soundbox · ESP32-S3 + 4G</span></span><span class="pop" style="--d:1.6"><span class="k">void</span> setup() {</span><span class="pop" style="--d:1.8">  modem.attach4G();</span><span class="pop" style="--d:2.0">  audio.begin(I2S_SPEAKER);</span><span class="pop" style="--d:2.2">}</span><span class="pop" style="--d:2.4"><span class="k">void</span> onPayment(<span class="k">int</span> fcfa) {</span><span class="pop" style="--d:2.6">  say(<span class="s">"Paiement reçu"</span>, fcfa);</span><span class="pop" style="--d:2.8">  say_wo(<span class="s">"Xaalis bi agsi na"</span>);</span><span class="pop" style="--d:3.0">}</span></pre>
-          <div class="box pop" style="--d:3.1"><span class="ring" style="--d:3.4"></span><span class="ring" style="--d:4.3"></span><div class="grille"></div><div class="lcd">+5 000 F</div></div>
-          <div class="said pop" style="--d:3.6">« Paiement reçu : 5 000 FCFA »</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="switch" role="group" aria-label="Exemples de constructions">
-    <button class="sw" type="button" data-scene="1" aria-pressed="true">Site</button>
-    <button class="sw" type="button" data-scene="2" aria-pressed="false">WhatsApp</button>
-    <button class="sw" type="button" data-scene="3" aria-pressed="false">Soundbox</button>
+    .map(([name, price, x], i) => `<div class="prod pop" style="--d:${3.3 + i * 0.15};--x:${x}"><b></b>${name}<em>${price}</em></div>`).join("");
+  return `<div class="thread reveal d2" id="thread" aria-label="Exemple : une note vocale devient une boutique" role="img">
+  <div class="note"><span class="play">${icon.play}</span><span class="wave">${bars}</span><span class="dur">0:14</span></div>
+  <p class="heard pop" style="--d:1.7">« Un site pour ma boutique de bazin, avec commande WhatsApp. »</p>
+  <div class="reply pop" style="--d:2.3">Compris. Vos prix sont en FCFA, et vos clients commandent sur WhatsApp ? Je prépare le catalogue.</div>
+  <div class="shop pop" style="--d:3.0">
+    <div class="shop-h"><strong>Bazin Riche Médina</strong><span>prêt à publier</span></div>
+    <div class="prods">${prods}</div>
+    <div class="wa-btn pop" style="--d:3.9">Commander sur WhatsApp</div>
   </div>
 </div>`;
 }
 
-const STAGE_SCRIPT = `
-const stage = document.getElementById("stage");
-if (stage) {
-  const tok = document.getElementById("tok");
-  const targets = { 1: 184000, 2: 96000, 3: 231000 };
-  const buttons = [...stage.querySelectorAll(".sw")];
-  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const whole = new Intl.NumberFormat("fr-FR");
-  let frame = 0, timer = 0;
-  const meter = n => {
-    cancelAnimationFrame(frame);
-    const start = performance.now(), length = still ? 0 : 3200;
-    const tick = now => {
-      const p = length ? Math.min(1, (now - start) / length) : 1, v = Math.round(n * (1 - Math.pow(1 - p, 3)));
-      tok.textContent = whole.format(v);
-      if (p < 1) frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-  };
-  const show = (n, byUser) => {
-    stage.dataset.scene = String(n);
-    stage.classList.toggle("auto", !still && !byUser);
-    for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.scene === String(n)));
-    meter(targets[n]);
-    clearTimeout(timer);
-    if (!still && !byUser) timer = setTimeout(() => show(n % 3 + 1, false), 6500);
-  };
-  for (const b of buttons) b.addEventListener("click", () => show(Number(b.dataset.scene), true));
-  show(1, false);
+const THREAD_SCRIPT = `
+{
+  const thread = document.getElementById("thread");
+  if (thread && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const replay = () => { thread.classList.remove("run"); void thread.offsetWidth; thread.classList.add("run"); };
+    replay();
+    setInterval(replay, 9000);
+  }
 }`;
 
 /**
@@ -565,18 +508,20 @@ const CALL_SCRIPT = `
   const talk = document.getElementById("talk"), sheet = document.getElementById("call"), host = document.getElementById("call-host");
   let close = null;
   const wait = text => { const p = document.createElement("p"); p.className = "call-wait"; p.textContent = text; host.replaceChildren(p); };
-  talk.addEventListener("click", async () => {
+  const openCall = async idea => {
     sheet.showModal();
     if (close) return;
     if (!host.shadowRoot) wait("Connexion à Yaatal…");
     try {
       const call = await import("/voix/embed.js");
       host.replaceChildren();
-      close = call.open(host, { onClose: () => sheet.close() });
+      close = call.open(host, { onClose: () => sheet.close(), firstMessage: idea });
     } catch {
       wait("L'appel n'a pas pu démarrer. Réessayez dans un instant.");
     }
-  });
+  };
+  talk.addEventListener("click", () => openCall());
+  for (const el of document.querySelectorAll("[data-idea]")) el.addEventListener("click", () => openCall(el.dataset.idea));
   sheet.addEventListener("close", () => { if (close) { close(); close = null; } });
 }`;
 
@@ -599,28 +544,40 @@ export function home(request: Request, env: SiteEnv): Response {
   const live = new Set(models.map(model => model.id));
   // Every model is listed; those the current plan cannot serve yet are marked "bientôt" (and the API refuses them).
   const rows = MODELS.map(model => `<tr><td><code>${escape(model.id)}</code>${live.has(model.id) ? "" : ' <span class="soon">bientôt</span>'}</td><td>${TIER_LABEL[model.tier]}</td><td class="num">${num(model.inputXofPerMillion)}</td><td class="num">${num(model.outputXofPerMillion)}</td></tr>`).join("");
+  const voice = Boolean(env.VOICE);
   const chips = IDEAS.map(idea =>
     `<button class="chip" type="button" data-prompt="${escape(idea.prompt)}" data-example="${escape(idea.example)}">${escape(idea.title)}</button>`).join("");
   const tiles = IDEAS.map(idea => {
     const inner = `<span class="tag">${escape(idea.tag)}</span><h3>${escape(idea.title)}</h3><p>${escape(idea.line)}</p>`;
+    if (voice) return `<button class="tile" type="button" data-idea="${escape(idea.prompt)}">${inner}<span class="go">En parler ${icon.arrow}</span></button>`;
     return playground
       ? `<a class="tile" href="${escape(buildLink(playground, idea.prompt))}">${inner}<span class="go">Construire ${icon.arrow}</span></a>`
       : `<div class="tile">${inner}</div>`;
   }).join("");
 
-  const voice = Boolean(env.VOICE);
-  const talk = voice
-    ? `<button class="talk reveal d3" id="talk" type="button" aria-haspopup="dialog"><span class="ic">${icon.mic}</span><span><b>Parler à Yaatal</b><small>Dites votre idée à voix haute, en français.</small></span></button>`
+  // With the call available, voice is the only way in: every idea on the page opens the call.
+  const signIn = playground ? `<span class="alt">Déjà client ? <a href="${escape(playground)}/">Se connecter</a></span>`
+    : contact ? `<span class="alt"><a href="${escape(contact)}" rel="noopener">Demander un accès bêta</a></span>`
+    : `<span class="alt">Le Playground ouvre bientôt au public.</span>`;
+  const actions = voice
+    ? `<div class="actions reveal d3"><button class="talk" id="talk" type="button" aria-haspopup="dialog"><span class="ic">${icon.mic}</span>Parler à Yaatal</button>${signIn}</div>`
     : "";
-  const ask = playground
+  const saidLines: [string, string][] = [
+    ["Mes commandes arrivent sur WhatsApp, aide-moi à les suivre.", "Bot WhatsApp"],
+    ["Je veux vendre mes tissus en ligne, en FCFA.", "Site e-commerce"],
+    ["Que ma boutique annonce chaque paiement reçu.", "Firmware Soundbox"],
+  ];
+  const said = saidLines.map(([line, what]) => voice
+    ? `<button type="button" data-idea="${escape(line)}"><span>« ${escape(line)} »</span><b>→ ${escape(what)}</b></button>`
+    : `<div><span>« ${escape(line)} »</span><b>→ ${escape(what)}</b></div>`).join("");
+  const ask = voice ? "" : playground
     ? `<form class="ask reveal d3" method="get" action="${escape(playground)}/">
 <label class="skip" for="prompt">Décrivez ce que vous voulez construire</label>
 <textarea id="prompt" name="prompt" maxlength="${MAX_PROMPT}" required placeholder="Ex. : ${escape(IDEAS[0]!.example)}…"></textarea>
 <div class="bar"><small>Le Playground s'ouvre avec votre idée. Un compte est nécessaire.</small><button class="btn accent" type="submit">Construire ${icon.arrow}</button></div>
 </form>
 <div class="chips reveal d4" role="group" aria-label="Idées pour commencer">${chips}</div>`
-    : contact ? `<p class="reveal d3" style="margin-top:${voice ? 16 : 32}px"><a class="btn ${voice ? "ghost" : "accent"}" href="${escape(contact)}" rel="noopener">Demander un accès bêta</a></p>`
-    : voice ? `<p class="or reveal d4">Le Playground ouvre bientôt : votre brief est prêt à copier.</p>`
+    : contact ? `<p class="reveal d3" style="margin-top:32px"><a class="btn accent" href="${escape(contact)}" rel="noopener">Demander un accès bêta</a></p>`
     : `<p class="reveal d3" style="margin-top:32px">Le Playground ouvre bientôt au public.</p>`;
 
   const body = `
@@ -628,17 +585,15 @@ ${topNav(playground, contact)}
 <main id="main">
 <div class="wrap hero">
  <div>
-  <span class="eyebrow reveal">Dalal ak jàmm · fait à Dakar</span>
-  <h1><span class="w"><span style="--i:0">De</span></span> <span class="w"><span style="--i:1">l'idée</span></span> <span class="w"><span style="--i:2">à</span></span> <span class="w"><span style="--i:3">l'outil</span></span> <span class="w wf"><span style="--i:4"><em class="fill">qui tourne</em>.</span></span></h1>
-  <p class="lede reveal d2">Site e-commerce, bot WhatsApp, dashboard ou Soundbox ESP32 : dites-le, Yaatal le construit avec vous. L'IA se paie en FCFA, partout en zone UEMOA.</p>
-  ${talk}
+  <span class="eyebrow reveal">Fait à Dakar · pour toute la zone UEMOA</span>
+  <h1><span class="w"><span style="--i:0">De</span></span> <span class="w"><span style="--i:1">l'idée</span></span> <span class="w"><span style="--i:2">à</span></span> <span class="w"><span style="--i:3">l'outil</span></span> <span class="w wf"><span style="--i:4"><em class="waxtext">qui tourne.</em></span></span></h1>
+  <p class="lede reveal d2">Une note vocale suffit. Expliquez votre idée comme à un ami, en français ou en wolof : Yaatal pose quelques questions, puis construit. Payé en FCFA, partout en zone UEMOA.</p>
+  ${actions}
   ${ask}
-  <div class="trust reveal d4"><span><i></i>Français et wolof</span><span><i></i>Payé en FCFA, partout en zone UEMOA</span><span><i></i>API compatible OpenAI</span></div>
  </div>
- ${stage()}
+ ${thread()}
 </div>
-
-<div class="wrap"><div class="wax" aria-hidden="true"></div></div>
+<div class="wrap"><div class="said-row reveal d4" role="group" aria-label="Ce que vous dites, ce que Yaatal construit">${said}</div></div>
 ${voice ? `<dialog class="call-sheet" id="call" aria-label="Appel avec Yaatal"><div id="call-host"></div></dialog>` : ""}
 
 <section id="gens" style="padding-top:56px"><div class="wrap">
@@ -752,7 +707,7 @@ reply = yaatal.chat.completions.create(
 <footer class="wrap"><span>© Yaatal · Dakar</span><span><a href="/usage">Consommation</a> · <a href="/v1/models">Modèles</a> · Bêta</span>
 <p class="credits">Photos, Wikimedia Commons : Sanghesenegalafrica (CC BY-SA 4.0), Lucas Takerkart (CC BY-SA 4.0), dimworld (CC BY 2.0), GuillaumeG (CC BY-SA 4.0).</p></footer>`;
 
-  const script = STAGE_SCRIPT + PAGE_SCRIPT + (voice ? CALL_SCRIPT : "") + (playground ? `
+  const script = THREAD_SCRIPT + PAGE_SCRIPT + (voice ? CALL_SCRIPT : "") + (playground ? `
 const box = document.getElementById("prompt");
 for (const chip of document.querySelectorAll(".chip")) {
   chip.addEventListener("click", () => { box.value = chip.dataset.prompt; box.focus(); });

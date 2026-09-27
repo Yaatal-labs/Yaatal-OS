@@ -376,8 +376,16 @@ describe("customer pages", () => {
 });
 
 describe("playground hand-off", () => {
-  it("sends the idea to the Playground's prompt deep link, allowed by the form policy", async () => {
-    const response = await call("/", {}, { PLAYGROUND_URL: "https://os.yaatal.test", FEATURED_BLUEPRINT_ID: "8f3639f6abcdef12" });
+  it("with the call available, every idea opens the call and the hero has no form", async () => {
+    const html = await (await call("/", {}, { PLAYGROUND_URL: "https://os.yaatal.test" })).text();
+    expect(html).not.toContain('name="prompt"');
+    expect(html).toContain('data-idea="Je veux vendre mes tissus en ligne, en FCFA."');
+    expect(html).toMatch(/<button class="tile" type="button" data-idea="/); // templates open the call too
+    expect(html).toContain('Déjà client ? <a href="https://os.yaatal.test/">Se connecter</a>');
+  });
+
+  it("without the call, sends the idea to the Playground's prompt deep link, allowed by the form policy", async () => {
+    const response = await call("/", {}, { VOICE: undefined, PLAYGROUND_URL: "https://os.yaatal.test", FEATURED_BLUEPRINT_ID: "8f3639f6abcdef12" });
     const html = await response.text();
     expect(html).toContain('<form class="ask reveal d3" method="get" action="https://os.yaatal.test/">');
     expect(html).toContain('name="prompt" maxlength="4000"');
