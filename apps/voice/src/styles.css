@@ -1,10 +1,15 @@
-:root{--paper:#f7f3ec;--paper-2:#efe8dc;--ink:#1b1813;--muted:#5f584d;--line:#e2d9c9;--card:#fffdf9;--accent:#e85a25;--accent-strong:#c2410c;--deep:#15302c;--deep-ink:#f3ead9;--cream:#f3dcc0}
-@media (prefers-color-scheme:dark){:root{--paper:#121312;--paper-2:#1a1b19;--ink:#f1ece2;--muted:#b3ab9d;--line:#2d2c28;--card:#191a18;--accent:#f06a35;--accent-strong:#e85a25;--deep:#0f2421}}
+:root,:host{--paper:#f7f3ec;--paper-2:#efe8dc;--ink:#1b1813;--muted:#5f584d;--line:#e2d9c9;--card:#fffdf9;--accent:#e85a25;--accent-strong:#c2410c;--deep:#15302c;--deep-ink:#f3ead9;--cream:#f3dcc0}
+@media (prefers-color-scheme:dark){:root,:host{--paper:#121312;--paper-2:#1a1b19;--ink:#f1ece2;--muted:#b3ab9d;--line:#2d2c28;--card:#191a18;--accent:#f06a35;--accent-strong:#e85a25;--deep:#0f2421}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Instrument Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
-.page{min-height:100vh;display:flex;flex-direction:column}
+.page{min-height:100vh;display:flex;flex-direction:column;background:var(--paper);color:var(--ink);font:17px/1.6 "Instrument Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.page.embedded{min-height:0}
+.close{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.close:hover{border-color:var(--ink)}
+.embedded .top{gap:14px}.embedded .dot{margin-left:auto}
+.embedded .stage{position:relative;top:auto}.embedded .log{max-height:40vh}
 .top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;max-width:1180px;width:100%;margin:0 auto}
 .logo{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none}
 .dot{font-size:.85rem;color:var(--muted);display:inline-flex;align-items:center;gap:8px}
@@ -12,9 +17,8 @@ a{color:inherit}
 
 .call{flex:1;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:28px;max-width:1180px;width:100%;margin:0 auto;padding:8px 16px 40px;align-items:start}
 
-/* The call stage: a dark panel, like a phone call screen, with a faint strip-cloth weave. */
+/* The call stage: a plain dark panel, like a phone call screen. */
 .stage{position:sticky;top:16px;background:var(--deep);color:var(--deep-ink);border-radius:28px;padding:28px 20px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;overflow:hidden;isolation:isolate}
-.stage::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.045;background:repeating-linear-gradient(0deg,transparent 0 22px,var(--cream) 22px 26px),repeating-linear-gradient(90deg,transparent 0 60px,var(--accent) 60px 62px)}
 .ring{--viz-a:#e85a25;--viz-b:#f3dcc0;position:relative;width:min(380px,78vw);aspect-ratio:1}
 .ring canvas{position:absolute;inset:0;width:100%;height:100%}
 .core{position:absolute;inset:34%;border-radius:50%;border:0;display:grid;place-items:center;background:var(--cream);color:#15302c;cursor:pointer;box-shadow:0 10px 30px -10px rgba(0,0,0,.55);transition:transform .2s cubic-bezier(.2,.8,.2,1.2),background-color .2s}

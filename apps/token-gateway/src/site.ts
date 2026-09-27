@@ -5,6 +5,8 @@
 import { availableModels, MODELS } from "./models.js";
 
 export interface SiteEnv {
+  /** The yaatal-voice Worker. When bound, the hero's main action is a voice call. */
+  VOICE?: Fetcher;
   /** "true" on Workers Paid: the page then lists the models that need it. */
   WORKERS_PAID?: string;
   /** Public origin of the Playground (the Yaatal OS). HTTPS, or HTTP on loopback. */
@@ -129,26 +131,13 @@ function nonce(): string {
 }
 
 const icon = {
+  mic: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>`,
   arrow: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
   chat: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>`,
   build: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>`,
   check: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`,
   chip: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>`,
 };
-
-// Narrow woven bands, after Senegalese strip-woven cloth.
-const WEAVE =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='60'><rect width='120' height='60' fill='#15302c'/><g fill='#e85a25' fill-opacity='.9'><rect x='0' y='8' width='44' height='6' rx='3'/><rect x='56' y='8' width='64' height='6' rx='3'/><rect x='0' y='38' width='70' height='6' rx='3'/><rect x='82' y='38' width='38' height='6' rx='3'/></g><g fill='#f3dcc0' fill-opacity='.55'><rect x='20' y='23' width='36' height='4' rx='2'/><rect x='70' y='23' width='50' height='4' rx='2'/><rect x='0' y='52' width='28' height='4' rx='2'/><rect x='40' y='52' width='58' height='4' rx='2'/></g></svg>",
-  );
-
-// Film grain over the page, kept faint.
-const GRAIN =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    "<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .9 0'/></filter><rect width='160' height='160' filter='url(#n)'/></svg>",
-  );
 
 // The Yaatal mark: two cloth strips woven into a Y, after Senegalese strip-woven cloth. The orange
 // strip tucks under the cream one, which folds down into the stem. The wordmark is drawn, not typed.
@@ -186,10 +175,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:16px;min-h
 .hero{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);gap:48px;align-items:center;padding-top:64px;padding-bottom:40px}
 h1{font-size:clamp(2.5rem,5.6vw,4.6rem);line-height:1;margin:0 0 20px;max-width:11ch;text-wrap:balance}
 h1 em{font-style:normal;color:var(--accent-strong)}
-.fill{position:relative;color:var(--accent-strong);white-space:nowrap}
-.fill::after{content:"";position:absolute;left:-.04em;right:-.04em;bottom:-.06em;height:.2em;border-radius:.1em;background:url(/img/wax.webp) 20% 45%/240% auto;transform-origin:left;animation:draw .9s 1s cubic-bezier(.6,0,.2,1) both,drift 18s 1.5s ease-in-out infinite alternate}
-@keyframes draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-@keyframes drift{to{background-position:80% 55%}}
+.fill{color:var(--accent-strong);white-space:nowrap}
 .lede{font-size:1.15rem;color:var(--muted);max-width:36rem;margin:0}
 .ask{max-width:780px;margin:30px 0 0;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);text-align:left;overflow:hidden}
 .ask textarea{display:block;width:100%;min-height:132px;resize:vertical;border:0;background:transparent;color:var(--ink);font:1.08rem/1.55 "Instrument Sans",sans-serif;padding:20px 22px;outline:none}
@@ -213,7 +199,19 @@ h1 em{font-style:normal;color:var(--accent-strong)}
 .credits{font-size:.78rem;color:var(--muted);max-width:60rem}
 @media (max-width:900px){.people{grid-template-columns:1fr 1fr}.people figure:nth-child(2){grid-column:1/-1;order:-1}.pay{grid-template-columns:1fr}}
 @media (max-width:600px){.people figure{transform:none!important}}
-.trust{display:flex;flex-wrap:wrap;gap:10px 24px;margin-top:28px;color:var(--muted);font-size:.92rem}
+.trust{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:26px;color:var(--muted);font-size:.9rem}
+@media (min-width:900px){.trust{flex-wrap:nowrap;white-space:nowrap}}
+.talk{display:flex;align-items:center;gap:16px;width:100%;max-width:560px;margin-top:30px;padding:14px 22px 14px 14px;border:0;border-radius:20px;background:var(--accent-strong);color:#fff;text-align:left;cursor:pointer;box-shadow:0 18px 40px -18px color-mix(in srgb,var(--accent-strong) 70%,transparent);transition:transform .2s cubic-bezier(.2,.8,.2,1.2),background-color .2s}
+.talk:hover{background:#a8370a}.talk:active{transform:scale(.98)}
+.talk .ic{position:relative;flex:none;width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--accent-strong)}
+.talk .ic::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(255,255,255,.55);animation:ping 2.4s cubic-bezier(.2,.6,.3,1) infinite}
+@keyframes ping{from{transform:scale(.9);opacity:1}to{transform:scale(1.35);opacity:0}}
+.talk b{display:block;font:700 1.2rem "Bricolage Grotesque",sans-serif;letter-spacing:-.01em}.talk small{display:block;opacity:.88;font-size:.92rem}
+.or{margin:18px 0 0;color:var(--muted);font-size:.9rem}
+.talk~.ask{margin-top:16px}.talk~.ask textarea{min-height:84px}
+.call-sheet{width:min(1120px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:0;border:0;border-radius:24px;background:var(--paper);color:var(--ink);box-shadow:0 30px 80px -20px rgba(0,0,0,.5);overflow:auto}
+.call-sheet::backdrop{background:rgba(10,12,11,.55);backdrop-filter:blur(4px)}
+.call-wait{padding:48px;text-align:center;color:var(--muted)}
 .trust span{display:inline-flex;align-items:center;gap:8px}.trust i{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block}
 section{padding-top:88px;padding-bottom:88px}
 .kicker{font:600 .78rem "JetBrains Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-strong);margin:0 0 12px}
@@ -255,7 +253,7 @@ footer{border-top:1px solid var(--line);padding-top:28px;padding-bottom:44px;col
 footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .reveal{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}.d1{animation-delay:.06s}.d2{animation-delay:.14s}.d3{animation-delay:.24s}.d4{animation-delay:.34s}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.stage{position:relative;background:var(--deep) url("${WEAVE}");background-size:120px 60px;border-radius:26px;padding:16px;box-shadow:0 30px 70px -30px rgba(21,48,44,.6)}
+.stage{position:relative;background:var(--deep);border-radius:26px;padding:16px;box-shadow:0 30px 70px -30px rgba(21,48,44,.6)}
 .st-win{background:var(--card);border-radius:16px;overflow:hidden;border:1px solid var(--line)}
 .st-top{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--paper-2);font:500 .74rem "JetBrains Mono",monospace;color:var(--muted)}
 .st-top>i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
@@ -300,15 +298,14 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .sw::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:0;background:#ff9a6a}
 .stage.auto .sw[aria-pressed=true]::after{animation:prog 6.5s linear both}
 @keyframes prog{to{width:100%}}
-.weave{height:34px;border-radius:10px;background:var(--deep) url("${WEAVE}") 0 -4px/120px 60px;animation:slide 40s linear infinite}
-@keyframes slide{to{background-position:-1200px -4px}}
+.wax{height:44px;border-radius:14px;background:var(--deep) url(/img/wax.webp) 0 46%/cover;animation:drift 30s ease-in-out infinite alternate}
+@keyframes drift{to{background-position:100% 54%}}
 @keyframes inview{from{opacity:.25;translate:0 28px}to{opacity:1;translate:0 0}}
 .w{display:inline-block;overflow:hidden;vertical-align:bottom;padding:0 .02em .14em;margin-bottom:-.14em}
 .w>*{display:inline-block;animation:up .95s cubic-bezier(.2,.7,.1,1) both;animation-delay:calc(.07s * var(--i,0))}
 @keyframes up{from{transform:translateY(108%)}}
 .wf{padding-inline:.06em}
 .tile{background:radial-gradient(260px circle at var(--mx,-400px) var(--my,-400px),color-mix(in srgb,var(--accent) 16%,transparent),transparent 70%) var(--card)}
-body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.045;background:url("${GRAIN}")}
 @supports (animation-timeline:scroll()){header.top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent);transform-origin:left;animation:grow linear both;animation-timeline:scroll(root)}}
 @keyframes grow{from{transform:scaleX(0)}}
 .marquee{overflow:hidden;border-block:1px solid var(--line);padding-block:10px}
@@ -323,7 +320,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:60;opa
 .beat .num{font:700 .9rem "JetBrains Mono",monospace;color:var(--accent-strong);padding-top:5px}
 .beat h3{margin:0 0 4px;font-size:1.3rem}.beat p{margin:0;color:var(--muted);font-size:.98rem;max-width:30rem}
 .panels{display:flex;flex-direction:column;gap:18px}
-.panel{background:var(--deep) url("${WEAVE}");background-size:120px 60px;border-radius:24px;padding:14px}
+.panel{background:var(--deep);border-radius:24px;padding:14px}
 .pw{background:var(--card);border-radius:14px;border:1px solid var(--line);overflow:hidden;min-height:330px;display:flex;flex-direction:column}
 .chatx{padding:16px;display:flex;flex-direction:column;gap:10px;font-size:.9rem}
 .cx{align-self:flex-start;max-width:84%;padding:9px 13px;border-radius:14px 14px 14px 4px;background:color-mix(in srgb,var(--line) 75%,var(--card))}
@@ -350,7 +347,7 @@ html.pin .beats::after{background:var(--accent);transform-origin:top;transform:s
 @supports (animation-timeline:view()){@media (prefers-reduced-motion:no-preference){
   .tile,html:not(.pin) .beat,.partner,.people figure,.qa .card,.pay figure{animation:inview linear both;animation-timeline:view();animation-range:entry 0% entry 70%}
 }}
-@media (prefers-reduced-motion:reduce){.reveal,.stage *,.weave,.fill::after,.w>*,.track,.cx.typing i{animation:none!important}html{scroll-behavior:auto}*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){.reveal,.stage *,.wax,.talk .ic::after,.w>*,.track,.cx.typing i{animation:none!important}html{scroll-behavior:auto}*{transition:none!important}}
 @media (max-width:900px){.hero{grid-template-columns:1fr;gap:36px}.pin-box{grid-template-columns:1fr;gap:28px}.gallery{grid-template-columns:1fr 1fr}.flow,.split{grid-template-columns:1fr}.links{display:none}.band{padding:28px}}
 @media (max-width:460px){.st-body{height:auto;min-height:340px}.fw{grid-template-columns:1fr}.box{display:none}.meter span.l{display:none}}
 @media (max-width:600px){.gallery,.qa{grid-template-columns:1fr}.window .body{grid-template-columns:1fr}.window .chat{border-right:0;border-bottom:1px solid var(--line)}.ask .bar{flex-direction:column;align-items:stretch}.hero{padding-top:44px}}
@@ -361,7 +358,7 @@ input[type=password]{width:100%;min-height:44px;padding:10px 14px;border:1px sol
 const FONTS =
   "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap";
 
-function page(title: string, body: string, options: { script?: string; formAction?: string | null } = {}): Response {
+function page(title: string, body: string, options: { script?: string; formAction?: string | null; voiceOrigin?: string } = {}): Response {
   const scriptNonce = options.script ? nonce() : null;
   const html = `<!doctype html>
 <html lang="fr">
@@ -384,8 +381,8 @@ function page(title: string, body: string, options: { script?: string; formActio
     "style-src 'unsafe-inline' https://fonts.googleapis.com",
     "font-src https://fonts.gstatic.com",
     "img-src 'self' data:",
-    "connect-src 'self'",
-    scriptNonce ? `script-src 'nonce-${scriptNonce}'` : "",
+    options.voiceOrigin ? `connect-src 'self' ${options.voiceOrigin.replace(/^http/, "ws")}` : "connect-src 'self'",
+    scriptNonce ? `script-src 'nonce-${scriptNonce}'${options.voiceOrigin ? " 'self' blob:" : ""}` : "",
     `form-action ${options.formAction ?? "'none'"}`,
     "base-uri 'none'",
     "frame-ancestors 'none'",
@@ -563,6 +560,26 @@ const PAGE_SCRIPT = `
   }
 }`;
 
+const CALL_SCRIPT = `
+{
+  const talk = document.getElementById("talk"), sheet = document.getElementById("call"), host = document.getElementById("call-host");
+  let close = null;
+  const wait = text => { const p = document.createElement("p"); p.className = "call-wait"; p.textContent = text; host.replaceChildren(p); };
+  talk.addEventListener("click", async () => {
+    sheet.showModal();
+    if (close) return;
+    if (!host.shadowRoot) wait("Connexion à Yaatal…");
+    try {
+      const call = await import("/voix/embed.js");
+      host.replaceChildren();
+      close = call.open(host, { onClose: () => sheet.close() });
+    } catch {
+      wait("L'appel n'a pas pu démarrer. Réessayez dans un instant.");
+    }
+  });
+  sheet.addEventListener("close", () => { if (close) { close(); close = null; } });
+}`;
+
 function buildLink(playground: string, prompt: string): string {
   return `${playground}/?prompt=${encodeURIComponent(prompt)}`;
 }
@@ -591,6 +608,10 @@ export function home(request: Request, env: SiteEnv): Response {
       : `<div class="tile">${inner}</div>`;
   }).join("");
 
+  const voice = Boolean(env.VOICE);
+  const talk = voice
+    ? `<button class="talk reveal d3" id="talk" type="button" aria-haspopup="dialog"><span class="ic">${icon.mic}</span><span><b>Parler à Yaatal</b><small>Dites votre idée à voix haute, en français.</small></span></button>`
+    : "";
   const ask = playground
     ? `<form class="ask reveal d3" method="get" action="${escape(playground)}/">
 <label class="skip" for="prompt">Décrivez ce que vous voulez construire</label>
@@ -598,7 +619,9 @@ export function home(request: Request, env: SiteEnv): Response {
 <div class="bar"><small>Le Playground s'ouvre avec votre idée. Un compte est nécessaire.</small><button class="btn accent" type="submit">Construire ${icon.arrow}</button></div>
 </form>
 <div class="chips reveal d4" role="group" aria-label="Idées pour commencer">${chips}</div>`
-    : `<p class="reveal d3" style="margin-top:32px">${contact ? `<a class="btn accent" href="${escape(contact)}" rel="noopener">Demander un accès bêta</a>` : "Le Playground ouvre bientôt au public."}</p>`;
+    : contact ? `<p class="reveal d3" style="margin-top:${voice ? 16 : 32}px"><a class="btn ${voice ? "ghost" : "accent"}" href="${escape(contact)}" rel="noopener">Demander un accès bêta</a></p>`
+    : voice ? `<p class="or reveal d4">Le Playground ouvre bientôt : votre brief est prêt à copier.</p>`
+    : `<p class="reveal d3" style="margin-top:32px">Le Playground ouvre bientôt au public.</p>`;
 
   const body = `
 ${topNav(playground, contact)}
@@ -607,14 +630,16 @@ ${topNav(playground, contact)}
  <div>
   <span class="eyebrow reveal">Dalal ak jàmm · fait à Dakar</span>
   <h1><span class="w"><span style="--i:0">De</span></span> <span class="w"><span style="--i:1">l'idée</span></span> <span class="w"><span style="--i:2">à</span></span> <span class="w"><span style="--i:3">l'outil</span></span> <span class="w wf"><span style="--i:4"><em class="fill">qui tourne</em>.</span></span></h1>
-  <p class="lede reveal d2">Site e-commerce, bot WhatsApp, dashboard ou Soundbox ESP32 : décrivez-le, Yaatal le construit avec vous. L'IA se paie en FCFA, au token près.</p>
+  <p class="lede reveal d2">Site e-commerce, bot WhatsApp, dashboard ou Soundbox ESP32 : dites-le, Yaatal le construit avec vous. L'IA se paie en FCFA, partout en zone UEMOA.</p>
+  ${talk}
   ${ask}
-  <div class="trust reveal d4"><span><i></i>Français, wolof, ou les deux mélangés</span><span><i></i>Payé en FCFA, partout en zone UEMOA</span><span><i></i>API compatible OpenAI</span></div>
+  <div class="trust reveal d4"><span><i></i>Français et wolof</span><span><i></i>Payé en FCFA, partout en zone UEMOA</span><span><i></i>API compatible OpenAI</span></div>
  </div>
  ${stage()}
 </div>
 
-<div class="wrap"><div class="weave" aria-hidden="true"></div></div>
+<div class="wrap"><div class="wax" aria-hidden="true"></div></div>
+${voice ? `<dialog class="call-sheet" id="call" aria-label="Appel avec Yaatal"><div id="call-host"></div></dialog>` : ""}
 
 <section id="gens" style="padding-top:56px"><div class="wrap">
   <p class="kicker">Pour qui</p>
@@ -727,7 +752,7 @@ reply = yaatal.chat.completions.create(
 <footer class="wrap"><span>© Yaatal · Dakar</span><span><a href="/usage">Consommation</a> · <a href="/v1/models">Modèles</a> · Bêta</span>
 <p class="credits">Photos, Wikimedia Commons : Sanghesenegalafrica (CC BY-SA 4.0), Lucas Takerkart (CC BY-SA 4.0), dimworld (CC BY 2.0), GuillaumeG (CC BY-SA 4.0).</p></footer>`;
 
-  const script = STAGE_SCRIPT + PAGE_SCRIPT + (playground ? `
+  const script = STAGE_SCRIPT + PAGE_SCRIPT + (voice ? CALL_SCRIPT : "") + (playground ? `
 const box = document.getElementById("prompt");
 for (const chip of document.querySelectorAll(".chip")) {
   chip.addEventListener("click", () => { box.value = chip.dataset.prompt; box.focus(); });
@@ -740,6 +765,7 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
 
   return page("Yaatal · De l'idée à l'outil qui tourne. Facturé en FCFA.", body, {
     script,
+    voiceOrigin: voice ? origin : undefined,
     formAction: playground ? playground : null,
   });
 }

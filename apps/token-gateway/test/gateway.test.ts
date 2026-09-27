@@ -349,6 +349,25 @@ describe("customer pages", () => {
     expect(html).not.toContain("innerHTML");
   });
 
+  it("puts the voice call first and reaches the voice Worker on this origin", async () => {
+    const home = await call("/");
+    const html = await home.text();
+    expect(html).toContain('id="talk"');
+    expect(html).toContain("Parler à Yaatal");
+    expect(html).toContain('<dialog class="call-sheet" id="call"');
+    const csp = home.headers.get("content-security-policy") ?? "";
+    expect(csp).toMatch(/script-src 'nonce-[^']+' 'self' blob:/); // the call's files, and its audio worklet
+    expect(csp).toContain("connect-src 'self' wss://tokens.yaatal.test");
+    expect(await (await call("/voix/embed.js")).text()).toBe("voice /embed.js");
+    expect(await (await call("/agents/yaatal-voice/s1")).text()).toBe("voice /agents/yaatal-voice/s1");
+    expect((await call("/agents/other/s1")).status).toBe(404);
+    // Without the voice Worker: no call button, a stricter policy, nothing forwarded.
+    const plain = await call("/", {}, { VOICE: undefined });
+    expect(await plain.text()).not.toContain('id="talk"');
+    expect(plain.headers.get("content-security-policy")).not.toContain("blob:");
+    expect((await call("/voix/embed.js", {}, { VOICE: undefined })).status).toBe(404);
+  });
+
   it("shows the WhatsApp button only for a valid configured number", async () => {
     expect(await (await call("/")).text()).not.toContain("wa.me");
     expect(await (await call("/", {}, { CONTACT_WHATSAPP: "221770000000" })).text()).toContain("https://wa.me/221770000000?text=");

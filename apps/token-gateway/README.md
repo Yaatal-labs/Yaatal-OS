@@ -10,6 +10,7 @@ OpenAI-compatible server such as a self-hosted model. Switching a model's suppli
 | --- | --- | --- |
 | `GET /` | none | Branded landing page (French). Its prompt box and example ideas open the Playground (the Yaatal OS) at `PLAYGROUND_URL/?prompt=…`; also the offer, FCFA prices from the catalog, the API quickstart, data handling, a featured Blueprint (`FEATURED_BLUEPRINT_ID`) and a WhatsApp button (`CONTACT_WHATSAPP`) |
 | `GET /usage` | none | Usage page: paste a key to see balance and recent calls (the key stays in the tab) |
+| `/voix/*`, `/agents/yaatal-voice/*` | none | The voice call, forwarded to the `yaatal-voice` Worker over the `VOICE` service binding. The hero's **Parler à Yaatal** button opens it in a sheet on this page (`/voix/embed.js`, loaded on first tap). Without the binding the page shows the prompt box instead |
 | `GET /v1/models` | none | Models, tier and FCFA price per million tokens |
 | `POST /v1/chat/completions` | Yaatal key | OpenAI chat completions, streaming or not |
 | `GET /v1/balance` | Yaatal key | Balance and recent ledger rows |

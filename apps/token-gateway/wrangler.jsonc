@@ -15,6 +15,8 @@
       "migrations_dir": "migrations"
     }
   ],
+  // The voice call (yaatal-voice Worker), opened from the landing page on this origin.
+  "services": [{ "binding": "VOICE", "service": "yaatal-voice" }],
   // Photos and other static files, served before the Worker when a path matches a file.
   "assets": { "directory": "./public" },
   "vars": {

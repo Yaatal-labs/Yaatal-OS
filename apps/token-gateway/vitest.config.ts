@@ -11,6 +11,8 @@ export default defineConfig(async () => ({
         compatibilityDate: "2026-08-22",
         compatibilityFlags: ["nodejs_compat"],
         d1Databases: ["DB"],
+        // The voice Worker, faked: it echoes the path it was asked for.
+        serviceBindings: { VOICE: (request: Request) => new Response(`voice ${new URL(request.url).pathname}`) },
         bindings: {
           TEST_MIGRATIONS: await readD1Migrations("./migrations"),
           ADMIN_TOKEN: "test-admin-token-0123456789abcdef0123",
