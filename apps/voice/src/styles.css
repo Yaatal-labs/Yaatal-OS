@@ -6,7 +6,7 @@ a{color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
 .page{min-height:100vh;display:flex;flex-direction:column}
 .top{display:flex;justify-content:space-between;align-items:center;padding:16px;max-width:880px;width:100%;margin:0 auto}
-.logo{display:flex;align-items:center;gap:10px;font:800 1.2rem "Bricolage Grotesque",sans-serif;text-decoration:none;letter-spacing:-.03em}
+.logo{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none}
 .dot{font-size:.85rem;color:var(--muted);display:inline-flex;align-items:center;gap:8px}
 .dot::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--line)}.dot.on::before{background:#1f7a4d}
 .band{height:180px;margin:0 16px;border-radius:24px;background:url(/wax.webp) center 40%/cover;position:relative;overflow:hidden;max-width:1080px;width:calc(100% - 32px);align-self:center}

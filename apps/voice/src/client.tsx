@@ -40,15 +40,32 @@ function isBrief(value: unknown): value is Brief & { type: "playground_brief" } 
 }
 
 function Mark() {
+  // Two cloth strips woven into a Y: the orange one tucks under the cream one, which becomes the stem.
   return (
-    <svg width="28" height="28" viewBox="0 0 256 256" aria-hidden="true">
+    <svg width="30" height="30" viewBox="0 0 256 256" aria-hidden="true">
+      <clipPath id="ym"><rect width="256" height="256" rx="56" /></clipPath>
       <rect width="256" height="256" rx="56" fill="#15302c" />
-      <rect x="52" y="74" width="66" height="20" rx="10" fill="#f3dcc0" />
-      <rect x="136" y="74" width="68" height="20" rx="10" fill="#f3dcc0" />
-      <rect x="52" y="115" width="116" height="26" rx="13" fill="#e85a25" />
-      <rect x="186" y="115" width="18" height="26" rx="9" fill="#e85a25" />
-      <rect x="52" y="162" width="32" height="20" rx="10" fill="#f3dcc0" />
-      <rect x="102" y="162" width="102" height="20" rx="10" fill="#f3dcc0" />
+      <g clipPath="url(#ym)" fill="none" strokeLinejoin="round">
+        <path d="M30 -8 L128 118" stroke="#e85a25" strokeWidth="40" />
+        <path d="M226 -8 L128 118 L128 272" stroke="#15302c" strokeWidth="56" />
+        <path d="M226 -8 L128 118 L128 272" stroke="#f3dcc0" strokeWidth="40" />
+        <path d="M108 190 H148 M108 206 H148" stroke="#e85a25" strokeWidth="6" />
+      </g>
+    </svg>
+  );
+}
+
+function Wordmark() {
+  return (
+    <svg viewBox="-4 -4 492 108" height="16" aria-hidden="true">
+      <g fill="currentColor">
+        <path d="M0 0H22L35 30L48 0H70L45 54V100H25V54Z" />
+        <path d="M86 100L113 0H129L156 100H136L121 42L106 100Z" />
+        <path d="M172 100L199 0H215L242 100H222L207 42L192 100Z" />
+        <path d="M258 0H322V20H300V100H280V20H258Z" />
+        <path d="M338 100L365 0H381L408 100H388L373 42L358 100Z" />
+        <path d="M424 0H444V80H484V100H424Z" />
+      </g>
     </svg>
   );
 }
@@ -93,7 +110,7 @@ function App() {
   return (
     <div className="page">
       <header className="top">
-        <a className="logo" href="/"><Mark />Yaatal</a>
+        <a className="logo" href="/" aria-label="Yaatal"><Mark /><Wordmark /></a>
         <span className={`dot ${connected ? "on" : ""}`}>{connected ? "Connecté" : "Connexion…"}</span>
       </header>
 

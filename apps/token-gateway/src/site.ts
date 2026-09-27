@@ -150,6 +150,21 @@ const GRAIN =
     "<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .9 0'/></filter><rect width='160' height='160' filter='url(#n)'/></svg>",
   );
 
+// The Yaatal mark: two cloth strips woven into a Y, after Senegalese strip-woven cloth. The orange
+// strip tucks under the cream one, which folds down into the stem. The wordmark is drawn, not typed.
+const MARK_INNER =
+  "<clipPath id='ym'><rect width='256' height='256' rx='56'/></clipPath><rect width='256' height='256' rx='56' fill='#15302c'/>" +
+  "<g clip-path='url(#ym)' fill='none' stroke-linejoin='round'><path d='M30 -8 L128 118' stroke='#e85a25' stroke-width='40'/>" +
+  "<path d='M226 -8 L128 118 L128 272' stroke='#15302c' stroke-width='56'/><path d='M226 -8 L128 118 L128 272' stroke='#f3dcc0' stroke-width='40'/>" +
+  "<path d='M108 190 H148 M108 206 H148' stroke='#e85a25' stroke-width='6'/></g>";
+const MARK = `<svg class="mark" width="30" height="30" viewBox="0 0 256 256" aria-hidden="true">${MARK_INNER}</svg>`;
+const WORDMARK =
+  `<svg class="word" viewBox="-4 -4 492 108" height="17" aria-hidden="true"><g fill="currentColor">` +
+  `<path d="M0 0H22L35 30L48 0H70L45 54V100H25V54Z"/><path d="M86 100L113 0H129L156 100H136L121 42L106 100Z"/>` +
+  `<path d="M172 100L199 0H215L242 100H222L207 42L192 100Z"/><path d="M258 0H322V20H300V100H280V20H258Z"/>` +
+  `<path d="M338 100L365 0H381L408 100H388L373 42L358 100Z"/><path d="M424 0H444V80H484V100H424Z"/></g></svg>`;
+const FAVICON = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'>${MARK_INNER}</svg>`);
+
 const STYLE = `
 :root{--paper:#f7f3ec;--paper-2:#efe8dc;--ink:#1b1813;--muted:#5f584d;--line:#e2d9c9;--card:#fffdf9;--accent:#e85a25;--accent-strong:#c2410c;--deep:#15302c;--deep-ink:#f3ead9;--code:#15171a;--code-ink:#e8e2d6;--shadow:0 1px 2px rgba(27,24,19,.06),0 12px 32px -12px rgba(27,24,19,.18)}
 @media (prefers-color-scheme:dark){:root{--paper:#121312;--paper-2:#1a1b19;--ink:#f1ece2;--muted:#b3ab9d;--line:#2d2c28;--card:#191a18;--accent:#f06a35;--accent-strong:#e85a25;--deep:#0f2421;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.6)}}
@@ -162,7 +177,7 @@ code,pre,.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
 .skip{position:absolute;left:-999px}.skip:focus{left:16px;top:12px;z-index:50;background:var(--card);padding:8px 12px}
 header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(10px)}
 nav{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:68px}
-.logo{display:flex;align-items:center;gap:10px;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:1.25rem;text-decoration:none;letter-spacing:-.03em}
+.logo{display:flex;align-items:center;gap:11px;color:var(--ink);text-decoration:none}.logo .mark{display:block;flex:none}.logo .word{display:block;width:auto}
 .links{display:flex;gap:26px;font-size:.95rem;color:var(--muted)}.links a{text-decoration:none;padding:10px 0}.links a:hover{color:var(--ink)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;background:var(--ink);color:var(--paper);border:0;border-radius:12px;padding:10px 18px;font:600 .98rem "Instrument Sans",sans-serif;text-decoration:none;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s}
 .btn:hover{background:var(--accent-strong);color:#fff}.btn.accent{background:var(--accent-strong);color:#fff}.btn.accent:hover{background:var(--ink);color:var(--paper)}
@@ -359,6 +374,7 @@ function page(title: string, body: string, options: { script?: string; formActio
 <meta name="theme-color" content="#121312" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${FONTS}">
+<link rel="icon" href="${FAVICON}">
 <style>${STYLE}</style>
 </head>
 <body><a class="skip" href="#main">Aller au contenu</a>${body}${scriptNonce ? `<script nonce="${scriptNonce}">${options.script}</script>` : ""}</body>
@@ -389,7 +405,7 @@ function topNav(playground: string | null, contact: string | null): string {
     ? `<a class="btn" href="${escape(playground)}/">Ouvrir le Playground</a>`
     : contact ? `<a class="btn" href="${escape(contact)}" rel="noopener">Accès bêta</a>` : "";
   return `<header class="top"><nav class="wrap" aria-label="Principale">
-<a class="logo" href="/"><svg width='28' height='28' aria-hidden='true' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><rect width='256' height='256' rx='56' fill='#15302c'/><rect x='52' y='74' width='66' height='20' rx='10' fill='#f3dcc0'/><rect x='136' y='74' width='68' height='20' rx='10' fill='#f3dcc0'/><rect x='52' y='115' width='116' height='26' rx='13' fill='#e85a25'/><rect x='186' y='115' width='18' height='26' rx='13' fill='#e85a25'/><rect x='52' y='162' width='32' height='20' rx='10' fill='#f3dcc0'/><rect x='102' y='162' width='102' height='20' rx='10' fill='#f3dcc0'/></svg>Yaatal</a>
+<a class="logo" href="/" aria-label="Yaatal, accueil">${MARK}${WORDMARK}</a>
 <div class="links"><a href="/#modeles">Templates</a><a href="/#comment">Comment ça marche</a><a href="/#objets">Objets</a><a href="/#api">API</a><a href="/#tarifs">Tarifs</a></div>
 ${cta}</nav></header>`;
 }
