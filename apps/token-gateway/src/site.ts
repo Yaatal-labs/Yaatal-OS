@@ -85,7 +85,7 @@ const FAQ: readonly [string, string][] = [
   ["Faut-il savoir coder ?",
     "Non. Vous décrivez ce que vous voulez en français, ou en français-wolof comme au quotidien ; l'agent pose ses questions, construit, et vous montre le résultat. Chaque changement attend votre accord avant d'être appliqué. Si vous codez, tout reste modifiable."],
   ["Comment je paie ?",
-    "À la consommation, en FCFA, sans carte Visa ni Mastercard. Vous rechargez un solde, comme du crédit ; chaque appel d'IA en déduit le prix affiché dans les tarifs. Pendant la bêta, les recharges se font avec l'équipe."],
+    "À la consommation, en FCFA, dans les 8 pays de l'UEMOA, sans carte Visa ni Mastercard. Vous rechargez un solde, comme du crédit ; chaque appel d'IA en déduit le prix affiché dans les tarifs. Pendant la bêta, les recharges se font avec l'équipe."],
   ["Et pour les objets, vous fabriquez ?",
     "Le Playground produit le firmware, le schéma de câblage et la liste des pièces, que vous relisez avant tout achat. La fabrication se fait sur commande, avec nos partenaires : impression 3D, fournisseurs de composants, conseil technique."],
   ["Puis-je utiliser l'API dans mon propre code ?",
@@ -98,7 +98,7 @@ function escape(text: string): string {
   return text.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-const fcfa = (value: number) => new Intl.NumberFormat("fr-FR").format(value).replace(/ | /g, " ");
+const num = (value: number) => new Intl.NumberFormat("fr-FR").format(value).replace(/ | /g, " ");
 
 function whatsappLink(env: SiteEnv): string | null {
   const number = env.CONTACT_WHATSAPP?.trim();
@@ -369,7 +369,7 @@ function page(title: string, body: string, options: { script?: string; formActio
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(title)}</title>
-<meta name="description" content="Décrivez un site, un outil ou un objet connecté : Yaatal le construit avec vous. L'IA se paie en FCFA.">
+<meta name="description" content="Décrivez un site, un outil ou un objet connecté : Yaatal le construit avec vous. L'IA se paie en FCFA, partout en zone UEMOA.">
 <meta name="theme-color" content="#f7f3ec" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121312" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -423,7 +423,7 @@ function stage(): string {
     .map(([name, price, x], i) => `<div class="prod pop" style="--d:${1.9 + i * 0.18};--x:${x}"><b></b>${name}<em>${price}</em></div>`).join("");
   return `<div class="stage reveal d2" id="stage" data-scene="1">
   <div class="st-win" aria-hidden="true">
-    <div class="st-top"><i></i><i></i><i></i>&nbsp;playground<span class="meter"><b></b><span id="tok">${fcfa(BUILD_TOKENS)}</span>&nbsp;tokens</span></div>
+    <div class="st-top"><i></i><i></i><i></i>&nbsp;playground<span class="meter"><b></b><span id="tok">${num(BUILD_TOKENS)}</span>&nbsp;tokens</span></div>
     <div class="st-body">
       <div class="scene s1">
         <div class="prompt"><span>un site pour ma boutique de bazin, commande WhatsApp</span></div>
@@ -523,7 +523,7 @@ function story(): string {
       <div class="st-top"><i></i><i></i><i></i>&nbsp;sandbox · build</div>
       <div class="files"><span class="on">catalogue.ts</span><span>index.html</span><span>whatsapp.ts</span></div>
 <pre class="code big"><span><span class="k">export const</span> catalogue = [</span><span>  { nom: <span class="s">"Grand boubou"</span>, prix: 25000 },</span><span>  { nom: <span class="s">"Ensemble brodé"</span>, prix: 18500 },</span><span>  { nom: <span class="s">"Wax 6 yards"</span>, prix: 12000 },</span><span>];</span><span> </span><span><span class="k">export const</span> commander = (p) =&gt;</span><span>  whatsapp(BOUTIQUE, <span class="s">"Je veux : "</span> + p.nom);</span></pre>
-      <div class="checks"><span class="ok">✓ 12 tests OK</span><span>build 2,1 s</span><span>${fcfa(BUILD_TOKENS)} tokens</span></div>
+      <div class="checks"><span class="ok">✓ 12 tests OK</span><span>build 2,1 s</span><span>${num(BUILD_TOKENS)} tokens</span></div>
     </div></div>
     <div class="panel pc"><div class="pw">
       <div class="st-top"><i></i><i></i><i></i>&nbsp;aperçu · bazin-riche-medina<span class="meter"><b></b>prêt</span></div>
@@ -581,7 +581,7 @@ export function home(request: Request, env: SiteEnv): Response {
   const example = models.find(model => model.tier === "standard") ?? models[0]!;
   const live = new Set(models.map(model => model.id));
   // Every model is listed; those the current plan cannot serve yet are marked "bientôt" (and the API refuses them).
-  const rows = MODELS.map(model => `<tr><td><code>${escape(model.id)}</code>${live.has(model.id) ? "" : ' <span class="soon">bientôt</span>'}</td><td>${TIER_LABEL[model.tier]}</td><td class="num">${fcfa(model.inputFcfaPerMillion)}</td><td class="num">${fcfa(model.outputFcfaPerMillion)}</td></tr>`).join("");
+  const rows = MODELS.map(model => `<tr><td><code>${escape(model.id)}</code>${live.has(model.id) ? "" : ' <span class="soon">bientôt</span>'}</td><td>${TIER_LABEL[model.tier]}</td><td class="num">${num(model.inputXofPerMillion)}</td><td class="num">${num(model.outputXofPerMillion)}</td></tr>`).join("");
   const chips = IDEAS.map(idea =>
     `<button class="chip" type="button" data-prompt="${escape(idea.prompt)}" data-example="${escape(idea.example)}">${escape(idea.title)}</button>`).join("");
   const tiles = IDEAS.map(idea => {
@@ -609,7 +609,7 @@ ${topNav(playground, contact)}
   <h1><span class="w"><span style="--i:0">De</span></span> <span class="w"><span style="--i:1">l'idée</span></span> <span class="w"><span style="--i:2">à</span></span> <span class="w"><span style="--i:3">l'outil</span></span> <span class="w wf"><span style="--i:4"><em class="fill">qui tourne</em>.</span></span></h1>
   <p class="lede reveal d2">Site e-commerce, bot WhatsApp, dashboard ou Soundbox ESP32 : décrivez-le, Yaatal le construit avec vous. L'IA se paie en FCFA, au token près.</p>
   ${ask}
-  <div class="trust reveal d4"><span><i></i>Français, wolof, ou les deux mélangés</span><span><i></i>Payé en FCFA, pas besoin de carte Visa</span><span><i></i>API compatible OpenAI</span></div>
+  <div class="trust reveal d4"><span><i></i>Français, wolof, ou les deux mélangés</span><span><i></i>Payé en FCFA, partout en zone UEMOA</span><span><i></i>API compatible OpenAI</span></div>
  </div>
  ${stage()}
 </div>
@@ -756,7 +756,7 @@ form.addEventListener("submit", async e => {
   catch { out.textContent = "Réseau indisponible."; return; }
   if (!res.ok) { out.textContent = res.status === 401 ? "Clé API invalide." : "Erreur " + res.status + "."; return; }
   const data = await res.json(); out.textContent = "";
-  const h = document.createElement("h2"); h.textContent = money(data.balance_fcfa); out.appendChild(h);
+  const h = document.createElement("h2"); h.textContent = money(data.balance_xof); out.appendChild(h);
   const table = document.createElement("table"), head = document.createElement("tr");
   for (const t of ["Date", "Opération", "Modèle", "Tokens", "Montant"]) { const th = document.createElement("th"); th.textContent = t; head.appendChild(th); }
   table.appendChild(head);
@@ -766,7 +766,7 @@ form.addEventListener("submit", async e => {
     cell(tr, r.kind === "credit" ? "Recharge" : "Consommation" + (r.estimated ? " (estimée)" : ""));
     cell(tr, r.model ?? "—");
     cell(tr, r.kind === "usage" ? String((r.input_tokens ?? 0) + (r.output_tokens ?? 0)) : "—", "num");
-    cell(tr, money(r.amount_fcfa), "num");
+    cell(tr, money(r.amount_xof), "num");
     table.appendChild(tr);
   }
   const wrap = document.createElement("div"); wrap.className = "table-wrap"; wrap.appendChild(table); out.appendChild(wrap);

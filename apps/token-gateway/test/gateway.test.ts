@@ -1,7 +1,7 @@
 import { applyD1Migrations, createExecutionContext, env, waitOnExecutionContext, type D1Migration } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import worker from "../src/index.js";
-import { MODELS, retailFcfa } from "../src/models.js";
+import { MODELS, retailXof } from "../src/models.js";
 import { callUpstreams } from "../src/upstream.js";
 
 declare global {
@@ -74,19 +74,19 @@ async function call(path: string, init: RequestInit & { auth?: string } = {}, ex
   return response;
 }
 
-async function newAccount(creditFcfa = 5_000) {
+async function newAccount(creditXof = 5_000) {
   const response = await call("/admin/accounts", {
-    method: "POST", auth: ADMIN, body: JSON.stringify({ name: "Agence Test", credit_fcfa: creditFcfa }),
+    method: "POST", auth: ADMIN, body: JSON.stringify({ name: "Agence Test", credit_xof: creditXof }),
   });
   expect(response.status).toBe(201);
-  return (await response.json()) as { account: { id: string }; api_key: string; balance_fcfa: number };
+  return (await response.json()) as { account: { id: string }; api_key: string; balance_xof: number };
 }
 
 async function balanceOf(key: string) {
   const response = await call("/v1/balance", { auth: `Bearer ${key}` });
   return (await response.json()) as {
-    balance_fcfa: number;
-    recent: { kind: string; amount_fcfa: number; model: string; input_tokens: number; output_tokens: number; estimated: boolean }[];
+    balance_xof: number;
+    recent: { kind: string; amount_xof: number; model: string; input_tokens: number; output_tokens: number; estimated: boolean }[];
   };
 }
 
@@ -114,9 +114,9 @@ describe("keys and admin", () => {
   });
 
   it("creates an account with an opening credit and a key shown once, stored only as a hash", async () => {
-    const { api_key, balance_fcfa, account } = await newAccount(5_000);
+    const { api_key, balance_xof, account } = await newAccount(5_000);
     expect(api_key).toMatch(/^yk_[A-Za-z0-9_-]{43}$/);
-    expect(balance_fcfa).toBe(5_000);
+    expect(balance_xof).toBe(5_000);
     const stored = await env.DB.prepare("SELECT key_hash FROM api_keys WHERE account_id = ?").bind(account.id).all();
     expect(JSON.stringify(stored.results)).not.toContain(api_key);
   });
@@ -134,18 +134,18 @@ describe("keys and admin", () => {
   it("credits an account and rejects bad amounts and unknown accounts", async () => {
     const { account, api_key } = await newAccount(1_000);
     const ok = await call(`/admin/accounts/${account.id}/credits`, {
-      method: "POST", auth: ADMIN, body: JSON.stringify({ fcfa: 2_500, note: "Wave top-up ref W-1" }),
+      method: "POST", auth: ADMIN, body: JSON.stringify({ xof: 2_500, note: "Wave top-up ref W-1" }),
     });
-    expect(await ok.json()).toEqual({ balance_fcfa: 3_500 });
-    expect((await balanceOf(api_key)).balance_fcfa).toBe(3_500);
-    for (const fcfa of [0, -5, 1.5, "100"]) {
+    expect(await ok.json()).toEqual({ balance_xof: 3_500 });
+    expect((await balanceOf(api_key)).balance_xof).toBe(3_500);
+    for (const xof of [0, -5, 1.5, "100"]) {
       const bad = await call(`/admin/accounts/${account.id}/credits`, {
-        method: "POST", auth: ADMIN, body: JSON.stringify({ fcfa, note: "x" }),
+        method: "POST", auth: ADMIN, body: JSON.stringify({ xof, note: "x" }),
       });
       expect(bad.status).toBe(400);
     }
     const unknown = await call("/admin/accounts/00000000-0000-4000-8000-000000000000/credits", {
-      method: "POST", auth: ADMIN, body: JSON.stringify({ fcfa: 10, note: "x" }),
+      method: "POST", auth: ADMIN, body: JSON.stringify({ xof: 10, note: "x" }),
     });
     expect(unknown.status).toBe(404);
   });
@@ -164,9 +164,9 @@ describe("chat completions", () => {
     expect(seen[0]!.url).toContain("/workers-ai/v1/chat/completions");
     expect(seen[0]!.body.model).toBe("@cf/nvidia/nemotron-3-120b-a12b");
     // 1,000 input tokens at 600 FCFA/M plus 500 output tokens at 1,800 FCFA/M = 1.5 FCFA.
-    const { balance_fcfa, recent } = await balanceOf(api_key);
-    expect(balance_fcfa).toBeCloseTo(5_000 - 1.5, 6);
-    expect(recent[0]).toMatchObject({ kind: "usage", amount_fcfa: -1.5, input_tokens: 1_000, output_tokens: 500, estimated: false });
+    const { balance_xof, recent } = await balanceOf(api_key);
+    expect(balance_xof).toBeCloseTo(5_000 - 1.5, 6);
+    expect(recent[0]).toMatchObject({ kind: "usage", amount_xof: -1.5, input_tokens: 1_000, output_tokens: 500, estimated: false });
   });
 
   it("keeps no data upstream: logging off, and no user, metadata or store fields forwarded", async () => {
@@ -207,7 +207,7 @@ describe("chat completions", () => {
     expect(seen[0]!.body.stream_options).toEqual({ include_usage: true });
     const { recent } = await balanceOf(api_key);
     // 2,000 input tokens at 600 FCFA/M plus 1,000 output tokens at 1,800 FCFA/M = 3 FCFA.
-    expect(recent[0]).toMatchObject({ amount_fcfa: -3, input_tokens: 2_000, output_tokens: 1_000, estimated: false });
+    expect(recent[0]).toMatchObject({ amount_xof: -3, input_tokens: 2_000, output_tokens: 1_000, estimated: false });
   });
 
   it("never reveals the upstream model in a stream", async () => {
@@ -252,7 +252,7 @@ describe("failover", () => {
     expect(seen[0]!.body.model).toBe("@cf/zai-org/glm-4.7-flash");
     const { recent } = await balanceOf(api_key);
     expect(recent.filter(row => row.kind === "usage")).toHaveLength(1);
-    expect(recent[0]!.amount_fcfa).toBeCloseTo(-0.6, 6); // 1,000 in at 100 + 1,000 out at 500 FCFA/M
+    expect(recent[0]!.amount_xof).toBeCloseTo(-0.6, 6); // 1,000 in at 100 + 1,000 out at 500 FCFA/M
   });
 
   it("sends nothing identifying the customer to the wholesale supplier", async () => {
@@ -283,8 +283,8 @@ describe("failover", () => {
       method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-4.7-flash"),
     }, { AI: ai, WHOLESALE_BASE_URL: WHOLESALE_URL });
     expect(response.status).toBe(429);
-    const { balance_fcfa, recent } = await balanceOf(api_key);
-    expect(balance_fcfa).toBe(5_000);
+    const { balance_xof, recent } = await balanceOf(api_key);
+    expect(balance_xof).toBe(5_000);
     expect(recent.filter(row => row.kind === "usage")).toHaveLength(0);
   });
 
@@ -297,7 +297,7 @@ describe("failover", () => {
 describe("guards", () => {
   it("refuses an empty balance before calling any upstream", async () => {
     const { api_key, account } = await newAccount(1);
-    await env.DB.prepare("UPDATE accounts SET balance_ufcfa = 0 WHERE id = ?").bind(account.id).run();
+    await env.DB.prepare("UPDATE accounts SET balance_uxof = 0 WHERE id = ?").bind(account.id).run();
     const { ai, seen } = fakeAi(() => completion(1, 1));
     const response = await call("/v1/chat/completions", {
       method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super"),
@@ -314,7 +314,7 @@ describe("guards", () => {
       method: "POST", auth, body: JSON.stringify({ model: "yaatal/glm-4.7-flash", messages: [] }),
     })).status).toBe(400);
     expect((await call("/v1/chat/completions", { method: "POST", auth, body: "{" })).status).toBe(400);
-    expect((await balanceOf(api_key)).balance_fcfa).toBe(5_000);
+    expect((await balanceOf(api_key)).balance_xof).toBe(5_000);
   });
 });
 
@@ -324,6 +324,7 @@ describe("customer pages", () => {
     expect(response.status).toBe(200);
     const html = await response.text();
     expect(html).toContain("Facturé en FCFA");
+    expect(html).toContain("partout en zone UEMOA");
     expect(html).toContain("yaatal/qwen3.8-27b");
     expect(html).toMatch(/550<\/td><td class="num">3 850/); // qwen3.8-27b, the newest free-plan model
     for (const estimate of ["Ticket", "≈", "data-count"]) expect(html).not.toContain(estimate); // rates only, no estimates of ours
@@ -394,10 +395,10 @@ describe("photos", () => {
 
 describe("pricing", () => {
   it("never sells a model below its upstream cost", () => {
-    expect(retailFcfa(3.2)).toBe(3850); // Qwen3.8 output: cost 1,920 FCFA
+    expect(retailXof(3.2)).toBe(3850); // Qwen3.8 output: cost 1,920 FCFA
     for (const model of MODELS) {
-      expect(model.inputFcfaPerMillion).toBeGreaterThan(0);
-      expect(model.outputFcfaPerMillion).toBeGreaterThanOrEqual(model.inputFcfaPerMillion > 0 ? 50 : 0);
+      expect(model.inputXofPerMillion).toBeGreaterThan(0);
+      expect(model.outputXofPerMillion).toBeGreaterThanOrEqual(model.inputXofPerMillion > 0 ? 50 : 0);
     }
   });
 });

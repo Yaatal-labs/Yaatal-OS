@@ -1,4 +1,4 @@
-// Yaatal Token Gateway: one OpenAI-compatible endpoint for every model Yaatal sells, billed in FCFA
+// Yaatal Token Gateway: one OpenAI-compatible endpoint for every model Yaatal sells, billed in XOF (FCFA)
 // from a prepaid balance. Clients (the Yaatal OS, apps built on it, agencies' own code) use a Yaatal
 // key; upstream keys never leave this Worker, and nothing identifying the customer goes upstream.
 //
@@ -7,9 +7,9 @@
 //   GET  /v1/models                     models and their FCFA prices
 //   POST /v1/chat/completions           OpenAI chat completions, streaming or not
 //   GET  /v1/balance                    the key's balance and recent ledger rows
-//   POST /admin/accounts                {name, credit_fcfa?}  -> account + first key (shown once)
+//   POST /admin/accounts                {name, credit_xof?}  -> account + first key (shown once)
 //   POST /admin/accounts/:id/keys       {label}               -> new key (shown once)
-//   POST /admin/accounts/:id/credits    {fcfa, note}          -> new balance
+//   POST /admin/accounts/:id/credits    {xof, note}          -> new balance
 //   POST /admin/keys/revoke             {key}
 //
 // Credits are granted by an administrator here. Taking payment (Wave, Orange Money, PI-SPI) is a
@@ -28,7 +28,7 @@ export interface Env extends UpstreamEnv, SiteEnv {
 }
 
 const MAX_BODY_BYTES = 2_000_000;
-const UFCFA = 1_000_000;
+const UXOF = 1_000_000;
 /** Request fields that could store data or identify the end user upstream; never forwarded. */
 const STRIPPED_FIELDS = ["user", "metadata", "store", "service_tier"] as const;
 
@@ -72,8 +72,8 @@ function models(env: Env): Response {
       tier: model.tier,
       pricing: {
         currency: "XOF",
-        input_per_million: model.inputFcfaPerMillion,
-        output_per_million: model.outputFcfaPerMillion,
+        input_per_million: model.inputXofPerMillion,
+        output_per_million: model.outputXofPerMillion,
       },
       max_output_tokens: model.maxOutputTokens,
     })),
@@ -113,7 +113,7 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     throw new HttpError(400, "invalid_request", "messages must be a non-empty array.");
   }
-  if (account.balanceUfcfa <= 0) {
+  if (account.balanceUxof <= 0) {
     throw new HttpError(402, "insufficient_balance", "This account has no balance left. Top up to continue.");
   }
 
@@ -205,7 +205,7 @@ async function charge(env: Env, accountId: string, offer: ModelOffer,
     model: offer.id,
     inputTokens: counts.inputTokens,
     outputTokens: counts.outputTokens,
-    costUfcfa: costOf(offer, counts.inputTokens, counts.outputTokens),
+    costUxof: costOf(offer, counts.inputTokens, counts.outputTokens),
     estimated: counts.estimated,
   });
 }
@@ -215,10 +215,10 @@ async function balance(request: Request, env: Env): Promise<Response> {
   const rows = await recentLedger(env.DB, account.id);
   return Response.json({
     account: { id: account.id, name: account.name },
-    balance_fcfa: account.balanceUfcfa / UFCFA,
+    balance_xof: account.balanceUxof / UXOF,
     recent: rows.map(row => ({
       kind: row.kind,
-      amount_fcfa: Number(row.amount_ufcfa) / UFCFA,
+      amount_xof: Number(row.amount_uxof) / UXOF,
       model: row.model,
       input_tokens: row.input_tokens,
       output_tokens: row.output_tokens,
@@ -237,9 +237,9 @@ async function admin(request: Request, env: Env, path: string): Promise<Response
     const name = text(body.name, "name");
     const account = await createAccount(env.DB, name);
     const key = await createKey(env.DB, account.id, "default");
-    const creditFcfa = body.credit_fcfa === undefined ? 0 : fcfa(body.credit_fcfa);
-    const balanceUfcfa = creditFcfa ? await credit(env.DB, account.id, creditFcfa * UFCFA, "opening credit") : 0;
-    return Response.json({ account: { id: account.id, name }, api_key: key, balance_fcfa: balanceUfcfa / UFCFA }, { status: 201 });
+    const creditXof = body.credit_xof === undefined ? 0 : xof(body.credit_xof);
+    const balanceUxof = creditXof ? await credit(env.DB, account.id, creditXof * UXOF, "opening credit") : 0;
+    return Response.json({ account: { id: account.id, name }, api_key: key, balance_xof: balanceUxof / UXOF }, { status: 201 });
   }
   if (path === "/admin/keys/revoke") {
     return Response.json({ revoked: await revokeKey(env.DB, text(body.key, "key")) });
@@ -251,9 +251,9 @@ async function admin(request: Request, env: Env, path: string): Promise<Response
       const key = await createKey(env.DB, accountId, text(body.label, "label"));
       return Response.json({ api_key: key }, { status: 201 });
     }
-    const amount = fcfa(body.fcfa);
-    const balanceUfcfa = await credit(env.DB, accountId, amount * UFCFA, text(body.note, "note"));
-    return Response.json({ balance_fcfa: balanceUfcfa / UFCFA });
+    const amount = xof(body.xof);
+    const balanceUxof = await credit(env.DB, accountId, amount * UXOF, text(body.note, "note"));
+    return Response.json({ balance_xof: balanceUxof / UXOF });
   }
   throw new HttpError(404, "not_found", "No such admin route.");
 }
@@ -280,9 +280,9 @@ function text(value: unknown, field: string): string {
   return value.trim();
 }
 
-function fcfa(value: unknown): number {
+function xof(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value <= 0 || value > 1_000_000_000) {
-    throw new HttpError(400, "invalid_request", "fcfa must be a whole number of FCFA, 1 to 1,000,000,000.");
+    throw new HttpError(400, "invalid_request", "xof must be a whole number of XOF (FCFA), 1 to 1,000,000,000.");
   }
   return value;
 }

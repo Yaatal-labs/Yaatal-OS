@@ -4,14 +4,14 @@
 export interface Account {
   id: string;
   name: string;
-  balanceUfcfa: number;
+  balanceUxof: number;
 }
 
 export interface UsageRecord {
   model: string;
   inputTokens: number;
   outputTokens: number;
-  costUfcfa: number;
+  costUxof: number;
   estimated: boolean;
 }
 
@@ -40,18 +40,18 @@ export async function accountForKey(db: D1Database, key: string): Promise<Accoun
   if (!key.startsWith(KEY_PREFIX) || key.length > 128) return null;
   const row = await db
     .prepare(
-      `SELECT a.id, a.name, a.balance_ufcfa FROM api_keys k JOIN accounts a ON a.id = k.account_id
+      `SELECT a.id, a.name, a.balance_uxof FROM api_keys k JOIN accounts a ON a.id = k.account_id
        WHERE k.key_hash = ? AND k.revoked_at IS NULL`,
     )
     .bind(await sha256Hex(key))
-    .first<{ id: string; name: string; balance_ufcfa: number }>();
-  return row ? { id: row.id, name: row.name, balanceUfcfa: row.balance_ufcfa } : null;
+    .first<{ id: string; name: string; balance_uxof: number }>();
+  return row ? { id: row.id, name: row.name, balanceUxof: row.balance_uxof } : null;
 }
 
 export async function createAccount(db: D1Database, name: string): Promise<Account> {
   const id = crypto.randomUUID();
   await db.prepare("INSERT INTO accounts (id, name) VALUES (?, ?)").bind(id, name).run();
-  return { id, name, balanceUfcfa: 0 };
+  return { id, name, balanceUxof: 0 };
 }
 
 /** Creates a key and returns it. Only its hash is stored, so this is the one time it is visible. */
@@ -72,34 +72,34 @@ export async function revokeKey(db: D1Database, key: string): Promise<boolean> {
   return result.meta.changes === 1;
 }
 
-export async function credit(db: D1Database, accountId: string, amountUfcfa: number, note: string): Promise<number> {
+export async function credit(db: D1Database, accountId: string, amountUxof: number, note: string): Promise<number> {
   const exists = await db.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(accountId).first();
   if (!exists) throw new UnknownAccountError();
   const [, , balance] = await db.batch([
-    db.prepare("INSERT INTO ledger (account_id, kind, amount_ufcfa, note) VALUES (?, 'credit', ?, ?)")
-      .bind(accountId, amountUfcfa, note),
-    db.prepare("UPDATE accounts SET balance_ufcfa = balance_ufcfa + ? WHERE id = ?").bind(amountUfcfa, accountId),
-    db.prepare("SELECT balance_ufcfa FROM accounts WHERE id = ?").bind(accountId),
+    db.prepare("INSERT INTO ledger (account_id, kind, amount_uxof, note) VALUES (?, 'credit', ?, ?)")
+      .bind(accountId, amountUxof, note),
+    db.prepare("UPDATE accounts SET balance_uxof = balance_uxof + ? WHERE id = ?").bind(amountUxof, accountId),
+    db.prepare("SELECT balance_uxof FROM accounts WHERE id = ?").bind(accountId),
   ]);
-  const row = (balance?.results as { balance_ufcfa: number }[])[0];
+  const row = (balance?.results as { balance_uxof: number }[])[0];
   if (!row) throw new Error("unknown account");
-  return row.balance_ufcfa;
+  return row.balance_uxof;
 }
 
 export async function debitUsage(db: D1Database, accountId: string, usage: UsageRecord): Promise<void> {
   await db.batch([
     db.prepare(
-      `INSERT INTO ledger (account_id, kind, amount_ufcfa, model, input_tokens, output_tokens, estimated)
+      `INSERT INTO ledger (account_id, kind, amount_uxof, model, input_tokens, output_tokens, estimated)
        VALUES (?, 'usage', ?, ?, ?, ?, ?)`,
-    ).bind(accountId, -usage.costUfcfa, usage.model, usage.inputTokens, usage.outputTokens, usage.estimated ? 1 : 0),
-    db.prepare("UPDATE accounts SET balance_ufcfa = balance_ufcfa - ? WHERE id = ?").bind(usage.costUfcfa, accountId),
+    ).bind(accountId, -usage.costUxof, usage.model, usage.inputTokens, usage.outputTokens, usage.estimated ? 1 : 0),
+    db.prepare("UPDATE accounts SET balance_uxof = balance_uxof - ? WHERE id = ?").bind(usage.costUxof, accountId),
   ]);
 }
 
 export async function recentLedger(db: D1Database, accountId: string, limit = 20) {
   const { results } = await db
     .prepare(
-      `SELECT kind, amount_ufcfa, model, input_tokens, output_tokens, estimated, note, created_at
+      `SELECT kind, amount_uxof, model, input_tokens, output_tokens, estimated, note, created_at
        FROM ledger WHERE account_id = ? ORDER BY id DESC LIMIT ?`,
     )
     .bind(accountId, limit)

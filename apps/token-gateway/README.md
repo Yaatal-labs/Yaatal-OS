@@ -1,6 +1,6 @@
 # Yaatal Token Gateway
 
-One OpenAI-compatible endpoint for every model Yaatal sells, billed in FCFA from a prepaid balance.
+One OpenAI-compatible endpoint for every model Yaatal sells, billed in XOF (FCFA, the West African CFA franc) from a prepaid balance.
 Agencies, apps built on the Yaatal OS and the OS itself call it with a Yaatal key. Behind it, each model
 fails over across upstreams: the wholesale supplier, Workers AI (no key, over the AI binding), or any
 OpenAI-compatible server such as a self-hosted model. Switching a model's supplier is one edit in
@@ -13,15 +13,15 @@ OpenAI-compatible server such as a self-hosted model. Switching a model's suppli
 | `GET /v1/models` | none | Models, tier and FCFA price per million tokens |
 | `POST /v1/chat/completions` | Yaatal key | OpenAI chat completions, streaming or not |
 | `GET /v1/balance` | Yaatal key | Balance and recent ledger rows |
-| `POST /admin/accounts` | admin token | `{name, credit_fcfa?}` → account and its first key (shown once) |
+| `POST /admin/accounts` | admin token | `{name, credit_xof?}` → account and its first key (shown once) |
 | `POST /admin/accounts/:id/keys` | admin token | `{label}` → another key (shown once) |
-| `POST /admin/accounts/:id/credits` | admin token | `{fcfa, note}` → new balance |
+| `POST /admin/accounts/:id/credits` | admin token | `{xof, note}` → new balance |
 | `POST /admin/keys/revoke` | admin token | `{key}` |
 
 ## Billing
 
-- Balances and ledger amounts are integers in micro-FCFA. A price in FCFA per million tokens is exactly
-  micro-FCFA per token, so no floating point touches money.
+- Balances and ledger amounts are integers in micro-XOF. A price in XOF per million tokens is exactly
+  micro-XOF per token, so no floating point touches money.
 - The upstream's reported `usage` is billed. When a stream reports none, tokens are estimated at about
   four characters each and the ledger row is marked `estimated`.
 - A request needs a positive balance to start and is debited when it finishes. Output is capped per

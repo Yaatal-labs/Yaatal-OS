@@ -1,11 +1,11 @@
-// The models Yaatal sells, their FCFA price, and where their tokens come from. Each model lists its
+// The models Yaatal sells, their price in XOF (FCFA), and where their tokens come from. Each model lists its
 // upstreams in order: the gateway fails over to the next one when an upstream is rate limited or
 // down, so the wholesale supplier, Workers AI or a self-hosted server can back the same public id.
 //
-// Prices are FCFA per million tokens, which is exactly micro-FCFA per token (see the ledger schema).
+// Prices are XOF per million tokens, which is exactly micro-XOF per token (see the ledger schema).
 // Each price is derived from the model's upstream cost (USD per million tokens, from the Workers AI
 // catalog), the exchange rate and Yaatal's markup, so no model is ever sold below cost. Update
-// USD_TO_FCFA and MARKUP here; update a model's cost when its upstream changes.
+// USD_TO_XOF and MARKUP here; update a model's cost when its upstream changes.
 
 export type Upstream =
   /** Workers AI's OpenAI-compatible endpoint, through AI Gateway over the AI binding (no key). */
@@ -24,25 +24,25 @@ export interface ModelOffer {
   id: string;
   tier: Tier;
   upstreams: readonly Upstream[];
-  inputFcfaPerMillion: number;
-  outputFcfaPerMillion: number;
+  inputXofPerMillion: number;
+  outputXofPerMillion: number;
   /** Hard cap on max_tokens, which also bounds how far one request can overdraw a balance. */
   maxOutputTokens: number;
   /** Only callable on the Workers Paid plan: hidden and refused unless WORKERS_PAID is "true". */
   paidPlan?: boolean;
 }
 
-/** FCFA per US dollar (XOF is pegged to the euro; review when the dollar moves). */
-export const USD_TO_FCFA = 600;
+/** XOF per US dollar (the West African CFA franc is pegged to the euro; review when the dollar moves). */
+export const USD_TO_XOF = 600;
 /** Retail price over upstream cost. 2 means a 50% gross margin. */
 export const MARKUP = 2;
-/** Prices are rounded up to this many FCFA per million tokens. */
+/** Prices are rounded up to this many XOF per million tokens. */
 const ROUND_TO = 50;
 
-/** FCFA per million tokens for an upstream cost in USD per million, never below cost. */
-export function retailFcfa(usdPerMillion: number): number {
-  const fcfa = usdPerMillion * USD_TO_FCFA * MARKUP;
-  return Math.max(ROUND_TO, Math.ceil(fcfa / ROUND_TO) * ROUND_TO);
+/** XOF per million tokens for an upstream cost in USD per million, never below cost. */
+export function retailXof(usdPerMillion: number): number {
+  const xof = usdPerMillion * USD_TO_XOF * MARKUP;
+  return Math.max(ROUND_TO, Math.ceil(xof / ROUND_TO) * ROUND_TO);
 }
 
 const WORKERS_AI = (model: string): Upstream => ({ kind: "workers-ai", model });
@@ -61,8 +61,8 @@ function offer(
     id,
     tier,
     upstreams,
-    inputFcfaPerMillion: retailFcfa(cost.input),
-    outputFcfaPerMillion: retailFcfa(cost.output),
+    inputXofPerMillion: retailXof(cost.input),
+    outputXofPerMillion: retailXof(cost.output),
     maxOutputTokens: options.maxOutputTokens ?? 8192,
     ...(options.paidPlan ? { paidPlan: true } : {}),
   };
@@ -99,5 +99,5 @@ export function findModel(id: unknown, models: readonly ModelOffer[] = MODELS): 
 
 /** Cost in micro-FCFA. Integer arithmetic only. */
 export function costOf(model: ModelOffer, inputTokens: number, outputTokens: number): number {
-  return inputTokens * model.inputFcfaPerMillion + outputTokens * model.outputFcfaPerMillion;
+  return inputTokens * model.inputXofPerMillion + outputTokens * model.outputXofPerMillion;
 }
