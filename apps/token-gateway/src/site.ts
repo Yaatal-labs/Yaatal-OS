@@ -264,20 +264,23 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .st-top>i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
 .meter{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
 .meter b{width:7px;height:7px;border-radius:50%;background:#1f7a4d;animation:blink 1.2s ease-in-out infinite}
-.hero{grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr)}
+.hero{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:80px;padding-top:96px;padding-bottom:88px}
+.hero h1{font-size:clamp(2.4rem,5vw,4.3rem);line-height:1.02;margin-bottom:26px}
+.hero .lede{max-width:30rem;font-size:1.2rem}
+.hero .eyebrow{margin-bottom:22px}
 .waxtext{color:var(--accent-strong);background:url(/img/wax.webp) 30% 48%/cover;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:1.5px var(--accent-strong)}
-.actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;margin-top:32px}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;margin-top:40px}
 .talk{display:inline-flex;align-items:center;gap:14px;min-height:64px;padding:0 30px 0 10px;border:0;border-radius:999px;background:var(--talk-bg);color:var(--talk-ink);font:600 1.15rem "Instrument Sans",sans-serif;cursor:pointer;transition:transform .2s cubic-bezier(.2,.8,.2,1.2),background-color .2s}
 .talk:hover{background:var(--talk-hover)}.talk:active{transform:scale(.98)}
 .talk .ic{position:relative;flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff}
 .talk .ic::before{content:"";position:absolute;inset:-7px;border-radius:50%;background:repeating-conic-gradient(var(--accent) 0 5deg,transparent 5deg 15deg);-webkit-mask:radial-gradient(circle,transparent 62%,#000 64%);mask:radial-gradient(circle,transparent 62%,#000 64%);animation:turn 14s linear infinite;opacity:.8}
 @keyframes turn{to{transform:rotate(1turn)}}
 .alt{color:var(--muted);font-size:.95rem}.alt a{color:var(--ink);font-weight:600}
-.said-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;border-top:1px solid var(--line);padding-top:22px;margin-top:8px}
+.said-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px;border-top:1px solid var(--line);padding-top:28px;margin-bottom:24px}
 .said-row>*{display:flex;flex-direction:column;gap:4px;text-align:left;background:none;border:0;padding:0;font:inherit;color:inherit}
 .said-row button{cursor:pointer}.said-row button:hover b{color:var(--accent-strong)}
 .said-row span{color:var(--muted);font-size:.97rem}.said-row b{font-weight:600;transition:color .2s}
-.thread{background:var(--deep);border-radius:28px;padding:26px;display:flex;flex-direction:column;gap:12px;box-shadow:0 40px 80px -40px rgba(21,48,44,.55)}
+.thread{justify-self:end;width:100%;max-width:470px;background:var(--deep);border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:18px;box-shadow:0 40px 80px -40px rgba(21,48,44,.55)}
 .note{align-self:flex-end;display:flex;align-items:center;gap:12px;width:min(330px,100%);background:#d7f5c8;color:#10251a;border-radius:18px 18px 4px 18px;padding:11px 15px}
 .play{flex:none;width:34px;height:34px;border-radius:50%;background:#1f7a4d;color:#fff;display:grid;place-items:center}
 .wave{flex:1;display:flex;align-items:center;gap:3px;height:30px}
@@ -285,14 +288,14 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .thread.run .wave i{animation:heard .1s linear both;animation-delay:calc(.05s * var(--k))}
 @keyframes heard{from{background:#8fb89c}}
 .dur{font-size:.8rem;font-variant-numeric:tabular-nums}
-.heard{align-self:flex-end;margin:0;font-size:.82rem;font-style:italic;color:rgba(243,234,217,.62)}
 .reply{align-self:flex-start;max-width:400px;background:#f3ead9;color:#1b1813;border-radius:18px 18px 18px 4px;padding:11px 15px;font-size:.95rem;line-height:1.45}
-.shop{align-self:flex-start;width:min(420px,100%);background:#fffdf9;color:#1b1813;border-radius:18px;overflow:hidden}
-.shop-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 14px 0}
+.shop{align-self:flex-start;width:100%;background:#fffdf9;color:#1b1813;border-radius:18px;overflow:hidden}
+.shop-img{height:150px;background:url(/img/wax.webp) center 45%/cover}
+.shop .wa-btn{margin:12px 14px 14px}
+.shop-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:14px 14px 0}
 .shop-h strong{font:700 1.1rem "Bricolage Grotesque",sans-serif}.shop-h span{font-size:.72rem;color:#5f584d}
-.shop .prods{padding:10px 14px}
 .thread .pop{animation:none}.thread.run .pop{animation:pop .55s cubic-bezier(.2,.8,.2,1.15) both;animation-delay:calc(var(--d,0) * 1s)}
-@media (max-width:900px){.said-row{grid-template-columns:1fr;gap:14px}}
+@media (max-width:900px){.said-row{grid-template-columns:1fr;gap:16px}.hero{gap:44px;padding-top:56px;padding-bottom:56px}.thread{justify-self:stretch;max-width:none}}
 .tile{background:radial-gradient(260px circle at var(--mx,-400px) var(--my,-400px),color-mix(in srgb,var(--accent) 16%,transparent),transparent 70%) var(--card)}
 @supports (animation-timeline:scroll()){header.top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent);transform-origin:left;animation:grow linear both;animation-timeline:scroll(root)}}
 @keyframes grow{from{transform:scaleX(0)}}
@@ -407,16 +410,13 @@ const WAVE = [8, 14, 22, 12, 26, 18, 10, 24, 30, 16, 9, 20, 28, 14, 22, 11, 18, 
  */
 function thread(): string {
   const bars = WAVE.map((h, i) => `<i style="--h:${h}px;--k:${i}"></i>`).join("");
-  const prods = [["Grand boubou", "25 000 F", "8%"], ["Ensemble brodé", "18 500 F", "46%"], ["Wax 6 yards", "12 000 F", "88%"]]
-    .map(([name, price, x], i) => `<div class="prod pop" style="--d:${3.3 + i * 0.15};--x:${x}"><b></b>${name}<em>${price}</em></div>`).join("");
   return `<div class="thread reveal d2" id="thread" aria-label="Exemple : une note vocale devient une boutique" role="img">
   <div class="note"><span class="play">${icon.play}</span><span class="wave">${bars}</span><span class="dur">0:14</span></div>
-  <p class="heard pop" style="--d:1.7">« Un site pour ma boutique de bazin, avec commande WhatsApp. »</p>
-  <div class="reply pop" style="--d:2.3">Compris. Vos prix sont en FCFA, et vos clients commandent sur WhatsApp ? Je prépare le catalogue.</div>
-  <div class="shop pop" style="--d:3.0">
+  <div class="reply pop" style="--d:1.9">Compris : une boutique de bazin, prix en FCFA, commande sur WhatsApp. Je prépare le catalogue.</div>
+  <div class="shop pop" style="--d:2.8">
+    <div class="shop-img"></div>
     <div class="shop-h"><strong>Bazin Riche Médina</strong><span>prêt à publier</span></div>
-    <div class="prods">${prods}</div>
-    <div class="wa-btn pop" style="--d:3.9">Commander sur WhatsApp</div>
+    <div class="wa-btn pop" style="--d:3.5">Commander sur WhatsApp</div>
   </div>
 </div>`;
 }
@@ -587,7 +587,7 @@ ${topNav(playground, contact)}
  <div>
   <span class="eyebrow reveal">Fait à Dakar · pour toute la zone UEMOA</span>
   <h1><span class="w"><span style="--i:0">De</span></span> <span class="w"><span style="--i:1">l'idée</span></span> <span class="w"><span style="--i:2">à</span></span> <span class="w"><span style="--i:3">l'outil</span></span> <span class="w wf"><span style="--i:4"><em class="waxtext">qui tourne.</em></span></span></h1>
-  <p class="lede reveal d2">Une note vocale suffit. Expliquez votre idée comme à un ami, en français ou en wolof : Yaatal pose quelques questions, puis construit. Payé en FCFA, partout en zone UEMOA.</p>
+  <p class="lede reveal d2">Parlez de votre idée, en français ou en wolof. Yaatal pose quelques questions, puis construit.</p>
   ${actions}
   ${ask}
  </div>
