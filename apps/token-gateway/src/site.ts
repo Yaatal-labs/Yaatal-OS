@@ -156,10 +156,10 @@ const WORDMARK =
 const FAVICON = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'>${MARK_INNER}</svg>`);
 
 const STYLE = `
-:root{--paper:#f7f3ec;--paper-2:#efe8dc;--ink:#1b1813;--muted:#5f584d;--line:#e2d9c9;--card:#fffdf9;--accent:#e85a25;--accent-strong:#c2410c;--deep:#15302c;--deep-ink:#f3ead9;--code:#15171a;--code-ink:#e8e2d6;--shadow:0 1px 2px rgba(27,24,19,.06),0 12px 32px -12px rgba(27,24,19,.18);--talk-bg:#15302c;--talk-ink:#f3ead9;--talk-hover:#0d201d}
-@media (prefers-color-scheme:dark){:root{--paper:#121312;--paper-2:#1a1b19;--ink:#f1ece2;--muted:#b3ab9d;--line:#2d2c28;--card:#191a18;--accent:#f06a35;--accent-strong:#e85a25;--deep:#0f2421;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.6);--talk-bg:#f3dcc0;--talk-ink:#15302c;--talk-hover:#fff3e3}}
+:root{--paper:#f7f3ec;--paper-2:#efe8dc;--ink:#1b1813;--muted:#5f584d;--line:#e2d9c9;--card:#fffdf9;--accent:#e85a25;--accent-strong:#c2410c;--deep:#15302c;--deep-ink:#f3ead9;--code:#15171a;--code-ink:#e8e2d6;--shadow:0 1px 2px rgba(27,24,19,.06),0 12px 32px -12px rgba(27,24,19,.18);--talk-bg:#15302c;--talk-ink:#f3ead9;--talk-hover:#0d201d;--glow-warm:rgba(232,90,37,.13);--glow-deep:rgba(21,48,44,.09)}
+@media (prefers-color-scheme:dark){:root{--paper:#121312;--paper-2:#1a1b19;--ink:#f1ece2;--muted:#b3ab9d;--line:#2d2c28;--card:#191a18;--accent:#f06a35;--accent-strong:#e85a25;--deep:#0f2421;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.6);--talk-bg:#f3dcc0;--talk-ink:#15302c;--talk-hover:#fff3e3;--glow-warm:rgba(240,106,53,.16);--glow-deep:rgba(31,122,77,.14)}}
 *{box-sizing:border-box}html{scroll-behavior:smooth}
-body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Instrument Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{margin:0;background:radial-gradient(900px 620px at 78% -80px,var(--glow-warm),transparent 70%) no-repeat,radial-gradient(760px 560px at 6% 0,var(--glow-deep),transparent 72%) no-repeat,var(--paper);color:var(--ink);font:17px/1.6 "Instrument Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit}.wrap{max-width:1140px;margin:0 auto;padding-left:16px;padding-right:16px}
 h1,h2,h3,.display{font-family:"Bricolage Grotesque","Instrument Sans",sans-serif;letter-spacing:-.025em;font-weight:700}
 code,pre,.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
