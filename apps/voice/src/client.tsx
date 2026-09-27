@@ -1,6 +1,7 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { useVoiceAgent } from "agents/voice/react";
+import { installAudioTaps, startVisualizer, type VisualState } from "./visualizer.ts";
 import "./styles.css";
 
 type Brief = { brief: string; url?: string };
@@ -70,42 +71,55 @@ function Wordmark() {
   );
 }
 
-function MicIcon({ off }: { off?: boolean }) {
-  return (
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {off ? <path d="M6 6l12 12M6 18L18 6" /> : (
-        <>
-          <rect x="9" y="3" width="6" height="11" rx="3" />
-          <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-        </>
-      )}
-    </svg>
-  );
-}
+const icon = {
+  mic: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>,
+  micOff: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 3l18 18M9 9v2a3 3 0 0 0 5.1 2.1M15 9.3V6a3 3 0 0 0-5.7-1.3M19 11a7 7 0 0 1-1.2 3.9M5 11a7 7 0 0 0 10.7 5.9M12 18v3" /></svg>,
+  micOn: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>,
+  hangUp: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.6 14.4c4.7-4.5 12.1-4.5 16.8 0l-1.9 2.3-3.4-1.2-.3-2.4a10 10 0 0 0-5.6 0l-.3 2.4-3.4 1.2z" /></svg>,
+  keyboard: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" /></svg>,
+};
+
+const LABEL: Record<VisualState, string> = {
+  connecting: "Connexion…",
+  idle: "Appuyez pour parler",
+  listening: "À l'écoute",
+  thinking: "Je réfléchis…",
+  speaking: "Yaatal parle",
+};
 
 function App() {
   const name = useMemo(sessionId, []);
   const {
-    status, transcript, interimTranscript, audioLevel, connected, error,
-    startCall, endCall, sendText, lastCustomMessage,
+    status, transcript, interimTranscript, audioLevel, connected, error, metrics, isMuted,
+    startCall, endCall, toggleMute, sendText, lastCustomMessage,
   } = useVoiceAgent({ agent: "yaatal-voice", name });
   const [brief, setBrief] = useState<Brief | null>(null);
   const [text, setText] = useState("");
   const [inCall, setInCall] = useState(false);
+  const [typing, setTyping] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
 
+  // Typed turns think and speak too, so the ring follows the agent even outside a call.
+  const visual: VisualState = !connected ? "connecting" : status;
+  const live = useRef({ visual, level: audioLevel });
+  live.current = { visual, level: isMuted ? 0 : audioLevel };
+
+  useEffect(() => {
+    if (!canvas.current) return;
+    return startVisualizer(canvas.current, () => live.current.visual, () => live.current.level);
+  }, []);
   useEffect(() => {
     if (isBrief(lastCustomMessage)) setBrief({ brief: lastCustomMessage.brief, url: lastCustomMessage.url });
   }, [lastCustomMessage]);
   useEffect(() => { bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" }); }, [transcript.length, interimTranscript]);
 
-  const toggle = async () => {
+  const toggleCall = async () => {
     if (inCall) { endCall(); setInCall(false); return; }
     await startCall();
     setInCall(true);
   };
-  const label = inCall ? STATUS_LABEL[status] ?? STATUS_LABEL.idle : STATUS_LABEL.idle;
-  const ring = inCall && status === "listening" ? Math.min(audioLevel * 6, 1) : 0;
+  const label = inCall && isMuted && visual === "listening" ? "Micro coupé" : LABEL[visual];
 
   return (
     <div className="page">
@@ -114,64 +128,81 @@ function App() {
         <span className={`dot ${connected ? "on" : ""}`}>{connected ? "Connecté" : "Connexion…"}</span>
       </header>
 
-      <div className="band" role="img" aria-label="Rouleaux de tissus wax colorés" />
-      <main className="main">
-        <h1>Dites ce que vous voulez construire.</h1>
-        <p className="lede">Parlez en français. Yaatal vous pose quelques questions, puis prépare le brief pour le Playground.</p>
+      <main className="call">
+        <section className={`stage is-${visual}`} aria-label="Appel vocal">
+          <div className="ring">
+            <canvas ref={canvas} aria-hidden="true" />
+            <button
+              type="button"
+              className={`core ${inCall ? "live" : ""}`}
+              onClick={toggleCall}
+              disabled={!connected}
+              aria-pressed={inCall}
+              aria-label={inCall ? "Terminer l'appel" : "Commencer à parler"}
+            >
+              {inCall ? <Mark /> : icon.mic}
+            </button>
+          </div>
+          <p className="state" aria-live="polite">{label}</p>
+          <p className="interim">{interimTranscript ? `« ${interimTranscript} »` : inCall ? "Parlez en français, Yaatal vous répond." : "Un appel, quelques questions, et votre brief est prêt."}</p>
 
-        <div className="call">
-          <button
-            type="button"
-            className={`mic ${inCall ? "live" : ""}`}
-            style={{ boxShadow: `0 0 0 ${8 + ring * 22}px rgba(232,90,37,${0.12 + ring * 0.2})` }}
-            onClick={toggle}
-            disabled={!connected}
-            aria-pressed={inCall}
-            aria-label={inCall ? "Terminer la conversation" : "Commencer à parler"}
-          >
-            <MicIcon off={inCall && status !== "listening"} />
-          </button>
-          <p className="status" aria-live="polite">{label}</p>
-          {interimTranscript && <p className="interim">« {interimTranscript} »</p>}
-        </div>
-
-        {error && <p className="error" role="alert">{error}</p>}
-
-        <section className="log" aria-label="Conversation">
-          {transcript.map((m, i) => (
-            <div key={i} className={`bubble ${m.role === "user" ? "me" : ""}`}>{m.text}</div>
-          ))}
-          <div ref={bottom} />
+          <div className="controls" role="group" aria-label="Commandes de l'appel">
+            <button type="button" className="ctl" onClick={toggleMute} disabled={!inCall} aria-pressed={isMuted} aria-label={isMuted ? "Réactiver le micro" : "Couper le micro"}>
+              {isMuted ? icon.micOff : icon.micOn}
+            </button>
+            <button type="button" className="ctl end" onClick={toggleCall} disabled={!inCall} aria-label="Raccrocher">{icon.hangUp}</button>
+            <button type="button" className="ctl" onClick={() => setTyping(v => !v)} aria-pressed={typing} aria-label="Écrire au lieu de parler">{icon.keyboard}</button>
+          </div>
+          {metrics && metrics.first_audio_ms > 0 && (
+            <p className="latency"><b />1er son en {Math.round(metrics.first_audio_ms)} ms</p>
+          )}
         </section>
 
-        {brief && (
-          <section className="brief" aria-label="Brief prêt">
-            <p className="kicker">Brief prêt</p>
-            <p className="brief-text">{brief.brief}</p>
-            {brief.url
-              ? <a className="btn" href={brief.url}>Ouvrir dans le Playground</a>
-              : <button type="button" className="btn" onClick={() => { void navigator.clipboard?.writeText(brief.brief); }}>Copier le brief</button>}
-          </section>
-        )}
+        <section className="side" aria-label="Conversation">
+          <h1>Dites ce que vous voulez construire.</h1>
+          <p className="lede">Yaatal vous pose quelques questions, puis prépare le brief pour le Playground.</p>
 
-        <form
-          className="type"
-          onSubmit={e => { e.preventDefault(); if (text.trim()) { sendText(text.trim()); setText(""); } }}
-        >
-          <input
-            value={text}
-            onChange={e => setText(e.target.value)}
-            placeholder="Ou écrivez ici…"
-            aria-label="Écrire un message"
-            disabled={!connected || status === "thinking"}
-          />
-          <button className="btn ghost" type="submit" disabled={!connected || !text.trim()}>Envoyer</button>
-        </form>
-        <p className="note">Prototype : STT et voix en français. Chaque réponse est décomptée en FCFA sur l'API Yaatal.</p>
-        <p className="credit">Photo : Lucas Takerkart, Wikimedia Commons, CC BY-SA 4.0.</p>
+          {error && <p className="error" role="alert">{error}</p>}
+
+          <div className="log">
+            {transcript.length === 0 && !interimTranscript && (
+              <p className="empty">La conversation s'affiche ici, en direct.</p>
+            )}
+            {transcript.map((m, i) => (
+              <div key={i} className={`bubble ${m.role === "user" ? "me" : ""}`}>{m.text}</div>
+            ))}
+            <div ref={bottom} />
+          </div>
+
+          {brief && (
+            <section className="brief" aria-label="Brief prêt">
+              <p className="kicker">Brief prêt</p>
+              <p className="brief-text">{brief.brief}</p>
+              {brief.url
+                ? <a className="btn" href={brief.url}>Ouvrir dans le Playground</a>
+                : <button type="button" className="btn" onClick={() => { void navigator.clipboard?.writeText(brief.brief); }}>Copier le brief</button>}
+            </section>
+          )}
+
+          {typing && (
+            <form className="type" onSubmit={e => { e.preventDefault(); if (text.trim()) { sendText(text.trim()); setText(""); } }}>
+              <input
+                autoFocus
+                value={text}
+                onChange={e => setText(e.target.value)}
+                placeholder="Écrivez votre message…"
+                aria-label="Écrire un message"
+                disabled={!connected || status === "thinking"}
+              />
+              <button className="btn ghost" type="submit" disabled={!connected || !text.trim()}>Envoyer</button>
+            </form>
+          )}
+          <p className="note">Prototype : STT et voix en français. Chaque réponse est décomptée en FCFA sur l'API Yaatal.</p>
+        </section>
       </main>
     </div>
   );
 }
 
+installAudioTaps();
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

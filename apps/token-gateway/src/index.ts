@@ -139,7 +139,7 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
     );
     headers.set("content-type", response.headers.get("content-type") ?? "text/event-stream");
     headers.set("cache-control", "no-cache");
-    return new Response(client, { status: 200, headers });
+    return new Response(client.pipeThrough(publicModelIds(offer.id)), { status: 200, headers });
   }
 
   const completion = (await response.json()) as Record<string, unknown>;
@@ -149,6 +149,39 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
     : { inputTokens: estimateTokens(inputCharacters), outputTokens: estimateTokens(generatedCharacters(completion)), estimated: true };
   await charge(env, account.id, offer, counts);
   return Response.json({ ...completion, model: offer.id }, { headers });
+}
+
+/**
+ * Rewrites every streamed chunk's `model` to the public id, so a stream never reveals which upstream
+ * served it (non-streamed responses get the same treatment above). Lines that are not JSON events,
+ * such as `data: [DONE]`, pass through untouched.
+ */
+export function publicModelIds(publicId: string): TransformStream<Uint8Array, Uint8Array> {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let pending = "";
+  const rewrite = (line: string) => {
+    if (!line.startsWith("data: {")) return line;
+    try {
+      const event = JSON.parse(line.slice(6)) as Record<string, unknown>;
+      if (typeof event.model === "string") event.model = publicId;
+      return `data: ${JSON.stringify(event)}`;
+    } catch {
+      return line;
+    }
+  };
+  return new TransformStream({
+    transform(chunk, controller) {
+      pending += decoder.decode(chunk, { stream: true });
+      const lines = pending.split("\n");
+      pending = lines.pop()!;
+      if (lines.length) controller.enqueue(encoder.encode(lines.map(rewrite).join("\n") + "\n"));
+    },
+    flush(controller) {
+      pending += decoder.decode();
+      if (pending) controller.enqueue(encoder.encode(rewrite(pending)));
+    },
+  });
 }
 
 /** The body sent upstream: public id swapped for the upstream's, output capped, usage requested. */

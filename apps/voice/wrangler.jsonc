@@ -15,13 +15,13 @@
     "run_worker_first": ["/agents/*"]
   },
   "vars": {
-    // The brain: the Yaatal API (OpenAI-compatible), so voice turns are metered in FCFA.
-    "YAATAL_API_URL": "http://127.0.0.1:8790",
     "VOICE_MODEL": "yaatal/nemotron-3-super",
     // Nemotron streams its answer in `reasoning` once thinking is off (Workers AI parser quirk).
-    "VOICE_REASONING_IS_ANSWER": "true",
-    // Where the "Ouvrir dans le Playground" button sends the build prompt.
-    "PLAYGROUND_URL": "http://localhost:8787"
+    "VOICE_REASONING_IS_ANSWER": "true"
   }
-  // Secret: YAATAL_API_KEY (a Yaatal key; .dev.vars locally, wrangler secret put in production)
+  // Per-deployment settings live outside this file, so a deploy never overwrites them:
+  //   YAATAL_API_URL  the Yaatal API (OpenAI-compatible) that meters every voice turn in FCFA
+  //   YAATAL_API_KEY  a Yaatal key
+  //   PLAYGROUND_URL  optional: where "Ouvrir dans le Playground" sends the brief
+  // Locally in .dev.vars (see .dev.vars.example); in production with `wrangler secret put`.
 }

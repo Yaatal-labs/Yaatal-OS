@@ -15,7 +15,8 @@ export interface Env {
   VOICE_MODEL: string;
   /** "true" for models whose answer arrives in `reasoning` once thinking is disabled (Nemotron). */
   VOICE_REASONING_IS_ANSWER?: string;
-  PLAYGROUND_URL: string;
+  /** Optional: without it the page offers to copy the brief. */
+  PLAYGROUND_URL?: string;
 }
 
 const SYSTEM_PROMPT = `Tu es l'assistant vocal de Yaatal, une plateforme de Dakar où l'on construit des sites, des outils, des assistants WhatsApp et des objets connectés avec des agents d'IA.

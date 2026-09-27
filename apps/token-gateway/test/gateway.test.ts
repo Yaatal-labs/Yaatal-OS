@@ -210,6 +210,21 @@ describe("chat completions", () => {
     expect(recent[0]).toMatchObject({ amount_fcfa: -3, input_tokens: 2_000, output_tokens: 1_000, estimated: false });
   });
 
+  it("never reveals the upstream model in a stream", async () => {
+    const { api_key } = await newAccount(5_000);
+    const { ai } = fakeAi(() => sse([
+      { model: "@cf/nvidia/nemotron-3-120b-a12b", choices: [{ index: 0, delta: { content: "Mangi fi." } }] },
+      { model: "@cf/nvidia/nemotron-3-120b-a12b", choices: [], usage: { prompt_tokens: 10, completion_tokens: 3 } },
+    ]));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super", { stream: true }),
+    }, { AI: ai });
+    const text = await response.text();
+    expect(text).not.toContain("@cf/");
+    expect(text.match(/"model":"yaatal\/nemotron-3-super"/g)).toHaveLength(2);
+    expect(text).toContain("data: [DONE]");
+  });
+
   it("estimates and flags a stream that reports no usage", async () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => sse([{ choices: [{ index: 0, delta: { content: "x".repeat(400) } }] }]));

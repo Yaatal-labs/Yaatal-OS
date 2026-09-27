@@ -23,10 +23,17 @@ before speech.
 
 ```sh
 pnpm install
-printf 'YAATAL_API_KEY=%s\n' "yk_..." > .dev.vars   # a Yaatal key; the Yaatal API must be running
+cp .dev.vars.example .dev.vars                       # then put a Yaatal key in it; the Yaatal API must be running
 pnpm dev                                             # http://localhost:5173
 pnpm check && pnpm test                              # types, and the brief/stream tests
 ```
 
-`YAATAL_API_URL`, `VOICE_MODEL` and `PLAYGROUND_URL` are in `wrangler.jsonc`. Workers AI needs
-`wrangler login`.
+`VOICE_MODEL` is in `wrangler.jsonc`. `YAATAL_API_URL`, `YAATAL_API_KEY` and the optional
+`PLAYGROUND_URL` are per deployment: `.dev.vars` locally, and in production
+
+```sh
+pnpm exec wrangler secret put YAATAL_API_URL   # the deployed Yaatal API
+pnpm exec wrangler secret put YAATAL_API_KEY
+```
+
+so a deploy never resets them. Workers AI needs `wrangler login`.

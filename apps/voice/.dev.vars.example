@@ -1,0 +1,3 @@
+YAATAL_API_URL=http://127.0.0.1:8790
+YAATAL_API_KEY=yk_your_local_key
+PLAYGROUND_URL=http://localhost:8787
