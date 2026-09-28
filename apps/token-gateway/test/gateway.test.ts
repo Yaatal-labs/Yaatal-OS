@@ -96,6 +96,7 @@ const chatBody = (model: string, extra: Record<string, unknown> = {}) =>
 describe("catalog", () => {
   it("lists the models with FCFA prices, without a key", async () => {
     const response = await call("/v1/models");
+    expect(response.headers.get("access-control-allow-origin")).toBe("*"); // readable from the Playground
     const { data } = (await response.json()) as { data: { id: string; tier: string; pricing: Record<string, unknown> }[] };
     expect(data.map(model => model.id)).toContain("yaatal/glm-4.7-flash");
     const glm = data.find(model => model.id === "yaatal/glm-4.7-flash")!;

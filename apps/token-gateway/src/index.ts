@@ -81,6 +81,9 @@ function models(env: Env): Response {
       },
       max_output_tokens: model.maxOutputTokens,
     })),
+  }, {
+    // Public price list: any page may read it (the Playground's "Add AI Model" lists these).
+    headers: { "access-control-allow-origin": "*" },
   });
 }
 
