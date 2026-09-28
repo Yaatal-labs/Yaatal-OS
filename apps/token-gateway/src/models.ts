@@ -15,7 +15,16 @@ export type Upstream =
    * and `apiKeyVar` name the environment entries holding its base URL and key, so no endpoint or
    * credential lives in code. An upstream whose base URL is not configured is skipped.
    */
-  | { kind: "openai"; baseUrlVar: string; apiKeyVar: string; model: string };
+  | {
+      kind: "openai";
+      baseUrlVar: string;
+      apiKeyVar: string;
+      model: string;
+      /** The most this upstream can charge, USD per million tokens. The model's cost must cover it. */
+      maxCostUsd?: { input: number; output: number };
+      /** Fields sent on every request to this upstream (routing, data policy). They override the client's. */
+      fixedFields?: Record<string, unknown>;
+    };
 
 export type Tier = "micro" | "standard" | "reasoning";
 
@@ -50,6 +59,23 @@ const WORKERS_AI = (model: string): Upstream => ({ kind: "workers-ai", model });
 const WHOLESALE = (model: string): Upstream =>
   ({ kind: "openai", baseUrlVar: "WHOLESALE_BASE_URL", apiKeyVar: "WHOLESALE_API_KEY", model });
 
+/** A supplier reached over its OpenAI-compatible API, configured with `<NAME>_BASE_URL` and `<NAME>_API_KEY`. */
+const SUPPLIER = (name: string, model: string, maxCostUsd: { input: number; output: number },
+                  fixedFields?: Record<string, unknown>): Upstream =>
+  ({ kind: "openai", baseUrlVar: `${name}_BASE_URL`, apiKeyVar: `${name}_API_KEY`, model, maxCostUsd,
+     ...(fixedFields ? { fixedFields } : {}) });
+/** SiliconFlow: a flat per-model price list, so `maxCostUsd` is its list price for the model. */
+const SILICONFLOW = (model: string, maxCostUsd: { input: number; output: number }) =>
+  SUPPLIER("SILICONFLOW", model, maxCostUsd);
+/**
+ * OpenRouter: it picks among many hosts, so every request caps the price it accepts at `maxCostUsd`
+ * and excludes hosts that keep or train on prompts.
+ */
+const OPENROUTER = (model: string, maxCostUsd: { input: number; output: number }) =>
+  SUPPLIER("OPENROUTER", model, maxCostUsd, {
+    provider: { data_collection: "deny", max_price: { prompt: maxCostUsd.input, completion: maxCostUsd.output } },
+  });
+
 function offer(
   id: string,
   tier: Tier,
@@ -57,6 +83,13 @@ function offer(
   cost: { input: number; output: number },
   options: { paidPlan?: boolean; maxOutputTokens?: number } = {},
 ): ModelOffer {
+  // The price is derived from `cost`, so it must be the dearest upstream: no path may sell below cost.
+  for (const upstream of upstreams) {
+    const max = upstream.kind === "openai" ? upstream.maxCostUsd : undefined;
+    if (max && (max.input > cost.input || max.output > cost.output)) {
+      throw new Error(`${id}: an upstream can cost more than the price is based on`);
+    }
+  }
   return {
     id,
     tier,
@@ -78,7 +111,13 @@ export const MODELS: readonly ModelOffer[] = [
   offer("yaatal/glm-5.3", "reasoning", [WORKERS_AI("@cf/zai-org/glm-5.3")], { input: 1.4, output: 4.4 }, PAID),
   offer("yaatal/deepseek-v4-pro", "reasoning", [WORKERS_AI("@cf/deepseek-ai/deepseek-v4-pro-0813")], { input: 1.32, output: 3.96 }, PAID),
   offer("yaatal/qwen3.8-27b", "standard", [WORKERS_AI("@cf/qwen/qwen3.8-27b")], { input: 0.45, output: 3.2 }),
-  offer("yaatal/deepseek-v4-flash", "standard", [WORKERS_AI("@cf/deepseek-ai/deepseek-v4-flash-0731")], { input: 0.44, output: 1.32 }, PAID),
+  // Suppliers first when configured, Workers AI last. SiliconFlow's list price and OpenRouter's cap
+  // (checked 2026-09-28) are both below Workers AI's, which the price is based on.
+  offer("yaatal/deepseek-v4-flash", "standard", [
+    SILICONFLOW("deepseek-ai/DeepSeek-V4-Flash", { input: 0.22, output: 0.66 }),
+    OPENROUTER("deepseek/deepseek-v4-flash-0731", { input: 0.25, output: 0.7 }),
+    WORKERS_AI("@cf/deepseek-ai/deepseek-v4-flash-0731"),
+  ], { input: 0.44, output: 1.32 }, PAID),
   offer("yaatal/glm-5.3-flash", "standard", [WORKERS_AI("@cf/zai-org/glm-5.3-flash")], { input: 0.15, output: 0.5 }, PAID),
   offer("yaatal/nemotron-3-super", "standard", [WORKERS_AI("@cf/nvidia/nemotron-3-120b-a12b")], { input: 0.5, output: 1.5 }),
   offer("yaatal/glm-4.7-flash", "micro",

@@ -1,7 +1,7 @@
 import { applyD1Migrations, createExecutionContext, env, waitOnExecutionContext, type D1Migration } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import worker from "../src/index.js";
-import { MODELS, retailXof } from "../src/models.js";
+import { MODELS, retailXof, USD_TO_XOF } from "../src/models.js";
 import { callUpstreams } from "../src/upstream.js";
 
 declare global {
@@ -34,13 +34,13 @@ function fakeAi(respond: (body: Record<string, unknown>) => Response) {
   return { ai, seen };
 }
 
-/** Replaces global fetch (the wholesale upstream) with a recorder. */
-function fakeWholesale(respond: (body: Record<string, unknown>) => Response) {
+/** Replaces global fetch (the "openai"-kind upstreams) with a recorder. */
+function fakeWholesale(respond: (body: Record<string, unknown>, url: string) => Response) {
   const seen: Seen[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const body = JSON.parse(String(init?.body));
     seen.push({ url: String(input), headers: new Headers(init?.headers), body });
-    return respond(body);
+    return respond(body, String(input));
   });
   return seen;
 }
@@ -295,6 +295,81 @@ describe("failover", () => {
   });
 });
 
+describe("suppliers", () => {
+  const SF = "https://sf.example.test/v1";
+  const OR = "https://or.example.test/v1";
+  const suppliers = {
+    WORKERS_PAID: "true",
+    SILICONFLOW_BASE_URL: SF, SILICONFLOW_API_KEY: "sf-test",
+    OPENROUTER_BASE_URL: OR, OPENROUTER_API_KEY: "or-test",
+  };
+  const OR_ROUTING = { data_collection: "deny", max_price: { prompt: 0.25, completion: 0.7 } };
+
+  it("serves DeepSeek V4 Flash from SiliconFlow first, billed at the public price", async () => {
+    const { api_key } = await newAccount(5_000);
+    const sent = fakeWholesale(() => completion(1_000, 1_000));
+    const { ai, seen } = fakeAi(() => completion(1, 1));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/deepseek-v4-flash"),
+    }, { AI: ai, ...suppliers });
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as { model: string }).model).toBe("yaatal/deepseek-v4-flash");
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.url).toBe(`${SF}/chat/completions`);
+    expect(sent[0]!.headers.get("authorization")).toBe("Bearer sf-test");
+    expect(sent[0]!.body.model).toBe("deepseek-ai/DeepSeek-V4-Flash");
+    expect(seen).toHaveLength(0);
+    const { recent } = await balanceOf(api_key);
+    expect(recent[0]!.amount_xof).toBeCloseTo(-2.15, 6); // 1,000 in at 550 + 1,000 out at 1,600 FCFA/M
+  });
+
+  it("fails over to OpenRouter with a price cap and no host that keeps prompts", async () => {
+    const { api_key } = await newAccount();
+    const sent = fakeWholesale((_, url) => url.startsWith(SF) ? new Response("", { status: 429 }) : completion(5, 5));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/deepseek-v4-flash"),
+    }, { AI: fakeAi(() => completion(1, 1)).ai, ...suppliers });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-yaatal-failover")).toBe("1");
+    expect(sent[1]!.url).toBe(`${OR}/chat/completions`);
+    expect(sent[1]!.headers.get("authorization")).toBe("Bearer or-test");
+    expect(sent[1]!.body.model).toBe("deepseek/deepseek-v4-flash-0731");
+    expect(sent[1]!.body.provider).toEqual(OR_ROUTING);
+    expect(sent[0]!.body.provider).toBeUndefined();
+  });
+
+  it("forwards only standard chat fields, so a client cannot change the routing or add paid features", async () => {
+    const { api_key } = await newAccount();
+    const sent = fakeWholesale((_, url) => url.startsWith(SF) ? new Response("", { status: 503 }) : completion(5, 5));
+    const tools = [{ type: "function", function: { name: "stock", parameters: { type: "object" } } }];
+    await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/deepseek-v4-flash", {
+        models: ["anthropic/claude-opus-5"], provider: { data_collection: "allow" }, route: "fallback",
+        plugins: [{ id: "web" }], user: "c-9", temperature: 0.2, tools,
+      }),
+    }, { AI: fakeAi(() => completion(1, 1)).ai, ...suppliers });
+    for (const { body } of sent) {
+      for (const field of ["models", "route", "plugins", "user"]) expect(body).not.toHaveProperty(field);
+      expect(body.temperature).toBe(0.2);
+      expect(body.tools).toEqual(tools);
+    }
+    expect(sent[1]!.body.provider).toEqual(OR_ROUTING);
+  });
+
+  it("uses Workers AI when no supplier is configured", async () => {
+    const { api_key } = await newAccount();
+    const sent = fakeWholesale(() => completion(1, 1));
+    const { ai, seen } = fakeAi(() => completion(1, 1));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/deepseek-v4-flash"),
+    }, { AI: ai, WORKERS_PAID: "true" });
+    expect(response.status).toBe(200);
+    expect(sent).toHaveLength(0);
+    expect(seen[0]!.body.model).toBe("@cf/deepseek-ai/deepseek-v4-flash-0731");
+    expect(response.headers.get("x-yaatal-failover")).toBeNull();
+  });
+});
+
 describe("guards", () => {
   it("refuses an empty balance before calling any upstream", async () => {
     const { api_key, account } = await newAccount(1);
@@ -428,6 +503,21 @@ describe("pricing", () => {
       expect(model.inputXofPerMillion).toBeGreaterThan(0);
       expect(model.outputXofPerMillion).toBeGreaterThanOrEqual(model.inputXofPerMillion > 0 ? 50 : 0);
     }
+  });
+});
+
+describe("supplier costs", () => {
+  it("prices every model at or above what its dearest supplier can charge", () => {
+    let checked = 0;
+    for (const model of MODELS) {
+      for (const upstream of model.upstreams) {
+        if (upstream.kind !== "openai" || !upstream.maxCostUsd) continue;
+        expect(model.inputXofPerMillion).toBeGreaterThanOrEqual(upstream.maxCostUsd.input * USD_TO_XOF);
+        expect(model.outputXofPerMillion).toBeGreaterThanOrEqual(upstream.maxCostUsd.output * USD_TO_XOF);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
   });
 });
 

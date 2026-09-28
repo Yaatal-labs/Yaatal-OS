@@ -12,6 +12,17 @@ type AiFetch = { fetch(input: string, init?: RequestInit): Promise<Response> };
 /** Same-account binding requests authenticate with this sentinel instead of a Cloudflare API token. */
 const BINDING_AUTH = "Bearer cloudflare-gateway-binding";
 
+/**
+ * The only request fields sent to an "openai"-kind upstream. Anything else could reach supplier
+ * features the price does not cover, such as OpenRouter's `models` (other models as fallbacks),
+ * `provider` or `plugins`.
+ */
+const OPENAI_FIELDS = [
+  "messages", "stream", "stream_options", "max_tokens", "temperature", "top_p", "stop", "seed",
+  "presence_penalty", "frequency_penalty", "tools", "tool_choice", "parallel_tool_calls",
+  "response_format", "logprobs", "top_logprobs", "chat_template_kwargs",
+] as const;
+
 /** Statuses that mean "try the next upstream": rate limited, or the upstream itself failed. */
 const FAILOVER = new Set([408, 429, 500, 502, 503, 504]);
 
@@ -59,9 +70,9 @@ function requestFor(
   body: Record<string, unknown>,
   fetcher: typeof fetch,
 ): Promise<Response> | null {
-  const payload = JSON.stringify(body);
   switch (upstream.kind) {
     case "workers-ai": {
+      const payload = JSON.stringify(body);
       const gateway = encodeURIComponent(env.AI_GATEWAY_ID);
       return (env.AI as unknown as AiFetch).fetch(
         `https://workers-binding.ai/ai-gateway/gateways/${gateway}/workers-ai/v1/chat/completions`,
@@ -81,6 +92,9 @@ function requestFor(
       const baseUrl = env[upstream.baseUrlVar];
       if (typeof baseUrl !== "string" || !baseUrl) return null;
       const key = env[upstream.apiKeyVar];
+      const fields: Record<string, unknown> = {};
+      for (const field of OPENAI_FIELDS) if (field in body) fields[field] = body[field];
+      const payload = JSON.stringify({ ...fields, model: body.model, ...upstream.fixedFields });
       return fetcher(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
         method: "POST",
         body: payload,

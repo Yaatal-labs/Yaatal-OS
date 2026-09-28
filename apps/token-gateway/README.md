@@ -46,7 +46,7 @@ OpenAI-compatible server such as a self-hosted model. Switching a model's suppli
 pnpm install
 printf 'ADMIN_TOKEN=%s\n' "$(openssl rand -hex 24)" > .dev.vars   # plus WHOLESALE_BASE_URL / WHOLESALE_API_KEY if used
 pnpm dev                                                          # applies migrations, serves :8787
-pnpm check && pnpm test                                           # types, and 23 tests in workerd with fake upstreams
+pnpm check && pnpm test                                           # types, and the tests in workerd with fake upstreams
 ```
 
 Workers AI upstreams need `wrangler login`; usage counts against that account.
@@ -57,6 +57,30 @@ Add a model with the **Ollama** provider (it speaks OpenAI chat completions): AP
 origin, API token = a Yaatal key, model = a public id such as `yaatal/glm-4.7-flash`. The OS ignores
 per-model URLs while a platform AI Gateway is configured (`CF_AI_GATEWAY`), so run it without one for
 Yaatal-billed models.
+
+## Use it from the Yaatal Engine
+
+The Engine's model cascade has an OpenAI-compatible tier (tier 2). Point it here and every Telegram,
+WhatsApp or SMS reply is billed to that key: `OPENAI_BASE_URL` = the gateway origin + `/v1`,
+`OPENAI_API_KEY` = a Yaatal key, `OPENAI_MODEL` = a public id such as `yaatal/deepseek-v4-flash`.
+
+## Suppliers
+
+A model can list OpenAI-compatible suppliers before Workers AI. Each one is off until its two secrets
+are set (`wrangler secret put`, or `.dev.vars` locally); an unset supplier is skipped.
+
+| Supplier | Secrets | Base URL |
+| --- | --- | --- |
+| Wholesale | `WHOLESALE_BASE_URL`, `WHOLESALE_API_KEY` | from the supplier |
+| SiliconFlow | `SILICONFLOW_BASE_URL`, `SILICONFLOW_API_KEY` | `https://api.siliconflow.com/v1` |
+| OpenRouter | `OPENROUTER_BASE_URL`, `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` |
+
+- A supplier receives only standard chat fields (messages, sampling, tools, response format), so a
+  client cannot reach supplier features the price does not cover, such as OpenRouter's `models`.
+- Each supplier entry declares the most it can cost. The catalog refuses to load if that is above the
+  cost the model's FCFA price is based on. OpenRouter requests carry that cap as `max_price`, and
+  `data_collection: "deny"` so no host that keeps prompts is used.
+- Check a supplier's terms allow resale before turning it on.
 
 ## Before selling
 
