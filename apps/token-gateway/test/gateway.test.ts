@@ -448,3 +448,79 @@ describe("plan-gated models", () => {
     expect(await (await call("/", {}, { WORKERS_PAID: "true" })).text()).not.toContain('class="soon"');
   });
 });
+
+describe("usage tracking", () => {
+  type Report = {
+    period: { days: number };
+    accounts: { total: number; new: number; active: number; topped_up: number };
+    credits: { count: number; xof: number };
+    usage: { requests: number; input_tokens: number; output_tokens: number; spend_xof: number; estimated_share: number };
+    refused: Record<"insufficient_balance" | "upstream_error" | "no_upstream", { count: number; accounts: number }>;
+    by_model: { model: string; requests: number; spend_xof: number }[];
+    by_account: { id: string; name: string; requests: number; spend_xof: number; balance_xof: number; last_used: string | null }[];
+    daily: { day: string; new_accounts: number; requests: number; spend_xof: number; credits_xof: number }[];
+  };
+  const report = async (days = 30) => {
+    const response = await call(`/admin/usage?days=${days}`, { auth: ADMIN });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    return (await response.json()) as Report;
+  };
+
+  it("is for the administrator only and checks the period", async () => {
+    for (const auth of [undefined, "Bearer wrong-token-0123456789abcdef0123456789"]) {
+      expect((await call("/admin/usage", { auth })).status).toBe(401);
+    }
+    for (const days of ["0", "367", "2.5", "abc"]) {
+      expect((await call(`/admin/usage?days=${days}`, { auth: ADMIN })).status).toBe(400);
+    }
+  });
+
+  it("counts sign-ups, credits, billed usage and spend per model, account and day", async () => {
+    const before = await report();
+    const { api_key, account } = await newAccount(2_000);
+    const { ai } = fakeAi(() => completion(1_000, 500));
+    for (let i = 0; i < 2; i++) {
+      await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super") }, { AI: ai });
+    }
+    const after = await report();
+    expect(after.accounts.total - before.accounts.total).toBe(1);
+    expect(after.accounts.new - before.accounts.new).toBe(1);
+    expect(after.credits.count - before.credits.count).toBe(1);
+    expect(after.credits.xof - before.credits.xof).toBe(2_000);
+    expect(after.usage.requests - before.usage.requests).toBe(2);
+    expect(after.usage.input_tokens - before.usage.input_tokens).toBe(2_000);
+    expect(after.usage.spend_xof - before.usage.spend_xof).toBeCloseTo(3, 6); // 2 x 1.5 FCFA
+    const mine = after.by_account.find(row => row.id === account.id)!;
+    expect(mine).toMatchObject({ name: "Agence Test", requests: 2 });
+    expect(mine.spend_xof).toBeCloseTo(3, 6);
+    expect(mine.balance_xof).toBeCloseTo(1_997, 6);
+    expect(mine.last_used).not.toBeNull();
+    expect(after.by_model.find(row => row.model === "yaatal/nemotron-3-super")!.requests).toBeGreaterThanOrEqual(2);
+    const today = new Date().toISOString().slice(0, 10);
+    const day = after.daily.find(row => row.day === today)!;
+    expect(day.new_accounts).toBeGreaterThanOrEqual(1);
+    expect(day.credits_xof).toBeGreaterThanOrEqual(2_000);
+  });
+
+  it("records requests refused for an empty balance or a failed upstream, which never reach the ledger", async () => {
+    const before = await report();
+    const broke = await newAccount(1);
+    await env.DB.prepare("UPDATE accounts SET balance_uxof = 0 WHERE id = ?").bind(broke.account.id).run();
+    await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${broke.api_key}`, body: chatBody("yaatal/nemotron-3-super") },
+      { AI: fakeAi(() => completion(1, 1)).ai });
+    const funded = await newAccount(5_000);
+    await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${funded.api_key}`, body: chatBody("yaatal/nemotron-3-super") },
+      { AI: fakeAi(() => new Response("", { status: 500 })).ai });
+    const after = await report();
+    expect(after.refused.insufficient_balance.count - before.refused.insufficient_balance.count).toBe(1);
+    expect(after.refused.upstream_error.count - before.refused.upstream_error.count).toBe(1);
+    expect(after.usage.requests).toBe(before.usage.requests); // refused calls are not usage
+    const events = await env.DB.prepare("SELECT account_id, kind, model FROM request_events WHERE account_id IN (?, ?)")
+      .bind(broke.account.id, funded.account.id).all();
+    expect(events.results).toEqual(expect.arrayContaining([
+      { account_id: broke.account.id, kind: "insufficient_balance", model: "yaatal/nemotron-3-super" },
+      { account_id: funded.account.id, kind: "upstream_error", model: "yaatal/nemotron-3-super" },
+    ]));
+  });
+});

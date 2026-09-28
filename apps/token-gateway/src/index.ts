@@ -12,6 +12,7 @@
 //   POST /admin/accounts/:id/keys       {label}               -> new key (shown once)
 //   POST /admin/accounts/:id/credits    {xof, note}          -> new balance
 //   POST /admin/keys/revoke             {key}
+//   GET  /admin/usage?days=30           sign-ups, credits, usage, refused requests, per model/account/day
 //
 // Credits are granted by an administrator here. Taking payment (Wave, Orange Money, PI-SPI) is a
 // separate, explicitly approved step that ends in one of these credit calls.
@@ -20,6 +21,7 @@ import { UnknownAccountError, accountForKey, createAccount, createKey, credit, d
 import { callUpstreams, type UpstreamEnv } from "./upstream.js";
 import { home, usage, type SiteEnv } from "./site.js";
 import { countStream, requestCharacters, usageFrom, generatedCharacters, estimateTokens } from "./usage.js";
+import { recordEvent, usageReport } from "./report.js";
 
 export interface Env extends UpstreamEnv, SiteEnv {
   DB: D1Database;
@@ -45,6 +47,7 @@ export default {
       if (url.pathname === "/v1/models" && request.method === "GET") return models(env);
       if (url.pathname === "/v1/chat/completions" && request.method === "POST") return await chat(request, env, ctx);
       if (url.pathname === "/v1/balance" && request.method === "GET") return await balance(request, env);
+      if (url.pathname === "/admin/usage" && request.method === "GET") return await usageAdmin(request, env, url);
       if (url.pathname.startsWith("/admin/") && request.method === "POST") return await admin(request, env, url.pathname);
       return error(404, "not_found", "No such route.");
     } catch (err) {
@@ -121,12 +124,16 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
     throw new HttpError(400, "invalid_request", "messages must be a non-empty array.");
   }
   if (account.balanceUxof <= 0) {
+    await recordEvent(env.DB, account.id, "insufficient_balance", offer.id);
     throw new HttpError(402, "insufficient_balance", "This account has no balance left. Top up to continue.");
   }
 
   const upstreamBody = prepare(body, offer);
   const result = await callUpstreams(env, offer, upstreamBody);
-  if (!result) throw new HttpError(503, "no_upstream", "No upstream is configured for this model.");
+  if (!result) {
+    await recordEvent(env.DB, account.id, "no_upstream", offer.id);
+    throw new HttpError(503, "no_upstream", "No upstream is configured for this model.");
+  }
   const { response, skipped } = result;
   const headers = new Headers({ "x-yaatal-model": offer.id });
   if (skipped) headers.set("x-yaatal-failover", String(skipped));
@@ -134,6 +141,7 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
   // Upstream refused: pass its status on, uncharged.
   if (!response.ok) {
     await response.body?.cancel();
+    await recordEvent(env.DB, account.id, "upstream_error", offer.id);
     return error(response.status === 429 ? 429 : 502, "upstream_error",
       `Every upstream for ${offer.id} is unavailable (last status ${response.status}). You were not charged.`);
   }
@@ -274,6 +282,15 @@ async function admin(request: Request, env: Env, path: string): Promise<Response
     return Response.json({ balance_xof: balanceUxof / UXOF });
   }
   throw new HttpError(404, "not_found", "No such admin route.");
+}
+
+async function usageAdmin(request: Request, env: Env, url: URL): Promise<Response> {
+  if (!(await isAdmin(request, env))) throw new HttpError(401, "unauthorized", "Admin token required.");
+  const days = Number(url.searchParams.get("days") ?? "30");
+  if (!Number.isInteger(days) || days < 1 || days > 366) {
+    throw new HttpError(400, "invalid_request", "days must be a whole number from 1 to 366.");
+  }
+  return Response.json(await usageReport(env.DB, days), { headers: { "cache-control": "no-store" } });
 }
 
 async function isAdmin(request: Request, env: Env): Promise<boolean> {

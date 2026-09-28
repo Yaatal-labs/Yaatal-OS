@@ -18,6 +18,7 @@ OpenAI-compatible server such as a self-hosted model. Switching a model's suppli
 | `POST /admin/accounts/:id/keys` | admin token | `{label}` → another key (shown once) |
 | `POST /admin/accounts/:id/credits` | admin token | `{xof, note}` → new balance |
 | `POST /admin/keys/revoke` | admin token | `{key}` |
+| `GET /admin/usage?days=30` | admin token | sign-ups, credits, billed usage, refused requests (empty balance, upstream down), per model, per account (top 50) and per day |
 
 ## Billing
 
