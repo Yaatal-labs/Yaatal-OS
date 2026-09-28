@@ -3,9 +3,12 @@
 // Real model calls: this spends provider quota (Workers AI Neurons, Ollama usage, ...).
 //
 //   CFOS_DIR=... OS_PASSWORD=... MODELS=@cf/nvidia/nemotron-3-120b-a12b,@cf/zai-org/glm-4.7-flash \
-//     [PROVIDER=cloudflare|ollama] [OUT_DIR=.] node yaatal/smoke/agent-build.mjs
+//     [PROVIDER=cloudflare|ollama|yaatal] [OUT_DIR=.] node yaatal/smoke/agent-build.mjs
 //
 // PROVIDER=cloudflare needs the OS started with an AI Gateway (see README); ollama uses OLLAMA_URL.
+// PROVIDER=yaatal goes through the Yaatal API, billed in FCFA to YAATAL_API_KEY's balance, the same
+// model config the Playground's "Add AI Model" saves: MODELS=yaatal/nemotron-3-super
+// YAATAL_API_URL=https://... YAATAL_API_KEY=yk_...
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { signIn, messageText } from "../lib.mjs";
@@ -13,7 +16,17 @@ import { signIn, messageText } from "../lib.mjs";
 const PROVIDER = process.env.PROVIDER ?? "cloudflare";
 const MODELS = (process.env.MODELS ?? "@cf/nvidia/nemotron-3-120b-a12b").split(",").map(s => s.trim()).filter(Boolean);
 const OUT_DIR = process.env.OUT_DIR ?? ".";
-const idFor = m => `${PROVIDER}-${m.replace(/^@cf\//, "").replace(/[^a-z0-9.-]/gi, "-")}`;
+const idFor = m => `${PROVIDER}-${m.replace(/^(@cf|yaatal)\//, "").replace(/[^a-z0-9.-]/gi, "-")}`;
+
+function modelConfig(model) {
+  if (PROVIDER === "yaatal") {
+    if (!process.env.YAATAL_API_URL || !process.env.YAATAL_API_KEY) throw new Error("Set YAATAL_API_URL and YAATAL_API_KEY");
+    return { provider: "ollama", model, apiToken: process.env.YAATAL_API_KEY, apiUrl: process.env.YAATAL_API_URL };
+  }
+  return PROVIDER === "ollama"
+    ? { provider: "ollama", model, apiToken: "", apiUrl: process.env.OLLAMA_URL ?? "http://127.0.0.1:11434" }
+    : { provider: PROVIDER, model, apiToken: "" };
+}
 
 // Fictional sample data only: no real merchant, customer or price data.
 export const PROMPT = `Build a small Gadget: "Live-sale prep card" for a Yaatal merchant who sells live on WhatsApp/TikTok in Dakar.
@@ -34,10 +47,7 @@ const results = [];
 for (const model of MODELS) {
   const modelId = idFor(model);
   if (!(await authed.listModels()).some(m => m.id === modelId)) {
-    await authed.addModel({ type: "agent", id: modelId, name: `${PROVIDER} ${model}` },
-      PROVIDER === "ollama"
-        ? { provider: "ollama", model, apiToken: "", apiUrl: process.env.OLLAMA_URL ?? "http://127.0.0.1:11434" }
-        : { provider: PROVIDER, model, apiToken: "" });
+    await authed.addModel({ type: "agent", id: modelId, name: `${PROVIDER} ${model}` }, modelConfig(model));
   }
   const before = new Set((await authed.listGadgets()).map(g => g.id));
   const overseer = await authed.newGadget();

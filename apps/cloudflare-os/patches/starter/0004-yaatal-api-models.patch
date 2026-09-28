@@ -1,0 +1,44 @@
+diff --git a/scripts/deploy.ts b/scripts/deploy.ts
+index 9949ea1..8661a39 100644
+--- a/scripts/deploy.ts
++++ b/scripts/deploy.ts
+@@ -278,6 +278,13 @@ export function validateConfig(config: DeploymentConfig): DeploymentConfig {
+     }
+   }
+ 
++  if (config.yaatal?.apiUrl !== undefined) {
++    const url = new URL(config.yaatal.apiUrl);
++    if (url.protocol !== "https:" || url.origin !== config.yaatal.apiUrl.replace(/\/$/, "")) {
++      throw new Error("yaatal.apiUrl must be an HTTPS origin, such as https://api.example.com.");
++    }
++  }
++
+   validateAiGateway(config);
+ 
+   if (typeof config.errorReporting.enabled !== "boolean") {
+@@ -631,7 +638,11 @@ export function buildCommands(config: DeploymentConfig): BuildCommand[] {
+     // Access mode is a build-time constant in the frontend bundle (`src/useAuth.ts`), so it is set
+     // here rather than inherited: a bundle built under a different value is wrong, not just stale.
+     { args: submoduleBuild("@gadgets/workshop-frontend"),
+-      env: { VITE_CF_ACCESS_MODE: config.access.mode === "password" ? "false" : "true" } },
++      env: {
++        VITE_CF_ACCESS_MODE: config.access.mode === "password" ? "false" : "true",
++        // Yaatal: "Add AI Model" offers the Yaatal API's models, billed in FCFA per user key.
++        VITE_YAATAL_API_URL: config.yaatal?.apiUrl ?? "",
++      } },
+     { args: submoduleBuild("@gadgets/router") },
+     { args: submoduleBuild("@gadgets/workshop-backend") },
+   ];
+diff --git a/scripts/deployment-config.ts b/scripts/deployment-config.ts
+index 531517d..e972e5a 100644
+--- a/scripts/deployment-config.ts
++++ b/scripts/deployment-config.ts
+@@ -124,6 +124,8 @@ export interface DeploymentConfig {
+     errorReporter?: { name: string };
+   };
+   access: AccessConfig;
++  /** Yaatal: the Yaatal API (OpenAI-compatible, billed in FCFA) offered in "Add AI Model". */
++  yaatal?: { apiUrl?: string };
+   aiGateway: AiGatewayConfigInput;
+   context: ContextConfig;
+   /** Display text the example custom Gatekeeper serves to agents. */
