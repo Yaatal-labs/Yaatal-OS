@@ -39,6 +39,8 @@ export interface ModelOffer {
   maxOutputTokens: number;
   /** Only callable on the Workers Paid plan: hidden and refused unless WORKERS_PAID is "true". */
   paidPlan?: boolean;
+  /** Writes its reasoning into `content`, closed by `</think>`: streams are held back to move it out. */
+  thinksInContent?: boolean;
 }
 
 /** XOF per US dollar (the West African CFA franc is pegged to the euro; review when the dollar moves). */
@@ -81,7 +83,7 @@ function offer(
   tier: Tier,
   upstreams: Upstream[],
   cost: { input: number; output: number },
-  options: { paidPlan?: boolean; maxOutputTokens?: number } = {},
+  options: { paidPlan?: boolean; maxOutputTokens?: number; thinksInContent?: boolean } = {},
 ): ModelOffer {
   // The price is derived from `cost`, so it must be the dearest upstream: no path may sell below cost.
   for (const upstream of upstreams) {
@@ -98,6 +100,7 @@ function offer(
     outputXofPerMillion: retailXof(cost.output),
     maxOutputTokens: options.maxOutputTokens ?? 8192,
     ...(options.paidPlan ? { paidPlan: true } : {}),
+    ...(options.thinksInContent ? { thinksInContent: true } : {}),
   };
 }
 
@@ -108,7 +111,8 @@ const PAID = { paidPlan: true } as const;
 // Checked on 2026-09-26 against a Workers Free account: models marked PAID answer 403 there.
 export const MODELS: readonly ModelOffer[] = [
   offer("yaatal/kimi-k2.7-code", "reasoning", [WORKERS_AI("@cf/moonshotai/kimi-k2.7-code")], { input: 0.95, output: 4 }, PAID),
-  offer("yaatal/glm-5.3", "reasoning", [WORKERS_AI("@cf/zai-org/glm-5.3")], { input: 1.4, output: 4.4 }, PAID),
+  offer("yaatal/glm-5.3", "reasoning", [WORKERS_AI("@cf/zai-org/glm-5.3")], { input: 1.4, output: 4.4 },
+    { ...PAID, thinksInContent: true }),
   offer("yaatal/deepseek-v4-pro", "reasoning", [WORKERS_AI("@cf/deepseek-ai/deepseek-v4-pro-0813")], { input: 1.32, output: 3.96 }, PAID),
   offer("yaatal/qwen3.8-27b", "standard", [WORKERS_AI("@cf/qwen/qwen3.8-27b")], { input: 0.45, output: 3.2 }),
   // Suppliers first when configured, Workers AI last. SiliconFlow's list price and OpenRouter's cap

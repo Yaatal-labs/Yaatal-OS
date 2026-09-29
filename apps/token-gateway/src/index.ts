@@ -22,6 +22,7 @@ import { callUpstreams, type UpstreamEnv } from "./upstream.js";
 import { home, usage, type SiteEnv } from "./site.js";
 import { countStream, requestCharacters, usageFrom, generatedCharacters, estimateTokens } from "./usage.js";
 import { recordEvent, usageReport } from "./report.js";
+import { moveThinking, thinkingOutOfStream } from "./think.js";
 
 export interface Env extends UpstreamEnv, SiteEnv {
   DB: D1Database;
@@ -154,7 +155,8 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
     );
     headers.set("content-type", response.headers.get("content-type") ?? "text/event-stream");
     headers.set("cache-control", "no-cache");
-    return new Response(client.pipeThrough(publicModelIds(offer.id)), { status: 200, headers });
+    const stream = client.pipeThrough(publicModelIds(offer.id));
+    return new Response(offer.thinksInContent ? stream.pipeThrough(thinkingOutOfStream()) : stream, { status: 200, headers });
   }
 
   const completion = (await response.json()) as Record<string, unknown>;
@@ -163,7 +165,7 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
     ? { ...reported, estimated: false }
     : { inputTokens: estimateTokens(inputCharacters), outputTokens: estimateTokens(generatedCharacters(completion)), estimated: true };
   await charge(env, account.id, offer, counts);
-  return Response.json({ ...completion, model: offer.id }, { headers });
+  return Response.json({ ...moveThinking(completion), model: offer.id }, { headers });
 }
 
 /**

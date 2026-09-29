@@ -237,6 +237,94 @@ describe("chat completions", () => {
   });
 });
 
+describe("leaked reasoning", () => {
+  /** Joins every streamed delta's `field` for choice 0. */
+  const streamed = (text: string, field: string) => text.split("\n")
+    .filter(line => line.startsWith("data: {"))
+    .map(line => (JSON.parse(line.slice(6)) as { choices?: { delta?: Record<string, string> }[] }).choices?.[0]?.delta?.[field] ?? "")
+    .join("");
+
+  it("moves reasoning before </think> out of a non-streamed answer, for any model", async () => {
+    const { api_key } = await newAccount();
+    const { ai } = fakeAi(() => completion(10, 10, "Le client veut 17 x 23, soit 391.</think>\n\n17 x 23 = 391."));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super"),
+    }, { AI: ai });
+    const { choices } = (await response.json()) as { choices: { message: Record<string, string> }[] };
+    expect(choices[0]!.message.content).toBe("17 x 23 = 391.");
+    expect(choices[0]!.message.reasoning_content).toBe("Le client veut 17 x 23, soit 391.");
+  });
+
+  it("leaves an answer without </think> as it is", async () => {
+    const { api_key } = await newAccount();
+    const { ai } = fakeAi(() => completion(10, 10, "Waaw, mangi fi."));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super"),
+    }, { AI: ai });
+    const { choices } = (await response.json()) as { choices: { message: Record<string, unknown> }[] };
+    expect(choices[0]!.message).toEqual({ role: "assistant", content: "Waaw, mangi fi." });
+  });
+
+  it("holds a flagged model's stream until </think>, even when the tag is split across chunks", async () => {
+    const { api_key } = await newAccount();
+    const { ai } = fakeAi(() => sse([
+      { choices: [{ index: 0, delta: { role: "assistant", content: "Il faut " } }] },
+      { choices: [{ index: 0, delta: { content: "calculer.</thi" } }] },
+      { choices: [{ index: 0, delta: { content: "nk>\n\n391." } }] },
+      { choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+      { choices: [], usage: { prompt_tokens: 10, completion_tokens: 12 } },
+    ]));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-5.3", { stream: true }),
+    }, { AI: ai, WORKERS_PAID: "true" });
+    const text = await response.text();
+    expect(streamed(text, "content")).toBe("391.");
+    expect(streamed(text, "reasoning_content")).toBe("Il faut calculer.");
+    expect(text).not.toContain("think>");
+    expect(text).toContain('"usage"');
+    expect(text.trimEnd().endsWith("data: [DONE]")).toBe(true);
+  });
+
+  it("sends a flagged model's untagged stream whole, at the latest when the choice finishes", async () => {
+    const { api_key } = await newAccount();
+    const { ai } = fakeAi(() => sse([
+      { choices: [{ index: 0, delta: { content: "Mangi " } }] },
+      { choices: [{ index: 0, delta: { content: "fi rekk." }, finish_reason: "stop" }] },
+    ]));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-5.3", { stream: true }),
+    }, { AI: ai, WORKERS_PAID: "true" });
+    const text = await response.text();
+    expect(streamed(text, "content")).toBe("Mangi fi rekk.");
+    expect(streamed(text, "reasoning_content")).toBe("");
+  });
+
+  it("stops holding once the upstream sends its own reasoning field", async () => {
+    const { api_key } = await newAccount();
+    const { ai } = fakeAi(() => sse([
+      { choices: [{ index: 0, delta: { reasoning_content: "Je calcule." } }] },
+      { choices: [{ index: 0, delta: { content: "391." } }] },
+      { choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+    ]));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-5.3", { stream: true }),
+    }, { AI: ai, WORKERS_PAID: "true" });
+    const text = await response.text();
+    expect(streamed(text, "reasoning_content")).toBe("Je calcule.");
+    expect(streamed(text, "content")).toBe("391.");
+  });
+
+  it("streams an unflagged model's bytes untouched, tag and all", async () => {
+    const { api_key } = await newAccount();
+    const chunks = [{ choices: [{ index: 0, delta: { content: "a</think>b" } }] }];
+    const { ai } = fakeAi(() => sse(chunks));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super", { stream: true }),
+    }, { AI: ai });
+    expect(streamed(await response.text(), "content")).toBe("a</think>b");
+  });
+});
+
 describe("failover", () => {
   it("falls back from a rate-limited wholesale upstream to Workers AI and bills once", async () => {
     const { api_key } = await newAccount(5_000);
