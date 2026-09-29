@@ -54,20 +54,38 @@ export async function createAccount(db: D1Database, name: string): Promise<Accou
   return { id, name, balanceUxof: 0 };
 }
 
-/** Creates a key and returns it. Only its hash is stored, so this is the one time it is visible. */
-export async function createKey(db: D1Database, accountId: string, label: string): Promise<string> {
+export interface CreatedKey {
+  /** Stable id for later management (label, revoke) without ever holding the raw key again. */
+  id: string;
+  /** The raw key. Only its hash is stored, so this is the one time it is visible. */
+  key: string;
+}
+
+/** Creates a key for an account, which must already exist. An account may hold several keys. */
+export async function createKey(db: D1Database, accountId: string, label: string): Promise<CreatedKey> {
+  const exists = await db.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(accountId).first();
+  if (!exists) throw new UnknownAccountError();
+  const id = crypto.randomUUID();
   const key = newApiKey();
   await db
-    .prepare("INSERT INTO api_keys (key_hash, account_id, label) VALUES (?, ?, ?)")
-    .bind(await sha256Hex(key), accountId, label)
+    .prepare("INSERT INTO api_keys (id, key_hash, account_id, label) VALUES (?, ?, ?, ?)")
+    .bind(id, await sha256Hex(key), accountId, label)
     .run();
-  return key;
+  return { id, key };
 }
 
 export async function revokeKey(db: D1Database, key: string): Promise<boolean> {
   const result = await db
     .prepare("UPDATE api_keys SET revoked_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE key_hash = ? AND revoked_at IS NULL")
     .bind(await sha256Hex(key))
+    .run();
+  return result.meta.changes === 1;
+}
+
+export async function revokeKeyById(db: D1Database, id: string): Promise<boolean> {
+  const result = await db
+    .prepare("UPDATE api_keys SET revoked_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND revoked_at IS NULL")
+    .bind(id)
     .run();
   return result.meta.changes === 1;
 }

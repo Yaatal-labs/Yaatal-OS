@@ -132,6 +132,61 @@ describe("keys and admin", () => {
     expect((await call("/v1/balance", { auth: `Bearer ${api_key}` })).status).toBe(401);
   });
 
+  it("gives an account a second, separately labelled key that shares its balance", async () => {
+    const { account, api_key: firstKey, balance_xof } = await newAccount(1_000);
+    const response = await call(`/admin/accounts/${account.id}/keys`, {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ label: "app-abc123" }),
+    });
+    expect(response.status).toBe(201);
+    const { key_id, api_key: secondKey } = (await response.json()) as { key_id: string; api_key: string };
+    expect(key_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(secondKey).toMatch(/^yk_[A-Za-z0-9_-]{43}$/);
+    expect(secondKey).not.toBe(firstKey);
+    // Both keys draw on the same balance.
+    expect((await balanceOf(secondKey)).balance_xof).toBe(balance_xof);
+    const stored = await env.DB.prepare("SELECT key_hash FROM api_keys WHERE account_id = ?").bind(account.id).all();
+    expect(stored.results).toHaveLength(2);
+    expect(JSON.stringify(stored.results)).not.toContain(secondKey);
+  });
+
+  it("404s creating a key for an unknown account", async () => {
+    const response = await call("/admin/accounts/00000000-0000-4000-8000-000000000000/keys", {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ label: "x" }),
+    });
+    expect(response.status).toBe(404);
+  });
+
+  it("revokes one key by id without touching the account's other key", async () => {
+    const { account, api_key: firstKey } = await newAccount(1_000);
+    const created = await call(`/admin/accounts/${account.id}/keys`, {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ label: "app-def456" }),
+    });
+    const { key_id, api_key: secondKey } = (await created.json()) as { key_id: string; api_key: string };
+
+    const revoke = await call(`/admin/keys/${key_id}`, { method: "DELETE", auth: ADMIN });
+    expect(await revoke.json()).toEqual({ revoked: true });
+    expect((await call("/v1/balance", { auth: `Bearer ${secondKey}` })).status).toBe(401);
+    expect((await call("/v1/balance", { auth: `Bearer ${firstKey}` })).status).toBe(200);
+
+    // Revoking the same id again changes nothing.
+    const again = await call(`/admin/keys/${key_id}`, { method: "DELETE", auth: ADMIN });
+    expect(await again.json()).toEqual({ revoked: false });
+  });
+
+  it("404s revoking an unknown key id and refuses without the admin token", async () => {
+    const notFound = await call("/admin/keys/00000000-0000-4000-8000-000000000000", { method: "DELETE", auth: ADMIN });
+    expect(notFound.status).toBe(200); // a well-formed id that matches nothing: not revoked, not an error
+    expect(await notFound.json()).toEqual({ revoked: false });
+    const { account } = await newAccount();
+    const created = await call(`/admin/accounts/${account.id}/keys`, {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ label: "app-ghi789" }),
+    });
+    const { key_id } = (await created.json()) as { key_id: string };
+    for (const auth of [undefined, "Bearer wrong"]) {
+      expect((await call(`/admin/keys/${key_id}`, { method: "DELETE", auth })).status).toBe(401);
+    }
+  });
+
   it("credits an account and rejects bad amounts and unknown accounts", async () => {
     const { account, api_key } = await newAccount(1_000);
     const ok = await call(`/admin/accounts/${account.id}/credits`, {

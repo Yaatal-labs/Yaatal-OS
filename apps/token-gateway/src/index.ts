@@ -9,15 +9,19 @@
 //   POST /v1/chat/completions           OpenAI chat completions, streaming or not
 //   GET  /v1/balance                    the key's balance and recent ledger rows
 //   POST /admin/accounts                {name, credit_xof?}  -> account + first key (shown once)
-//   POST /admin/accounts/:id/keys       {label}               -> new key (shown once)
+//   POST /admin/accounts/:id/keys       {label}               -> another key on the account (shown once)
 //   POST /admin/accounts/:id/credits    {xof, note}          -> new balance
-//   POST /admin/keys/revoke             {key}
+//   POST /admin/keys/revoke             {key}                revoke by raw key
+//   DELETE /admin/keys/:id                                   revoke by key id (no raw key needed)
 //   GET  /admin/usage?days=30           sign-ups, credits, usage, refused requests, per model/account/day
+//
+// An account may hold several keys (one per app it operates, say): each is labelled at creation and
+// revocable on its own, without touching the others or the account's balance.
 //
 // Credits are granted by an administrator here. Taking payment (Wave, Orange Money, PI-SPI) is a
 // separate, explicitly approved step that ends in one of these credit calls.
 import { availableModels, costOf, findModel, type ModelOffer } from "./models.js";
-import { UnknownAccountError, accountForKey, createAccount, createKey, credit, debitUsage, recentLedger, revokeKey } from "./ledger.js";
+import { UnknownAccountError, accountForKey, createAccount, createKey, credit, debitUsage, recentLedger, revokeKey, revokeKeyById } from "./ledger.js";
 import { callUpstreams, type UpstreamEnv } from "./upstream.js";
 import { home, usage, type SiteEnv } from "./site.js";
 import { countStream, requestCharacters, usageFrom, generatedCharacters, estimateTokens } from "./usage.js";
@@ -50,6 +54,7 @@ export default {
       if (url.pathname === "/v1/balance" && request.method === "GET") return await balance(request, env);
       if (url.pathname === "/admin/usage" && request.method === "GET") return await usageAdmin(request, env, url);
       if (url.pathname.startsWith("/admin/") && request.method === "POST") return await admin(request, env, url.pathname);
+      if (url.pathname.startsWith("/admin/") && request.method === "DELETE") return await adminDelete(request, env, url.pathname);
       return error(404, "not_found", "No such route.");
     } catch (err) {
       if (err instanceof HttpError) return error(err.status, err.type, err.message);
@@ -264,10 +269,13 @@ async function admin(request: Request, env: Env, path: string): Promise<Response
   if (path === "/admin/accounts") {
     const name = text(body.name, "name");
     const account = await createAccount(env.DB, name);
-    const key = await createKey(env.DB, account.id, "default");
+    const { id: keyId, key } = await createKey(env.DB, account.id, "default");
     const creditXof = body.credit_xof === undefined ? 0 : xof(body.credit_xof);
     const balanceUxof = creditXof ? await credit(env.DB, account.id, creditXof * UXOF, "opening credit") : 0;
-    return Response.json({ account: { id: account.id, name }, api_key: key, balance_xof: balanceUxof / UXOF }, { status: 201 });
+    return Response.json(
+      { account: { id: account.id, name }, api_key: key, key_id: keyId, balance_xof: balanceUxof / UXOF },
+      { status: 201 },
+    );
   }
   if (path === "/admin/keys/revoke") {
     return Response.json({ revoked: await revokeKey(env.DB, text(body.key, "key")) });
@@ -276,12 +284,22 @@ async function admin(request: Request, env: Env, path: string): Promise<Response
   if (match) {
     const [, accountId, action] = match as unknown as [string, string, string];
     if (action === "keys") {
-      const key = await createKey(env.DB, accountId, text(body.label, "label"));
-      return Response.json({ api_key: key }, { status: 201 });
+      const { id: keyId, key } = await createKey(env.DB, accountId, text(body.label, "label"));
+      return Response.json({ key_id: keyId, api_key: key }, { status: 201 });
     }
     const amount = xof(body.xof);
     const balanceUxof = await credit(env.DB, accountId, amount * UXOF, text(body.note, "note"));
     return Response.json({ balance_xof: balanceUxof / UXOF });
+  }
+  throw new HttpError(404, "not_found", "No such admin route.");
+}
+
+async function adminDelete(request: Request, env: Env, path: string): Promise<Response> {
+  if (!(await isAdmin(request, env))) throw new HttpError(401, "unauthorized", "Admin token required.");
+  const match = /^\/admin\/keys\/([0-9a-f-]{36})$/.exec(path);
+  if (match) {
+    const [, keyId] = match as unknown as [string, string];
+    return Response.json({ revoked: await revokeKeyById(env.DB, keyId) });
   }
   throw new HttpError(404, "not_found", "No such admin route.");
 }
