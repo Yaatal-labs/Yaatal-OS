@@ -107,6 +107,26 @@ describe("catalog", () => {
 });
 
 describe("keys and admin", () => {
+  it("lets the key-issuer token mint and revoke keys, and nothing else", async () => {
+    const ISSUER = `Bearer ${(env as unknown as { KEY_ISSUER_TOKEN: string }).KEY_ISSUER_TOKEN}`;
+    const { account } = await newAccount(1_000);
+    const minted = await call(`/admin/accounts/${account.id}/keys`, {
+      method: "POST", auth: ISSUER, body: JSON.stringify({ label: "app-demo" }),
+    });
+    expect(minted.status).toBe(201);
+    const { key_id } = (await minted.json()) as { key_id: string };
+    expect((await call(`/admin/keys/${key_id}`, { method: "DELETE", auth: ISSUER })).status).toBe(200);
+
+    // Never money, accounts or reports.
+    const creditTry = await call(`/admin/accounts/${account.id}/credits`, {
+      method: "POST", auth: ISSUER, body: JSON.stringify({ xof: 1_000_000, note: "x" }),
+    });
+    expect(creditTry.status).toBe(401);
+    const accountTry = await call("/admin/accounts", { method: "POST", auth: ISSUER, body: JSON.stringify({ name: "x" }) });
+    expect(accountTry.status).toBe(401);
+    expect((await call("/admin/usage", { auth: ISSUER })).status).toBe(401);
+  });
+
   it("refuses admin calls without the admin token", async () => {
     for (const auth of [undefined, "Bearer wrong", `Bearer ${env.ADMIN_TOKEN}x`]) {
       const response = await call("/admin/accounts", { method: "POST", auth, body: JSON.stringify({ name: "x" }) });

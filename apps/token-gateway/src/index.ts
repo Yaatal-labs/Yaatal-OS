@@ -13,6 +13,8 @@
 //   POST /admin/accounts/:id/credits    {xof, note}          -> new balance
 //   POST /admin/keys/revoke             {key}                revoke by raw key
 //   DELETE /admin/keys/:id                                   revoke by key id (no raw key needed)
+//   The two key routes also accept KEY_ISSUER_TOKEN, a narrower token for a platform that mints
+//   per-app keys: it cannot create accounts, add credit or read reports.
 //   GET  /admin/usage?days=30           sign-ups, credits, usage, refused requests, per model/account/day
 //
 // An account may hold several keys (one per app it operates, say): each is labelled at creation and
@@ -33,6 +35,8 @@ export interface Env extends UpstreamEnv, SiteEnv {
   /** "true" once the account is on Workers Paid: unlocks the models that need it. */
   WORKERS_PAID?: string;
   ADMIN_TOKEN?: string;
+  /** Narrower token for a platform that mints and revokes keys for its users: no credits, no accounts. */
+  KEY_ISSUER_TOKEN?: string;
 }
 
 const MAX_BODY_BYTES = 2_000_000;
@@ -263,7 +267,10 @@ function voiceRoute(request: Request, voice: Fetcher, url: URL): Promise<Respons
 }
 
 async function admin(request: Request, env: Env, path: string): Promise<Response> {
-  if (!(await isAdmin(request, env))) throw new HttpError(401, "unauthorized", "Admin token required.");
+  const keysPath = /^\/admin\/accounts\/[^/]+\/keys$/.test(path);
+  if (!(await (keysPath ? isKeyIssuer(request, env) : isAdmin(request, env)))) {
+    throw new HttpError(401, "unauthorized", "Admin token required.");
+  }
   const body = await readJson(request);
 
   if (path === "/admin/accounts") {
@@ -295,7 +302,7 @@ async function admin(request: Request, env: Env, path: string): Promise<Response
 }
 
 async function adminDelete(request: Request, env: Env, path: string): Promise<Response> {
-  if (!(await isAdmin(request, env))) throw new HttpError(401, "unauthorized", "Admin token required.");
+  if (!(await isKeyIssuer(request, env))) throw new HttpError(401, "unauthorized", "Admin token required.");
   const match = /^\/admin\/keys\/([0-9a-f-]{36})$/.exec(path);
   if (match) {
     const [, keyId] = match as unknown as [string, string];
@@ -314,7 +321,18 @@ async function usageAdmin(request: Request, env: Env, url: URL): Promise<Respons
 }
 
 async function isAdmin(request: Request, env: Env): Promise<boolean> {
-  const expected = env.ADMIN_TOKEN;
+  return bearerMatches(request, env.ADMIN_TOKEN);
+}
+
+/**
+ * Creating and revoking keys on existing accounts only. A platform holds this token instead of the
+ * admin one, so a leak can never create accounts or add credit.
+ */
+async function isKeyIssuer(request: Request, env: Env): Promise<boolean> {
+  return (await isAdmin(request, env)) || (await bearerMatches(request, env.KEY_ISSUER_TOKEN));
+}
+
+async function bearerMatches(request: Request, expected: string | undefined): Promise<boolean> {
   const header = request.headers.get("authorization") ?? "";
   if (!expected || expected.length < 32 || !header.startsWith("Bearer ")) return false;
   // Compare digests so the comparison takes the same time whatever the input.

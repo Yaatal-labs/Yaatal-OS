@@ -16,6 +16,7 @@ export default defineConfig(async () => ({
         bindings: {
           TEST_MIGRATIONS: await readD1Migrations("./migrations"),
           ADMIN_TOKEN: "test-admin-token-0123456789abcdef0123",
+          KEY_ISSUER_TOKEN: "test-issuer-token-0123456789abcdef012",
           AI_GATEWAY_ID: "default",
         },
       },
