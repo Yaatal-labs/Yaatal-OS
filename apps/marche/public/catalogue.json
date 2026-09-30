@@ -1,0 +1,42 @@
+[
+  {
+    "id": "exemple-boutique-express",
+    "name": "Boutique Express (exemple)",
+    "description": "Exemple : une boutique créée avec Créer. Montre une fiche app avec identité et partage.",
+    "icon": "/icons/marche-icon.svg",
+    "url": "https://boutique-express.example.com",
+    "category": "commerce",
+    "author": "Kairmel (exemple)",
+    "permissions": ["identity", "share"]
+  },
+  {
+    "id": "exemple-livraison-rapide",
+    "name": "Livraison Rapide (exemple)",
+    "description": "Exemple : suivi de livraison. Montre une fiche app qui déclare aussi pay (réservé).",
+    "icon": "/icons/marche-icon.svg",
+    "url": "https://livraison-rapide.example.com",
+    "category": "services",
+    "author": "Kairmel (exemple)",
+    "permissions": ["identity", "share", "pay"]
+  },
+  {
+    "id": "exemple-convertisseur-fcfa",
+    "name": "Convertisseur FCFA (exemple)",
+    "description": "Exemple : un petit outil sans compte. Montre une fiche app sans aucune permission.",
+    "icon": "/icons/marche-icon.svg",
+    "url": "https://convertisseur-fcfa.example.com",
+    "category": "outils",
+    "author": "Kairmel (exemple)",
+    "permissions": []
+  },
+  {
+    "id": "exemple-quiz-wolof",
+    "name": "Quiz Wolof (exemple)",
+    "description": "Exemple : un quiz éducatif qui propose de partager son score.",
+    "icon": "/icons/marche-icon.svg",
+    "url": "https://quiz-wolof.example.com",
+    "category": "education",
+    "author": "Kairmel (exemple)",
+    "permissions": ["share"]
+  }
+]
