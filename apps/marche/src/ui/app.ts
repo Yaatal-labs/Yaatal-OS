@@ -5,11 +5,17 @@ import type { AppManifest } from "../manifest/types";
 import { attachBridgeHost } from "../host/bridge-host";
 import { LocalStorageConsentStore, type ConsentStore } from "../host/consent";
 import { getOrCreateDeviceId, type KeyValueStorage } from "../host/identity";
+import { DeviceIdentityProvider, SessionIdentityProvider, type IdentityProvider } from "../host/identity-provider";
+import { createAuthClient, type AuthClient } from "../host/auth-client";
+import { mountSignIn } from "./signin";
 import { PERMISSION_LABELS_FR } from "./labels";
 
 /** Build-time catalogue source (see src/vite-env.d.ts and src/catalogue/source.ts). Unset ->
  *  the bundled catalogue.json is used, same as before this was configurable. */
 const CATALOGUE_URL = import.meta.env.VITE_CATALOGUE_URL;
+
+/** See src/vite-env.d.ts -- dev-only, never set for a real deployment. */
+const USE_DEV_PLACEHOLDER_IDENTITY = import.meta.env.VITE_DEV_PLACEHOLDER_IDENTITY === "true";
 
 /** Permissions this iframe sandbox grants, and why each one is needed:
  *   - allow-scripts       the mini-app is a web app; it needs to run JS at all.
@@ -45,8 +51,14 @@ function safeLocalStorage(): KeyValueStorage {
 
 export function initMarcheApp(root: HTMLElement): void {
   const deviceStorage = safeLocalStorage();
-  const deviceId = getOrCreateDeviceId(deviceStorage);
   const consent: ConsentStore = new LocalStorageConsentStore(deviceStorage);
+
+  // Identity: the real, sign-in-backed provider by default; the old per-device placeholder only
+  // behind an explicit dev flag (see src/vite-env.d.ts and host/identity-provider.ts).
+  const auth: AuthClient = createAuthClient(window.fetch.bind(window));
+  const identityProvider: IdentityProvider = USE_DEV_PLACEHOLDER_IDENTITY
+    ? new DeviceIdentityProvider(deviceStorage, getOrCreateDeviceId(deviceStorage))
+    : new SessionIdentityProvider(auth);
 
   let apps: AppManifest[] = [];
   let query = "";
@@ -55,7 +67,10 @@ export function initMarcheApp(root: HTMLElement): void {
 
   root.innerHTML = `
     <header class="marche-header">
-      <h1>${BRAND_NAME} Marché</h1>
+      <div class="marche-header-top">
+        <h1>${BRAND_NAME} Marché</h1>
+        <div class="marche-signin" id="marche-signin"></div>
+      </div>
       <div class="marche-controls">
         <input type="search" id="marche-search" placeholder="Rechercher une app..." aria-label="Rechercher une app" />
         <div id="marche-categories"></div>
@@ -71,6 +86,28 @@ export function initMarcheApp(root: HTMLElement): void {
   const gridEl = root.querySelector<HTMLElement>("#marche-grid")!;
   const detailEl = root.querySelector<HTMLElement>("#marche-detail")!;
   const runnerEl = root.querySelector<HTMLElement>("#marche-runner")!;
+  const signInEl = root.querySelector<HTMLElement>("#marche-signin")!;
+
+  if (USE_DEV_PLACEHOLDER_IDENTITY) {
+    // Nothing to sign in to in this mode -- identity() already always "succeeds" with the
+    // per-device placeholder id, so the widget would just be misleading here.
+    signInEl.remove();
+  } else {
+    const signInView = mountSignIn({
+      container: signInEl,
+      auth,
+      onSignedInChange: () => {
+        /* Nothing else on this page depends on sign-in state today besides the widget itself
+         * and identityProvider (which reads live session state on every identity() call, not a
+         * cached flag) -- this hook exists for whatever the next feature that cares turns out
+         * to be. */
+      },
+    });
+    auth
+      .getMe()
+      .then(({ signedIn }) => signInView.setSignedIn(signedIn))
+      .catch(() => signInView.setSignedIn(false));
+  }
 
   searchInput.addEventListener("input", () => {
     query = searchInput.value;
@@ -192,7 +229,7 @@ export function initMarcheApp(root: HTMLElement): void {
         manifest: app,
         frameWindow,
         appOrigin: appUrl.origin,
-        deviceId,
+        identityProvider,
         consent,
         requestIdentityConsent: (m) =>
           // window.confirm shows plain text, not HTML — no escaping needed (or wanted) here.

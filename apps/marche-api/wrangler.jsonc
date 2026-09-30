@@ -13,9 +13,23 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Marché itself (apps/marche's built PWA) is served from this same Worker, same-origin, so
+  // the session cookie below is first-party. Requests matching a file here are served directly,
+  // without running this Worker at all; only /v1/* and /admin/* (which never match a file) fall
+  // through to it. Build apps/marche first (`pnpm build` in apps/marche) so dist/ exists.
+  "assets": { "directory": "../marche/dist" },
   // Secrets (wrangler secret put, or .dev.vars locally):
-  //   PUBLISH_TOKEN   bearer token Créer (the kairmel builder) uses to publish and read its
-  //                   own listings (POST /v1/listings, GET /v1/listings/:id)
-  //   ADMIN_TOKEN     bearer token for the review queue (/admin/*): list, approve, reject
+  //   PUBLISH_TOKEN        bearer token Créer (the kairmel builder) uses to publish and read its
+  //                        own listings (POST /v1/listings, GET /v1/listings/:id)
+  //   ADMIN_TOKEN          bearer token for the review queue (/admin/*): list, approve, reject
+  //   ENGINE_API_URL       the Yaatal Engine's base URL, e.g. "https://engine.example" --
+  //                        server-to-server only, never sent to the browser
+  //   ENGINE_AUTH_SECRET   shared secret sent as X-Engine-Auth-Secret on the Engine's
+  //                        WhatsApp partner sign-in start/verify calls. >= 32 characters.
+  //   SESSION_SECRET       keyed-hash key for session tokens (src/auth/sessions.ts).
+  //                        >= 32 characters. Rotate to force-expire every session.
+  //   IDENTITY_SECRET      keyed-hash key for per-app identity (src/auth/identity.ts).
+  //                        >= 32 characters. Deliberately separate from SESSION_SECRET -- see
+  //                        that field's comment in src/index.ts.
   "observability": { "enabled": true }
 }

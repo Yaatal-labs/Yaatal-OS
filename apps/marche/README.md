@@ -6,9 +6,9 @@ sandboxed iframe, with a small bridge (`window.kairmel`) that gives an app a sta
 identity and a way to ask the host to share a link — nothing more, and only what the app's own
 manifest declares.
 
-This is the first version: a working host, a manifest format + validator, the bridge, and the
-permission/consent machinery. It is not wired to WhatsApp sign-in or real payments yet — see
-"What's deliberately not here" below.
+Identity is backed by real WhatsApp sign-in (via `apps/marche-api`, which also serves this app —
+see "Same-origin hosting" in its README) rather than a per-device placeholder — see "The bridge
+(`window.kairmel`)" below for what that means for `identity()`, and "Sign-in" for the UI.
 
 ## Run it locally
 
@@ -16,17 +16,23 @@ permission/consent machinery. It is not wired to WhatsApp sign-in or real paymen
 cd apps/marche
 pnpm install
 pnpm dev      # http://localhost:5173 — the catalogue, with the seed apps below
-pnpm test     # vitest — 45 tests today
+pnpm test     # vitest — 68 tests today
 pnpm check    # tsc --noEmit
 pnpm build    # type-check, then produce dist/ (see "Build output" below)
 ```
 
-No secrets, no backend, and no real mini-apps are required to try it: `public/catalogue.json`
-seeds four fictional example apps on `example.com` (reserved for documentation by RFC 2606),
-each clearly named "(exemple)" so they can never be mistaken for a real listing. They point at
-domains that don't resolve, so "Ouvrir" on one of them will fail to load in a browser — that's
-expected; the catalogue, search, category filter, and the permissions shown on the detail page
-all work without it.
+No secrets, no backend, and no real mini-apps are required to try just the catalogue:
+`public/catalogue.json` seeds four fictional example apps on `example.com` (reserved for
+documentation by RFC 2606), each clearly named "(exemple)" so they can never be mistaken for a
+real listing. They point at domains that don't resolve, so "Ouvrir" on one of them will fail to
+load in a browser — that's expected; the catalogue, search, category filter, and the permissions
+shown on the detail page all work without it.
+
+Trying **sign-in** does need a running `apps/marche-api` (and, for a real end-to-end run, a real
+Engine) — see that app's README "Run locally". This app's own `pnpm dev` proxies `/v1/*` to
+`http://localhost:8787` by default (`vite.config.ts`), so pointing `apps/marche-api`'s dev server
+there is all that's needed locally. Without it, the sign-in widget will just show connection
+errors — everything else in this app still works.
 
 ## Catalogue source
 
@@ -99,12 +105,22 @@ await window.kairmel.share({ title: "Bazin Riche", url: "https://…" });
 await window.kairmel.pay({ amount: 500 }); // always rejects today
 ```
 
-- **`identity()`** resolves to a per-app id, stable across visits, derived on the host as
-  `HMAC-SHA256(deviceId, appId)` (`src/host/identity.ts`). `deviceId` is a random id the host
-  generates once per device (today — there's no account). **This is a placeholder**: once
-  WhatsApp sign-in ships, `deviceId` is replaced by the signed-in user's stable account id, and
-  every id derived from today's device id changes. A mini-app should treat `identity()` as
-  "stable for now, across your sessions with this device", not "permanent forever".
+- **`identity()`** resolves to a per-app id from the signed-in WhatsApp session: the host calls
+  marche-api's `GET /v1/me/identity?app=<appId>`, which returns
+  `hex HMAC-SHA256(IDENTITY_SECRET, "<pid>:<appId>")` — stable across every device the person
+  signs in on, different for every app, and never the phone number or the Engine's own account
+  id (see `apps/marche-api/README.md`'s "WhatsApp sign-in" for the full flow). If the person
+  isn't signed in, `identity()` rejects with `{ code: "not_signed_in" }` instead of prompting —
+  a mini-app should show its own "connectez-vous d'abord" message (or a `!== "not_signed_in"`
+  check before treating any other rejection as unexpected). This routing lives in
+  `src/host/identity-provider.ts` (`SessionIdentityProvider`) and is wired up in
+  `src/host/bridge-host.ts`'s `handleIdentity`.
+  - **Dev-only fallback:** `VITE_DEV_PLACEHOLDER_IDENTITY=true` (build-time env var) swaps in the
+    old per-device placeholder (`DeviceIdentityProvider`, `src/host/identity.ts`'s
+    `deriveAppUserId` over a random per-device id) instead, so `pnpm dev` here can exercise
+    `identity()` without a running marche-api + Engine. It's never "signed out" and its id is
+    unrelated to (and much less stable than) the real one. Never set this for a deployment a
+    real person uses — see `src/vite-env.d.ts`.
 - **`share(params)`** asks the host to open the Web Share sheet, or — if that API isn't
   available — copy the link/text to the clipboard. Resolves with which one happened.
 - **`pay(params)`** is reserved and always rejects. If the app's manifest declared `pay`, the
@@ -115,7 +131,21 @@ await window.kairmel.pay({ amount: 500 }); // always rejects today
 Calling anything the manifest didn't declare in `permissions` always rejects with
 `permission_denied`, from the host, before anything else runs. The host also asks the person
 once, per app, before the *first* `identity()` call succeeds (`window.confirm` in this version —
-see below); after that it's remembered (`src/host/consent.ts`) and the app isn't asked again.
+see below) — but only once they're actually signed in; after that the grant is remembered
+(`src/host/consent.ts`) and the app isn't asked again.
+
+## Sign-in
+
+The header's "Se connecter avec WhatsApp" (`src/ui/signin.ts`, mounted from `src/ui/app.ts`)
+drives marche-api's WhatsApp partner sign-in: open the `wa.me` link (shown as a button, plus the
+`LOGIN-…` text to copy by hand), the flow polls sign-in status until the Engine has sent a
+6-digit code over WhatsApp, then a code field appears; on success the header switches to
+"Se déconnecter". This is the same session `identity()` reads from (`GET /v1/me`,
+`GET /v1/me/identity`) — see `apps/marche-api/README.md` for the protocol and design (rate
+limiting, CSRF, the session cookie). Like `ui/app.ts`, `signin.ts` is DOM-wiring code and isn't
+itself unit-tested; what it drives (`src/host/auth-client.ts`, `src/host/identity-provider.ts`)
+is (`test/auth-client.test.ts`, `test/identity-provider.test.ts`, and the `not_signed_in` cases
+in `test/bridge-origin.test.ts`).
 
 ### How it's wired (for anyone extending the host)
 
@@ -140,9 +170,12 @@ origin, so `openApp` refuses to open any app whose URL origin equals the host's.
 
 ## What's deliberately not here (v1 scope)
 
-- **WhatsApp sign-in.** `identity()` is a per-device placeholder id today, documented as such
-  above and in `src/host/identity.ts`.
 - **Payments.** `pay` is a real, closed permission an app can declare, but every call rejects.
+- **The host driving sign-in *for* the app.** When a mini-app calls `identity()` signed out, the
+  host rejects with `not_signed_in` rather than pausing the request to pop open the sign-in flow
+  itself — see `src/host/bridge-host.ts`'s `handleIdentity` doc comment for why (mainly:
+  avoiding a second, nested async flow with its own polling/expiry while a permission request is
+  already in flight). The person can always sign in from the header first.
 - **A styled consent dialog.** Asking for `identity` uses `window.confirm` (`src/ui/app.ts`).
   It's gated correctly (once per app, via the host, never the app itself) — the UI around it is
   the obvious next polish pass, not a correctness gap.

@@ -8,7 +8,7 @@ import {
 import type { KairmelMessageEvent, MessageTarget } from "../bridge/kairmel-bridge";
 import { assertDeclaredPermission, PermissionDeniedError } from "./permissions";
 import type { ConsentStore } from "./consent";
-import { deriveAppUserId } from "./identity";
+import { NotSignedInError, type IdentityProvider } from "./identity-provider";
 import { performShare, type ShareCapableWindow, type ShareParams } from "./share";
 
 export class UnknownMethodError extends Error {
@@ -42,8 +42,8 @@ export interface BridgeHostOptions {
   /** `new URL(manifest.url).origin` — the only origin this session accepts messages from,
    *  and the only origin it ever replies to. */
   appOrigin: string;
-  /** The host's per-device id — see `host/identity.ts`. */
-  deviceId: string;
+  /** Where an app's per-app `identity()` id actually comes from — see `host/identity-provider.ts`. */
+  identityProvider: IdentityProvider;
   consent: ConsentStore;
   /** Host UI hook: ask the person, once, whether this app may have `identity`. Resolves to
    *  whether they said yes. */
@@ -99,12 +99,20 @@ export function attachBridgeHost(options: BridgeHostOptions): () => void {
 
   async function handleIdentity() {
     assertDeclaredPermission(manifest, "identity");
+    // Checked before the consent prompt below: no point asking "may this app know you?" when
+    // the honest answer is "you're not signed in to Kairmel at all" — see `ui/signin.ts` for
+    // where the person is sent to fix that, and identity-provider.ts's doc comment for why this
+    // is a plain rejection rather than the host pausing the request to drive a sign-in flow
+    // itself.
+    if (!(await options.identityProvider.isSignedIn())) {
+      throw new NotSignedInError();
+    }
     if (!options.consent.isGranted(manifest.id, "identity")) {
       const granted = await options.requestIdentityConsent(manifest);
       if (!granted) throw new PermissionDeniedError(manifest.id, "identity");
       options.consent.grant(manifest.id, "identity");
     }
-    const userId = await deriveAppUserId(options.deviceId, manifest.id);
+    const userId = await options.identityProvider.getIdentity(manifest.id);
     return { userId };
   }
 
@@ -127,7 +135,8 @@ function toErrorPayload(error: unknown): { code: string; message: string } {
   if (
     error instanceof PermissionDeniedError ||
     error instanceof UnknownMethodError ||
-    error instanceof NotImplementedError
+    error instanceof NotImplementedError ||
+    error instanceof NotSignedInError
   ) {
     return { code: error.code, message: error.message };
   }
