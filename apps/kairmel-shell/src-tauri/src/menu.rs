@@ -1,0 +1,45 @@
+//! The native top menu: three entries (Discuter / Créer / Marché) that
+//! navigate the single window to a configured Kairmel workspace URL. This
+//! is native OS chrome, not a page injected into the webview, so it needs
+//! no Tauri IPC/capability grant to work.
+
+use tauri::menu::{Menu, MenuEvent, MenuItem, Submenu};
+use tauri::{App, Manager};
+
+use crate::kairmel::KairmelUrls;
+
+const ID_DISCUTER: &str = "kairmel-discuter";
+const ID_CREER: &str = "kairmel-creer";
+const ID_MARCHE: &str = "kairmel-marche";
+
+/// Build and attach the window menu, and wire its clicks to navigation.
+pub fn install(app: &App, window_label: &'static str, urls: KairmelUrls) -> tauri::Result<()> {
+    let discuter = MenuItem::with_id(app, ID_DISCUTER, "Discuter", true, None::<&str>)?;
+    let creer = MenuItem::with_id(app, ID_CREER, "Créer", true, None::<&str>)?;
+    let marche = MenuItem::with_id(app, ID_MARCHE, "Marché", true, None::<&str>)?;
+    let workspaces = Submenu::with_items(app, "Kairmel", true, &[&discuter, &creer, &marche])?;
+    let menu = Menu::with_items(app, &[&workspaces])?;
+    app.set_menu(menu)?;
+
+    app.on_menu_event(move |app, event| handle_menu_event(app, event, window_label, &urls));
+
+    Ok(())
+}
+
+fn handle_menu_event(
+    app: &tauri::AppHandle,
+    event: MenuEvent,
+    window_label: &str,
+    urls: &KairmelUrls,
+) {
+    let target = match event.id().as_ref() {
+        ID_DISCUTER => &urls.discuter,
+        ID_CREER => &urls.creer,
+        ID_MARCHE => &urls.marche,
+        _ => return,
+    };
+    if let Some(window) = app.get_webview_window(window_label) {
+        let _ = window.navigate(target.clone());
+        let _ = window.set_focus();
+    }
+}

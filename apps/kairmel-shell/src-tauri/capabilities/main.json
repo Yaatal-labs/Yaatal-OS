@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "The Kairmel window loads the remote web app (and the local offline page as a fallback). It gets zero Tauri permissions: no invoke, no fs, no shell, no dialog. The remote page must work exactly as it does in a plain browser tab.",
+  "windows": ["main"],
+  "permissions": []
+}
