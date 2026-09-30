@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "yaatal-marche-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "yaatal-marche-api",
+      // Local development only. A deployment replaces this with its own database id.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Secrets (wrangler secret put, or .dev.vars locally):
+  //   PUBLISH_TOKEN   bearer token Créer (the kairmel builder) uses to publish and read its
+  //                   own listings (POST /v1/listings, GET /v1/listings/:id)
+  //   ADMIN_TOKEN     bearer token for the review queue (/admin/*): list, approve, reject
+  "observability": { "enabled": true }
+}
