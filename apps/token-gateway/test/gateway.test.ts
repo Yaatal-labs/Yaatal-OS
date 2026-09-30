@@ -9,11 +9,15 @@ declare global {
     interface Env {
       TEST_MIGRATIONS: D1Migration[];
       ADMIN_TOKEN: string;
+      KEY_ISSUER_TOKEN: string;
+      KEY_ISSUER_NAME: string;
     }
   }
 }
 
 const ADMIN = `Bearer ${env.ADMIN_TOKEN}`;
+const ISSUER = `Bearer ${env.KEY_ISSUER_TOKEN}`;
+const ISSUER_NAME = env.KEY_ISSUER_NAME;
 const WHOLESALE_URL = "https://wholesale.example.test/v1";
 
 beforeAll(() => applyD1Migrations(env.DB, env.TEST_MIGRATIONS));
@@ -74,12 +78,14 @@ async function call(path: string, init: RequestInit & { auth?: string } = {}, ex
   return response;
 }
 
-async function newAccount(creditXof = 5_000) {
+async function newAccount(creditXof = 5_000, issuer?: string) {
   const response = await call("/admin/accounts", {
-    method: "POST", auth: ADMIN, body: JSON.stringify({ name: "Agence Test", credit_xof: creditXof }),
+    method: "POST",
+    auth: ADMIN,
+    body: JSON.stringify({ name: "Agence Test", credit_xof: creditXof, ...(issuer !== undefined ? { issuer } : {}) }),
   });
   expect(response.status).toBe(201);
-  return (await response.json()) as { account: { id: string }; api_key: string; balance_xof: number };
+  return (await response.json()) as { account: { id: string; issuer: string | null }; api_key: string; balance_xof: number };
 }
 
 async function balanceOf(key: string) {
@@ -107,9 +113,8 @@ describe("catalog", () => {
 });
 
 describe("keys and admin", () => {
-  it("lets the key-issuer token mint and revoke keys, and nothing else", async () => {
-    const ISSUER = `Bearer ${(env as unknown as { KEY_ISSUER_TOKEN: string }).KEY_ISSUER_TOKEN}`;
-    const { account } = await newAccount(1_000);
+  it("lets the key-issuer token mint and revoke keys on its own account, and nothing else", async () => {
+    const { account } = await newAccount(1_000, ISSUER_NAME);
     const minted = await call(`/admin/accounts/${account.id}/keys`, {
       method: "POST", auth: ISSUER, body: JSON.stringify({ label: "app-demo" }),
     });
@@ -117,14 +122,102 @@ describe("keys and admin", () => {
     const { key_id } = (await minted.json()) as { key_id: string };
     expect((await call(`/admin/keys/${key_id}`, { method: "DELETE", auth: ISSUER })).status).toBe(200);
 
-    // Never money, accounts or reports.
+    // Never money, accounts, issuer assignment or reports.
     const creditTry = await call(`/admin/accounts/${account.id}/credits`, {
       method: "POST", auth: ISSUER, body: JSON.stringify({ xof: 1_000_000, note: "x" }),
     });
     expect(creditTry.status).toBe(401);
     const accountTry = await call("/admin/accounts", { method: "POST", auth: ISSUER, body: JSON.stringify({ name: "x" }) });
     expect(accountTry.status).toBe(401);
+    const issuerTry = await call(`/admin/accounts/${account.id}/issuer`, {
+      method: "POST", auth: ISSUER, body: JSON.stringify({ issuer: ISSUER_NAME }),
+    });
+    expect(issuerTry.status).toBe(401);
     expect((await call("/admin/usage", { auth: ISSUER })).status).toBe(401);
+  });
+
+  it("reaches only accounts an admin assigned to it: another issuer's or an unassigned account 404s", async () => {
+    const { account: mine } = await newAccount(1_000, ISSUER_NAME);
+    const { account: theirs } = await newAccount(1_000, "another-issuer");
+    const { account: unassigned } = await newAccount(1_000); // issuer omitted -> null, admin-only
+
+    const minted = await call(`/admin/accounts/${mine.id}/keys`, {
+      method: "POST", auth: ISSUER, body: JSON.stringify({ label: "app-demo" }),
+    });
+    expect(minted.status).toBe(201);
+
+    for (const account of [theirs, unassigned]) {
+      const response = await call(`/admin/accounts/${account.id}/keys`, {
+        method: "POST", auth: ISSUER, body: JSON.stringify({ label: "app-demo" }),
+      });
+      expect(response.status).toBe(404);
+    }
+  });
+
+  it("revokes only a key on an account assigned to it; another issuer's account 404s", async () => {
+    const { account: mine } = await newAccount(1_000, ISSUER_NAME);
+    const { account: theirs } = await newAccount(1_000, "another-issuer");
+    const mintedMine = await call(`/admin/accounts/${mine.id}/keys`, {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ label: "app-a" }),
+    });
+    const { key_id: mineKeyId } = (await mintedMine.json()) as { key_id: string };
+    const mintedTheirs = await call(`/admin/accounts/${theirs.id}/keys`, {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ label: "app-b" }),
+    });
+    const { key_id: theirsKeyId } = (await mintedTheirs.json()) as { key_id: string };
+
+    expect((await call(`/admin/keys/${theirsKeyId}`, { method: "DELETE", auth: ISSUER })).status).toBe(404);
+    const revokeMine = await call(`/admin/keys/${mineKeyId}`, { method: "DELETE", auth: ISSUER });
+    expect(await revokeMine.json()).toEqual({ revoked: true });
+  });
+
+  it("refuses the key-issuer token entirely when KEY_ISSUER_NAME is unset, even with the right token", async () => {
+    const { account } = await newAccount(1_000, ISSUER_NAME);
+    const minted = await call(`/admin/accounts/${account.id}/keys`, {
+      method: "POST", auth: ISSUER, body: JSON.stringify({ label: "x" }),
+    }, { KEY_ISSUER_NAME: undefined });
+    expect(minted.status).toBe(401);
+  });
+
+  it("lets only admin assign or clear an account's issuer, and still reaches every account itself", async () => {
+    const { account } = await newAccount(1_000);
+    expect(account.issuer).toBeNull();
+
+    const refused = await call(`/admin/accounts/${account.id}/issuer`, {
+      method: "POST", auth: ISSUER, body: JSON.stringify({ issuer: ISSUER_NAME }),
+    });
+    expect(refused.status).toBe(401);
+
+    const assign = await call(`/admin/accounts/${account.id}/issuer`, {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ issuer: ISSUER_NAME }),
+    });
+    expect(await assign.json()).toEqual({ issuer: ISSUER_NAME });
+
+    // Now assigned: the issuer token reaches it, and admin still mints on it directly too.
+    expect((await call(`/admin/accounts/${account.id}/keys`, {
+      method: "POST", auth: ISSUER, body: JSON.stringify({ label: "x" }),
+    })).status).toBe(201);
+    expect((await call(`/admin/accounts/${account.id}/keys`, {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ label: "y" }),
+    })).status).toBe(201);
+
+    const clear = await call(`/admin/accounts/${account.id}/issuer`, {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ issuer: null }),
+    });
+    expect(await clear.json()).toEqual({ issuer: null });
+    expect((await call(`/admin/accounts/${account.id}/keys`, {
+      method: "POST", auth: ISSUER, body: JSON.stringify({ label: "z" }),
+    })).status).toBe(404);
+
+    const badFormat = await call(`/admin/accounts/${account.id}/issuer`, {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ issuer: "Not Valid!" }),
+    });
+    expect(badFormat.status).toBe(400);
+
+    const unknown = await call("/admin/accounts/00000000-0000-4000-8000-000000000000/issuer", {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ issuer: ISSUER_NAME }),
+    });
+    expect(unknown.status).toBe(404);
   });
 
   it("refuses admin calls without the admin token", async () => {

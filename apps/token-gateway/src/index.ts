@@ -8,13 +8,16 @@
 //   GET  /v1/models                     models and their FCFA prices
 //   POST /v1/chat/completions           OpenAI chat completions, streaming or not
 //   GET  /v1/balance                    the key's balance and recent ledger rows
-//   POST /admin/accounts                {name, credit_xof?}  -> account + first key (shown once)
+//   POST /admin/accounts                {name, credit_xof?, issuer?}  -> account + first key (shown once)
 //   POST /admin/accounts/:id/keys       {label}               -> another key on the account (shown once)
 //   POST /admin/accounts/:id/credits    {xof, note}          -> new balance
+//   POST /admin/accounts/:id/issuer     {issuer|null}        assign/clear which issuer may mint or revoke its keys
 //   POST /admin/keys/revoke             {key}                revoke by raw key
 //   DELETE /admin/keys/:id                                   revoke by key id (no raw key needed)
 //   The two key routes also accept KEY_ISSUER_TOKEN, a narrower token for a platform that mints
-//   per-app keys: it cannot create accounts, add credit or read reports.
+//   per-app keys: it cannot create accounts, add credit, read reports, or touch an account that
+//   isn't assigned (accounts.issuer) to its own KEY_ISSUER_NAME -- that account 404s, same as one
+//   that doesn't exist. KEY_ISSUER_NAME unset refuses the token entirely.
 //   GET  /admin/usage?days=30           sign-ups, credits, usage, refused requests, per model/account/day
 //
 // An account may hold several keys (one per app it operates, say): each is labelled at creation and
@@ -23,7 +26,10 @@
 // Credits are granted by an administrator here. Taking payment (Wave, Orange Money, PI-SPI) is a
 // separate, explicitly approved step that ends in one of these credit calls.
 import { availableModels, costOf, findModel, type ModelOffer } from "./models.js";
-import { UnknownAccountError, accountForKey, createAccount, createKey, credit, debitUsage, recentLedger, revokeKey, revokeKeyById } from "./ledger.js";
+import {
+  UnknownAccountError, accountForKey, accountIssuer, createAccount, createKey, credit, debitUsage,
+  keyAccountIssuer, recentLedger, revokeKey, revokeKeyById, setAccountIssuer,
+} from "./ledger.js";
 import { callUpstreams, type UpstreamEnv } from "./upstream.js";
 import { home, usage, type SiteEnv } from "./site.js";
 import { countStream, requestCharacters, usageFrom, generatedCharacters, estimateTokens } from "./usage.js";
@@ -35,8 +41,13 @@ export interface Env extends UpstreamEnv, SiteEnv {
   /** "true" once the account is on Workers Paid: unlocks the models that need it. */
   WORKERS_PAID?: string;
   ADMIN_TOKEN?: string;
-  /** Narrower token for a platform that mints and revokes keys for its users: no credits, no accounts. */
+  /**
+   * Narrower token for a platform that mints and revokes keys for its users: no credits, no
+   * accounts, and only on accounts an admin has assigned (accounts.issuer) to KEY_ISSUER_NAME.
+   */
   KEY_ISSUER_TOKEN?: string;
+  /** Which accounts.issuer value KEY_ISSUER_TOKEN may act on. Unset refuses the token entirely. */
+  KEY_ISSUER_NAME?: string;
 }
 
 const MAX_BODY_BYTES = 2_000_000;
@@ -268,44 +279,64 @@ function voiceRoute(request: Request, voice: Fetcher, url: URL): Promise<Respons
 
 async function admin(request: Request, env: Env, path: string): Promise<Response> {
   const keysPath = /^\/admin\/accounts\/[^/]+\/keys$/.test(path);
-  if (!(await (keysPath ? isKeyIssuer(request, env) : isAdmin(request, env)))) {
-    throw new HttpError(401, "unauthorized", "Admin token required.");
-  }
+  const isAdminToken = await isAdmin(request, env);
+  // Only the mint-a-key route accepts the issuer token at all (the route-shape restriction).
+  const asIssuer = !isAdminToken && keysPath ? await keyIssuerName(request, env) : null;
+  if (!isAdminToken && !asIssuer) throw new HttpError(401, "unauthorized", "Admin token required.");
   const body = await readJson(request);
 
   if (path === "/admin/accounts") {
     const name = text(body.name, "name");
-    const account = await createAccount(env.DB, name);
+    const issuer = body.issuer === undefined || body.issuer === null ? null : parseIssuer(body.issuer);
+    const account = await createAccount(env.DB, name, issuer);
     const { id: keyId, key } = await createKey(env.DB, account.id, "default");
     const creditXof = body.credit_xof === undefined ? 0 : xof(body.credit_xof);
     const balanceUxof = creditXof ? await credit(env.DB, account.id, creditXof * UXOF, "opening credit") : 0;
     return Response.json(
-      { account: { id: account.id, name }, api_key: key, key_id: keyId, balance_xof: balanceUxof / UXOF },
+      { account: { id: account.id, name, issuer }, api_key: key, key_id: keyId, balance_xof: balanceUxof / UXOF },
       { status: 201 },
     );
   }
   if (path === "/admin/keys/revoke") {
     return Response.json({ revoked: await revokeKey(env.DB, text(body.key, "key")) });
   }
-  const match = /^\/admin\/accounts\/([0-9a-f-]{36})\/(keys|credits)$/.exec(path);
+  const match = /^\/admin\/accounts\/([0-9a-f-]{36})\/(keys|credits|issuer)$/.exec(path);
   if (match) {
     const [, accountId, action] = match as unknown as [string, string, string];
     if (action === "keys") {
+      // An issuer token only reaches an account an admin assigned to it; everything else 404s,
+      // same as an account that does not exist, so a leaked token learns nothing either way.
+      if (asIssuer && (await accountIssuer(env.DB, accountId)) !== asIssuer) {
+        throw new HttpError(404, "not_found", "No such account.");
+      }
       const { id: keyId, key } = await createKey(env.DB, accountId, text(body.label, "label"));
       return Response.json({ key_id: keyId, api_key: key }, { status: 201 });
     }
-    const amount = xof(body.xof);
-    const balanceUxof = await credit(env.DB, accountId, amount * UXOF, text(body.note, "note"));
-    return Response.json({ balance_xof: balanceUxof / UXOF });
+    if (action === "credits") {
+      const amount = xof(body.xof);
+      const balanceUxof = await credit(env.DB, accountId, amount * UXOF, text(body.note, "note"));
+      return Response.json({ balance_xof: balanceUxof / UXOF });
+    }
+    // action === "issuer": not on the keys route, so this always required the admin token.
+    if (!("issuer" in body)) throw new HttpError(400, "invalid_request", "issuer must be a string or null.");
+    const issuer = body.issuer === null ? null : parseIssuer(body.issuer);
+    if (!(await setAccountIssuer(env.DB, accountId, issuer))) throw new HttpError(404, "not_found", "No such account.");
+    return Response.json({ issuer });
   }
   throw new HttpError(404, "not_found", "No such admin route.");
 }
 
 async function adminDelete(request: Request, env: Env, path: string): Promise<Response> {
-  if (!(await isKeyIssuer(request, env))) throw new HttpError(401, "unauthorized", "Admin token required.");
+  const isAdminToken = await isAdmin(request, env);
+  const asIssuer = isAdminToken ? null : await keyIssuerName(request, env);
+  if (!isAdminToken && !asIssuer) throw new HttpError(401, "unauthorized", "Admin token required.");
   const match = /^\/admin\/keys\/([0-9a-f-]{36})$/.exec(path);
   if (match) {
     const [, keyId] = match as unknown as [string, string];
+    // Same rule as minting: an issuer token only reaches keys on an account assigned to it.
+    if (asIssuer && (await keyAccountIssuer(env.DB, keyId)) !== asIssuer) {
+      throw new HttpError(404, "not_found", "No such key.");
+    }
     return Response.json({ revoked: await revokeKeyById(env.DB, keyId) });
   }
   throw new HttpError(404, "not_found", "No such admin route.");
@@ -325,11 +356,13 @@ async function isAdmin(request: Request, env: Env): Promise<boolean> {
 }
 
 /**
- * Creating and revoking keys on existing accounts only. A platform holds this token instead of the
- * admin one, so a leak can never create accounts or add credit.
+ * The key-issuer token's name, when this request's bearer matches KEY_ISSUER_TOKEN and
+ * KEY_ISSUER_NAME is configured -- the accounts.issuer value the caller may act on. Unconfigured
+ * never means open: without a name the token mints and revokes nothing, however it is presented.
  */
-async function isKeyIssuer(request: Request, env: Env): Promise<boolean> {
-  return (await isAdmin(request, env)) || (await bearerMatches(request, env.KEY_ISSUER_TOKEN));
+async function keyIssuerName(request: Request, env: Env): Promise<string | null> {
+  if (!env.KEY_ISSUER_NAME) return null;
+  return (await bearerMatches(request, env.KEY_ISSUER_TOKEN)) ? env.KEY_ISSUER_NAME : null;
 }
 
 async function bearerMatches(request: Request, expected: string | undefined): Promise<boolean> {
@@ -356,6 +389,14 @@ function text(value: unknown, field: string): string {
 function xof(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value <= 0 || value > 1_000_000_000) {
     throw new HttpError(400, "invalid_request", "xof must be a whole number of XOF (FCFA), 1 to 1,000,000,000.");
+  }
+  return value;
+}
+
+/** An issuer name: 1 to 32 lowercase letters, digits and hyphens, matched against KEY_ISSUER_NAME. */
+function parseIssuer(value: unknown): string {
+  if (typeof value !== "string" || !/^[a-z0-9-]{1,32}$/.test(value)) {
+    throw new HttpError(400, "invalid_request", "issuer must be 1 to 32 lowercase letters, digits and hyphens.");
   }
   return value;
 }
