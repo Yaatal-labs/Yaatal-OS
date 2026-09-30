@@ -1,0 +1,24 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "gatekeeper-yaatal",
+  "main": ".wrangler/validate/src/index.ts",
+  "build": {
+    "command": "pnpm exec capnweb-validate build --out .wrangler/validate",
+    "watch_dir": "src"
+  },
+  "compatibility_date": "2026-09-04",
+  "compatibility_flags": ["allow_irrevocable_stub_storage"],
+  "migrations": [{ "tag": "v0", "new_sqlite_classes": ["YaatalCatalogGatekeeper"] }],
+  // Both empty means "not configured": every read reports the catalog as unavailable.
+  // YAATAL_ENGINE_URL: Engine base URL, HTTPS (HTTP only on loopback), no credentials or query.
+  // YAATAL_MERCHANT_ID: the one merchant this deployment may read. Agents cannot choose another.
+  "vars": {
+    "YAATAL_ENGINE_URL": "",
+    "YAATAL_MERCHANT_ID": ""
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": { "invocation_logs": false }
+  }
+}

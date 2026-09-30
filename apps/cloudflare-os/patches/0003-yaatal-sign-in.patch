@@ -1,0 +1,482 @@
+diff --git a/packages/workshop-frontend/src/LoginPage.tsx b/packages/workshop-frontend/src/LoginPage.tsx
+index 6c6289ab..7c0e3582 100644
+--- a/packages/workshop-frontend/src/LoginPage.tsx
++++ b/packages/workshop-frontend/src/LoginPage.tsx
+@@ -2,14 +2,13 @@ import { useState, FormEvent } from 'react'
+ import { Link } from '@tanstack/react-router'
+ import { RpcStub } from 'capnweb'
+ import { PublicApi } from '@gadgets/workshop-shared/api'
+-import { Hexagon } from '@phosphor-icons/react'
+ import { Input, Button, Banner, Loader } from '@cloudflare/kumo'
+ import { hashPassword } from './passwordHash'
+-import { useServerConfig, useServerConfigError, useSiteName } from './ServerConfigContext'
++import { useServerConfig, useServerConfigError } from './ServerConfigContext'
+ import { useDocumentTitle } from './useDocumentTitle'
+ import { useConnectionLost } from './RpcContext'
+ import OAuthButtons from './components/auth/OAuthButtons'
+-import SiteLogo from './components/SiteLogo'
++import YaatalAuthShell from './components/auth/YaatalAuthShell'
+ 
+ 
+ interface LoginPageProps {
+@@ -24,9 +23,8 @@ export default function LoginPage({ rpcStub, onLoginSuccess }: LoginPageProps) {
+   const [error, setError] = useState<string | null>(null)
+   const serverConfig = useServerConfig()
+   const serverConfigError = useServerConfigError()
+-  const siteName = useSiteName()
+   const connectionLost = useConnectionLost()
+-  useDocumentTitle('Sign in')
++  useDocumentTitle('Se connecter')
+ 
+   const handleSubmit = async (e: FormEvent) => {
+     e.preventDefault()
+@@ -45,10 +43,10 @@ export default function LoginPage({ rpcStub, onLoginSuccess }: LoginPageProps) {
+           window.location.reload()
+         }
+       } else {
+-        setError('Invalid username or password')
++        setError("Nom d'utilisateur ou mot de passe incorrect.")
+       }
+     } catch (err) {
+-      setError(err instanceof Error ? err.message : 'Login failed')
++      setError(err instanceof Error ? err.message : 'La connexion a échoué.')
+     } finally {
+       setLoading(false)
+     }
+@@ -66,9 +64,9 @@ export default function LoginPage({ rpcStub, onLoginSuccess }: LoginPageProps) {
+           className="flex h-full min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto bg-kumo-base px-4 py-8"
+         >
+           <p className="text-sm text-kumo-danger text-center">
+-            Couldn&apos;t load deployment settings.
++            Impossible de charger la configuration.
+           </p>
+-          <Button variant="secondary" onClick={() => window.location.reload()}>Reload</Button>
++          <Button variant="secondary" onClick={() => window.location.reload()}>Recharger</Button>
+         </div>
+       )
+     }
+@@ -76,7 +74,7 @@ export default function LoginPage({ rpcStub, onLoginSuccess }: LoginPageProps) {
+       <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto bg-kumo-base px-4 py-8">
+         <Loader size="lg" />
+         <p className="text-sm text-kumo-subtle text-center">
+-          {connectionLost ? "Can't reach the server. Retrying…" : 'Loading…'}
++          {connectionLost ? 'Serveur injoignable. Nouvelle tentative…' : 'Chargement…'}
+         </p>
+       </div>
+     )
+@@ -86,29 +84,7 @@ export default function LoginPage({ rpcStub, onLoginSuccess }: LoginPageProps) {
+   const passwordAuthEnabled = serverConfig.passwordAuthEnabled
+ 
+   return (
+-    <div className="relative flex h-full min-h-0 flex-col items-center justify-start overflow-y-auto bg-kumo-base px-4 py-8">
+-      {/* Dot grid — fades from top to bottom */}
+-      <div
+-        className="absolute inset-0 pointer-events-none"
+-        style={{
+-          backgroundImage: 'radial-gradient(circle, var(--color-kumo-line) 1px, transparent 1px)',
+-          backgroundSize: '24px 24px',
+-          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)',
+-          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)',
+-        }}
+-      />
+-
+-      <div className="relative my-auto w-full max-w-sm">
+-        {/* Logo */}
+-        <div className="flex flex-col items-center mb-8">
+-          <SiteLogo size={40} className="mb-3">
+-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-kumo-brand mb-3">
+-              <Hexagon size={20} className="text-white" weight="bold" />
+-            </div>
+-          </SiteLogo>
+-          <h1 className="text-xl font-semibold text-kumo-default">{siteName}</h1>
+-          <p className="text-sm text-kumo-subtle mt-1">Sign in to your account</p>
+-        </div>
++    <YaatalAuthShell title="Se connecter" subtitle="Retrouvez vos projets et votre solde en FCFA.">
+ 
+         {passwordAuthEnabled && (
+           <>
+@@ -116,19 +92,19 @@ export default function LoginPage({ rpcStub, onLoginSuccess }: LoginPageProps) {
+             <form onSubmit={handleSubmit} className="space-y-4">
+               <Input
+                 className="w-full"
+-                label="Username"
++                label="Nom d'utilisateur"
+                 value={username}
+                 onChange={(e) => setUsername(e.target.value)}
+                 autoFocus
+                 autoComplete="username"
+                 disabled={loading}
+-                placeholder="your-username"
++                placeholder="awa_diop"
+               />
+ 
+               <Input
+                 className="w-full"
+                 type="password"
+-                label="Password"
++                label="Mot de passe"
+                 value={password}
+                 onChange={(e) => setPassword(e.target.value)}
+                 autoComplete="current-password"
+@@ -147,14 +123,14 @@ export default function LoginPage({ rpcStub, onLoginSuccess }: LoginPageProps) {
+                 loading={loading}
+                 className="w-full justify-center"
+               >
+-                Sign in
++                Se connecter
+               </Button>
+             </form>
+ 
+             <p className="text-center text-sm text-kumo-subtle mt-6">
+-              Don't have an account?{' '}
++              Pas encore de compte ?{' '}
+               <Link to="/signup" className="text-kumo-brand hover:underline font-medium">
+-                Create one
++                Créer un compte
+               </Link>
+             </p>
+           </>
+@@ -166,7 +142,7 @@ export default function LoginPage({ rpcStub, onLoginSuccess }: LoginPageProps) {
+             {passwordAuthEnabled && (
+               <div className="flex items-center gap-3 mb-4">
+                 <div className="h-px flex-1 bg-kumo-line" />
+-                <span className="text-xs text-kumo-subtle">or</span>
++                <span className="text-xs text-kumo-subtle">ou</span>
+                 <div className="h-px flex-1 bg-kumo-line" />
+               </div>
+             )}
+@@ -176,7 +152,6 @@ export default function LoginPage({ rpcStub, onLoginSuccess }: LoginPageProps) {
+             <OAuthButtons rpcStub={rpcStub} vendors={authVendors} onSuccess={onLoginSuccess} />
+           </div>
+         )}
+-      </div>
+-    </div>
++    </YaatalAuthShell>
+   )
+ }
+diff --git a/packages/workshop-frontend/src/SignupPage.tsx b/packages/workshop-frontend/src/SignupPage.tsx
+index ba06977b..59f54a31 100644
+--- a/packages/workshop-frontend/src/SignupPage.tsx
++++ b/packages/workshop-frontend/src/SignupPage.tsx
+@@ -2,13 +2,12 @@ import { useState, FormEvent } from "react";
+ import { Link } from "@tanstack/react-router";
+ import { RpcStub } from "capnweb";
+ import { PublicApi } from "@gadgets/workshop-shared/api";
+-import { Hexagon } from "@phosphor-icons/react";
+ import { Input, Button, Banner, Loader } from "@cloudflare/kumo";
+ import { hashPassword } from "./passwordHash";
+-import { useServerConfig, useServerConfigError, useSiteName } from "./ServerConfigContext";
++import { useServerConfig, useServerConfigError } from "./ServerConfigContext";
+ import { useDocumentTitle } from "./useDocumentTitle";
+ import OAuthButtons from "./components/auth/OAuthButtons";
+-import SiteLogo from "./components/SiteLogo";
++import YaatalAuthShell from "./components/auth/YaatalAuthShell";
+ import { useConnectionLost } from "./RpcContext";
+ 
+ interface SignupPageProps {
+@@ -18,9 +17,8 @@ interface SignupPageProps {
+ export default function SignupPage({ rpcStub }: SignupPageProps) {
+   const serverConfig = useServerConfig();
+   const serverConfigError = useServerConfigError();
+-  const siteName = useSiteName();
+   const connectionLost = useConnectionLost();
+-  useDocumentTitle("Create account");
++  useDocumentTitle("Créer un compte");
+   const [username, setUsername] = useState("");
+   const [password, setPassword] = useState("");
+   const [confirmPassword, setConfirmPassword] = useState("");
+@@ -29,17 +27,17 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
+ 
+   const usernameError =
+     username && !/^[a-z0-9_-]+$/i.test(username)
+-      ? "Letters, numbers, underscores, and hyphens only"
++      ? "Lettres, chiffres, _ et - uniquement"
+       : undefined;
+ 
+   const passwordError =
+     password && password.length < 8
+-      ? "Must be at least 8 characters"
++      ? "8 caractères minimum"
+       : undefined;
+ 
+   const confirmError =
+     confirmPassword && confirmPassword !== password
+-      ? "Passwords do not match"
++      ? "Les mots de passe ne correspondent pas"
+       : undefined;
+ 
+   const canSubmit =
+@@ -68,10 +66,10 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
+         localStorage.setItem("authToken", token);
+         window.location.href = "/";
+       } else {
+-        setError("Username already exists");
++        setError("Ce nom d'utilisateur est déjà pris.");
+       }
+     } catch (err) {
+-      setError(err instanceof Error ? err.message : "Account creation failed");
++      setError(err instanceof Error ? err.message : "La création du compte a échoué.");
+     } finally {
+       setLoading(false);
+     }
+@@ -95,7 +93,7 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
+       <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto bg-kumo-base px-4 py-8">
+         <Loader size="lg" />
+         <p className="text-sm text-kumo-subtle text-center">
+-          {connectionLost ? "Can't reach the server. Retrying…" : "Loading…"}
++          {connectionLost ? "Serveur injoignable. Nouvelle tentative…" : "Chargement…"}
+         </p>
+       </div>
+     );
+@@ -107,42 +105,15 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
+   const passwordAuthEnabled = serverConfig.passwordAuthEnabled && signupsEnabled;
+ 
+   return (
+-    <div className="relative flex h-full min-h-0 flex-col items-center justify-start overflow-y-auto bg-kumo-base px-4 py-8">
+-      {/* Dot grid — fades from top to bottom */}
+-      <div
+-        className="absolute inset-0 pointer-events-none"
+-        style={{
+-          backgroundImage:
+-            "radial-gradient(circle, var(--color-kumo-line) 1px, transparent 1px)",
+-          backgroundSize: "24px 24px",
+-          maskImage:
+-            "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)",
+-          WebkitMaskImage:
+-            "linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)",
+-        }}
+-      />
+-
+-      <div className="relative my-auto w-full max-w-sm">
+-        {/* Logo */}
+-        <div className="flex flex-col items-center mb-8">
+-          <SiteLogo size={40} className="mb-3">
+-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-kumo-brand mb-3">
+-              <Hexagon size={20} className="text-white" weight="bold" />
+-            </div>
+-          </SiteLogo>
+-          <h1 className="text-xl font-semibold text-kumo-default">
+-            {siteName}
+-          </h1>
+-          <p className="text-sm text-kumo-subtle mt-1">Create your account</p>
+-        </div>
++    <YaatalAuthShell title="Créer un compte" subtitle="Quelques secondes, puis vous parlez à Yaatal.">
+ 
+         {!signupsEnabled && (
+           <Banner
+             variant="default"
+-            title="Signups are closed"
++            title="Inscriptions fermées"
+             className="mb-4"
+           >
+-            New account registration is currently disabled on this deployment.
++            Les nouvelles inscriptions sont suspendues pour le moment.
+           </Banner>
+         )}
+ 
+@@ -152,20 +123,20 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
+             <form onSubmit={handleSubmit} className="space-y-4">
+               <Input
+                 className="w-full"
+-                label="Username"
++                label="Nom d'utilisateur"
+                 value={username}
+                 onChange={(e) => setUsername(e.target.value)}
+                 autoFocus
+                 autoComplete="username"
+                 disabled={loading}
+-                placeholder="your-username"
++                placeholder="awa_diop"
+                 error={usernameError}
+               />
+ 
+               <Input
+                 className="w-full"
+                 type="password"
+-                label="Password"
++                label="Mot de passe"
+                 value={password}
+                 onChange={(e) => setPassword(e.target.value)}
+                 autoComplete="new-password"
+@@ -177,7 +148,7 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
+               <Input
+                 className="w-full"
+                 type="password"
+-                label="Confirm Password"
++                label="Confirmer le mot de passe"
+                 value={confirmPassword}
+                 onChange={(e) => setConfirmPassword(e.target.value)}
+                 autoComplete="new-password"
+@@ -195,7 +166,7 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
+                 loading={loading}
+                 className="w-full justify-center"
+               >
+-                Create account
++                Créer mon compte
+               </Button>
+             </form>
+           </>
+@@ -207,7 +178,7 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
+             {passwordAuthEnabled && (
+               <div className="flex items-center gap-3 mb-4">
+                 <div className="h-px flex-1 bg-kumo-line" />
+-                <span className="text-xs text-kumo-subtle">or</span>
++                <span className="text-xs text-kumo-subtle">ou</span>
+                 <div className="h-px flex-1 bg-kumo-line" />
+               </div>
+             )}
+@@ -217,13 +188,12 @@ export default function SignupPage({ rpcStub }: SignupPageProps) {
+ 
+         {passwordAuthEnabled && (
+           <p className="text-center text-sm text-kumo-subtle mt-6">
+-            Already have an account?{" "}
++            Déjà un compte ?{" "}
+             <Link to="/" className="text-kumo-brand hover:underline font-medium">
+-              Sign in
++              Se connecter
+             </Link>
+           </p>
+         )}
+-      </div>
+-    </div>
++    </YaatalAuthShell>
+   );
+ }
+diff --git a/packages/workshop-frontend/src/components/auth/OAuthButtons.tsx b/packages/workshop-frontend/src/components/auth/OAuthButtons.tsx
+index 304c043c..60034055 100644
+--- a/packages/workshop-frontend/src/components/auth/OAuthButtons.tsx
++++ b/packages/workshop-frontend/src/components/auth/OAuthButtons.tsx
+@@ -140,7 +140,7 @@ export default function OAuthButtons({ rpcStub, vendors, onSuccess }: OAuthButto
+       else window.location.reload()
+     } catch (err) {
+       if (err === CANCELLED || !mountedRef.current) return
+-      setError(err instanceof Error ? err.message : 'Could not sign in')
++      setError(err instanceof Error ? err.message : 'La connexion a échoué.')
+       setPending(null)
+     }
+   }
+@@ -162,10 +162,10 @@ export default function OAuthButtons({ rpcStub, vendors, onSuccess }: OAuthButto
+               src={vendor.logo.url}
+               alt=""
+               className="mr-1"
+-              style={{ height: 18, width: 'auto' }}
++              style={{ height: 22, width: 'auto' }}
+             />
+           )}
+-          Continue with {vendor.displayName}
++          Continuer avec {vendor.displayName}
+         </Button>
+       ))}
+     </div>
+diff --git a/packages/workshop-frontend/src/components/auth/YaatalAuthShell.tsx b/packages/workshop-frontend/src/components/auth/YaatalAuthShell.tsx
+new file mode 100644
+index 00000000..55714d12
+--- /dev/null
++++ b/packages/workshop-frontend/src/components/auth/YaatalAuthShell.tsx
+@@ -0,0 +1,93 @@
++import type { ReactNode } from 'react'
++
++// Yaatal's sign-in screens: a brand panel (the woven-Y mark, the promise, the call ring) beside a
++// large form. On narrow screens the panel folds away and the mark sits above the title.
++
++function Mark({ size }: { size: number }) {
++  return (
++    <svg width={size} height={size} viewBox="0 0 256 256" aria-hidden="true">
++      <clipPath id="yaatal-auth-mark"><rect width="256" height="256" rx="56" /></clipPath>
++      <rect width="256" height="256" rx="56" fill="#15302c" />
++      <g clipPath="url(#yaatal-auth-mark)" fill="none" strokeLinejoin="round">
++        <path d="M30 -8 L128 118" stroke="#e85a25" strokeWidth="40" />
++        <path d="M226 -8 L128 118 L128 272" stroke="#15302c" strokeWidth="56" />
++        <path d="M226 -8 L128 118 L128 272" stroke="#f3dcc0" strokeWidth="40" />
++        <path d="M108 190 H148 M108 206 H148" stroke="#e85a25" strokeWidth="6" />
++      </g>
++    </svg>
++  )
++}
++
++function Wordmark({ height }: { height: number }) {
++  return (
++    <svg viewBox="-4 -4 492 108" height={height} aria-hidden="true">
++      <g fill="currentColor">
++        <path d="M0 0H22L35 30L48 0H70L45 54V100H25V54Z" />
++        <path d="M86 100L113 0H129L156 100H136L121 42L106 100Z" />
++        <path d="M172 100L199 0H215L242 100H222L207 42L192 100Z" />
++        <path d="M258 0H322V20H300V100H280V20H258Z" />
++        <path d="M338 100L365 0H381L408 100H388L373 42L358 100Z" />
++        <path d="M424 0H444V80H484V100H424Z" />
++      </g>
++    </svg>
++  )
++}
++
++const ring = 'radial-gradient(circle, transparent 58%, #000 59%, #000 70%, transparent 71%)'
++
++export default function YaatalAuthShell({ title, subtitle, children }: {
++  title: string
++  subtitle?: string
++  children: ReactNode
++}) {
++  return (
++    <div className="grid h-full min-h-0 overflow-y-auto bg-kumo-base lg:grid-cols-2">
++      <aside
++        className="relative hidden flex-col justify-between gap-10 overflow-hidden p-12 lg:flex"
++        style={{ background: '#15302c', color: '#f3ead9' }}
++      >
++        <div className="flex items-center gap-3">
++          <Mark size={44} />
++          <Wordmark height={20} />
++        </div>
++        <div className="relative">
++          <p className="text-5xl font-bold leading-none tracking-tight">
++            Dites-le.
++            <br />
++            <span style={{ color: '#f3dcc0' }}>Yaatal le construit.</span>
++          </p>
++          <p className="mt-6 max-w-md text-lg leading-relaxed" style={{ color: 'rgba(243,234,217,.78)' }}>
++            Parlez de votre idée, en français ou en wolof. Le Playground construit votre site, votre bot
++            WhatsApp ou le firmware de votre objet connecté.
++          </p>
++        </div>
++        <p className="relative text-sm" style={{ color: 'rgba(243,234,217,.6)' }}>
++          Payé en FCFA, partout en zone UEMOA
++        </p>
++        <div
++          aria-hidden="true"
++          className="pointer-events-none absolute -bottom-40 -right-40 h-[28rem] w-[28rem] rounded-full"
++          style={{
++            background: 'repeating-conic-gradient(#e85a25 0deg 1.4deg, transparent 1.4deg 5deg)',
++            maskImage: ring,
++            WebkitMaskImage: ring,
++            opacity: 0.45,
++          }}
++        />
++      </aside>
++      <main className="flex min-h-full flex-col justify-center px-6 py-12 sm:px-12">
++        <div className="mx-auto w-full max-w-md">
++          <div className="mb-8">
++            <div className="mb-8 flex items-center gap-3 text-kumo-default lg:hidden">
++              <Mark size={40} />
++              <Wordmark height={18} />
++            </div>
++            <h1 className="text-3xl font-semibold tracking-tight text-kumo-default">{title}</h1>
++            {subtitle && <p className="mt-2 text-base text-kumo-subtle">{subtitle}</p>}
++          </div>
++          <div className="yaatal-auth">{children}</div>
++        </div>
++      </main>
++    </div>
++  )
++}
+diff --git a/packages/workshop-frontend/src/styles.css b/packages/workshop-frontend/src/styles.css
+index 19be0a84..d27f31d1 100644
+--- a/packages/workshop-frontend/src/styles.css
++++ b/packages/workshop-frontend/src/styles.css
+@@ -904,3 +904,8 @@ body:has([role="dialog"], [role="alertdialog"]) .app-header {
+ .kumo-tooltip-popup:has([data-skill-tooltip]) {
+   border-radius: 10px;
+ }
++
++/* Yaatal sign-in: larger controls than the app's defaults. */
++.yaatal-auth input { min-height: 3rem; font-size: 1rem; }
++.yaatal-auth label { font-size: 0.95rem; }
++.yaatal-auth button { min-height: 3rem; font-size: 1rem; }

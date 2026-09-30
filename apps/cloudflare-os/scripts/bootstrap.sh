@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Check out the pinned cloudflare-os-starter + upstream cloudflare-os into a target directory.
 # Usage: apps/cloudflare-os/scripts/bootstrap.sh <target-dir>
+# Also overlays Yaatal's Gatekeepers (scripts/overlay.sh).
 # Afterwards: cd <target-dir>/cloudflare-os && pnpm run-local   (Node >=24.19.0, pnpm 11.17.0)
 set -euo pipefail
 
@@ -30,3 +31,4 @@ git -C "$target/$upstream_path" checkout --quiet "$upstream_commit"
 
 echo "starter  $(git -C "$target" rev-parse --short HEAD)"
 echo "upstream $(git -C "$target/$upstream_path" rev-parse --short HEAD)"
+"$here/scripts/overlay.sh" "$target"

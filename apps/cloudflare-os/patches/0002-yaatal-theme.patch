@@ -1,0 +1,241 @@
+diff --git a/packages/workshop-frontend/index.html b/packages/workshop-frontend/index.html
+index aeb2f3a..727c1f0 100644
+--- a/packages/workshop-frontend/index.html
++++ b/packages/workshop-frontend/index.html
+@@ -1,5 +1,5 @@
+ <!DOCTYPE html>
+-<html lang="en">
++<html lang="fr">
+   <head>
+     <meta charset="UTF-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+@@ -8,7 +8,10 @@
+     <meta http-equiv="Content-Security-Policy" content="frame-src srcdoc:;">
+ 
+     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+-    <title>Cloudflare OS</title>
++    <link rel="preconnect" href="https://fonts.googleapis.com" />
++    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
++    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
++    <title>Yaatal</title>
+   </head>
+   <body>
+     <div id="root"></div>
+diff --git a/packages/workshop-frontend/public/favicon.svg b/packages/workshop-frontend/public/favicon.svg
+index 608e45d..a4545ae 100644
+--- a/packages/workshop-frontend/public/favicon.svg
++++ b/packages/workshop-frontend/public/favicon.svg
+@@ -1,9 +1,13 @@
+-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Cloudflare OS">
+-  <path
+-    d="M32 8 52.8 20v24L32 56 11.2 44V20L32 8Z"
+-    fill="none"
+-    stroke="#ff4801"
+-    stroke-width="7"
+-    stroke-linejoin="round"
+-  />
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Yaatal">
++  <clipPath id="tile"><rect width="256" height="256" rx="56"/></clipPath>
++  <rect width="256" height="256" rx="56" fill="#15302c"/>
++  <g clip-path="url(#tile)" fill="none" stroke-linejoin="round">
++    <!-- the orange strip comes in from the top left and tucks under the cream one -->
++    <path d="M30 -8 L128 118" stroke="#e85a25" stroke-width="40"/>
++    <!-- the cream strip: in from the top right, folds, and runs down as the stem -->
++    <path d="M226 -8 L128 118 L128 272" stroke="#15302c" stroke-width="56"/>
++    <path d="M226 -8 L128 118 L128 272" stroke="#f3dcc0" stroke-width="40"/>
++    <!-- woven stripes across the stem, as on strip cloth -->
++    <path d="M108 190 H148 M108 206 H148" stroke="#e85a25" stroke-width="6"/>
++  </g>
+ </svg>
+diff --git a/packages/workshop-frontend/src/styles.css b/packages/workshop-frontend/src/styles.css
+index 445a640..19be0a8 100644
+--- a/packages/workshop-frontend/src/styles.css
++++ b/packages/workshop-frontend/src/styles.css
+@@ -5,9 +5,9 @@
+ 
+ @theme {
+   /* ===== FONTS ===== */
+-  --font-sans: "FT Kunst Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI",
++  --font-sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+     "Roboto", "Helvetica Neue", sans-serif;
+-  --font-mono: "Apercu Mono Pro", "SF Mono", Menlo, Monaco, Consolas, monospace;
++  --font-mono: "JetBrains Mono", "SF Mono", Menlo, Monaco, Consolas, monospace;
+ 
+   /* ===== TEXT SIZES (restore Tailwind defaults, overriding Kumo's 12/13/14/16px) ===== */
+   --text-xs: 0.75rem;
+@@ -25,27 +25,27 @@
+      This is the single biggest lever between a "consumer/playground" feel and an enterprise one. */
+ 
+   /* Background tokens — near-white neutrals with a faint warm undertone */
+-  --color-kumo-base: #fcfcfb;
+-  --color-kumo-elevated: #f8f8f7;
+-  --color-kumo-tint: #f3f3f1;
+-  --color-kumo-overlay: #fbfbfa;
+-  --color-kumo-recessed: #efeeec;
+-  --color-kumo-control: #ffffff;
+-  --color-kumo-contrast: #14110f;
+-  --color-kumo-fill: #e8e7e4;
+-  --color-kumo-fill-hover: #dededb;
+-  --color-kumo-interact: #cac8c3;
++  --color-kumo-base: #faf7f1;
++  --color-kumo-elevated: #f5f0e7;
++  --color-kumo-tint: #efe8dc;
++  --color-kumo-overlay: #fbf8f3;
++  --color-kumo-recessed: #ebe3d5;
++  --color-kumo-control: #fffdf9;
++  --color-kumo-contrast: #1b1813;
++  --color-kumo-fill: #e8dfcf;
++  --color-kumo-fill-hover: #ded3c0;
++  --color-kumo-interact: #cbbfa9;
+ 
+   /* Brand — warm orange accent (intent only) */
+-  --color-kumo-brand: #ff4801;
+-  --color-kumo-brand-hover: #e03f00;
++  --color-kumo-brand: #c2410c;
++  --color-kumo-brand-hover: #a8380a;
+ 
+   /* Border / line tokens — neutral hairlines */
+-  --color-kumo-line: #1411100f;
+-  --color-kumo-ring: #cac8c3;
++  --color-kumo-line: #1b18131a;
++  --color-kumo-ring: #cbbfa9;
+ 
+   /* Chat surface tokens */
+-  --color-kumo-bubble-user: #f1f0ee;
++  --color-kumo-bubble-user: #efe8dc;
+ 
+   /* Status tints — keep functional colors, warm the tints */
+   --color-kumo-info: oklch(62.3% 0.214 259.815);
+@@ -69,27 +69,27 @@
+   --text-color-kumo-strong: #100f0d;
+   --text-color-kumo-subtle: oklch(52% 0.006 60);
+   --text-color-kumo-inactive: oklch(66% 0.005 60);
+-  --text-color-kumo-brand: #ff4801;
+-  --text-color-kumo-link: #ff4801;
++  --text-color-kumo-brand: #c2410c;
++  --text-color-kumo-link: #c2410c;
+   --text-color-kumo-success: oklch(72.3% 0.219 149.579);
+   --text-color-kumo-danger: oklch(63.7% 0.237 25.331);
+   --text-color-kumo-warning: oklch(47.6% 0.114 61.907);
+ 
+   /* ===== CUSTOM BRAND TOKENS (for direct use alongside Kumo tokens) ===== */
+-  --color-accent-100: #ff4801;
+-  --color-accent-200: #ff7038;
+-  --color-background-100: #fcfcfb;
+-  --color-background-200: #f8f8f7;
+-  --color-background-300: #f3f3f1;
+-  --color-foreground-100: #100f0d;
+-  --color-foreground-200: #100f0d;
+-  --color-foreground-300: #1c1a18;
+-  --color-border-100: #e8e7e4;
+-  --color-border-100-50: #e8e7e480;
+-  --color-selection-bg: #ffe9e0;
+-  --color-selection-text: #ff500a;
+-  --color-shadow-accent-light: #ffa683;
+-  --color-shadow-accent-dark: #b13200;
++  --color-accent-100: #c2410c;
++  --color-accent-200: #e85a25;
++  --color-background-100: #faf7f1;
++  --color-background-200: #f5f0e7;
++  --color-background-300: #efe8dc;
++  --color-foreground-100: #1b1813;
++  --color-foreground-200: #1b1813;
++  --color-foreground-300: #2b2620;
++  --color-border-100: #e8dfcf;
++  --color-border-100-50: #e8dfcf80;
++  --color-selection-bg: #fbe0d1;
++  --color-selection-text: #9a3412;
++  --color-shadow-accent-light: #f5a47a;
++  --color-shadow-accent-dark: #8a2c06;
+ 
+   /* Category colors */
+   --color-compute-100: #0a95ff;
+@@ -142,24 +142,24 @@
+ }
+ 
+ [data-mode="dark"] {
+-  /* Seal-inspired dark palette: violet-tinted surfaces around hue 285, not neutral black. */
+-  --color-kumo-base: oklch(0.115 0.012 285);
+-  --color-kumo-elevated: oklch(0.155 0.011 285);
+-  --color-kumo-tint: oklch(0.225 0.025 285);
+-  --color-kumo-overlay: oklch(0.155 0.011 285);
+-  --color-kumo-recessed: oklch(0.1 0.012 285);
+-  --color-kumo-control: oklch(0.155 0.011 285);
++  /* Yaatal dark palette: surfaces tinted towards the brand's deep green (hue 170). */
++  --color-kumo-base: oklch(0.115 0.012 170);
++  --color-kumo-elevated: oklch(0.155 0.011 170);
++  --color-kumo-tint: oklch(0.225 0.025 170);
++  --color-kumo-overlay: oklch(0.155 0.011 170);
++  --color-kumo-recessed: oklch(0.1 0.012 170);
++  --color-kumo-control: oklch(0.155 0.011 170);
+   --color-kumo-contrast: var(--color-kumo-brand);
+   --color-kumo-strong: var(--color-kumo-brand-hover);
+-  --color-kumo-fill: oklch(0.225 0.025 285);
+-  --color-kumo-fill-hover: oklch(0.295 0.045 285);
+-  --color-kumo-interact: oklch(0.34 0.022 285);
+-  --color-kumo-line: oklch(0.34 0.022 285);
+-  --color-kumo-ring: oklch(0.52 0.065 285);
+-  --color-kumo-bubble-user: oklch(0.225 0.025 285);
++  --color-kumo-fill: oklch(0.225 0.025 170);
++  --color-kumo-fill-hover: oklch(0.295 0.045 170);
++  --color-kumo-interact: oklch(0.34 0.022 170);
++  --color-kumo-line: oklch(0.34 0.022 170);
++  --color-kumo-ring: oklch(0.52 0.065 170);
++  --color-kumo-bubble-user: oklch(0.225 0.025 170);
+ 
+-  --color-kumo-brand: #b84e00;
+-  --color-kumo-brand-hover: #a54200;
++  --color-kumo-brand: #e85a25;
++  --color-kumo-brand-hover: #c2410c;
+ 
+   --color-kumo-info: oklch(62.3% 0.214 259.815);
+   --color-kumo-info-tint: oklch(0.25 0.065 259.815);
+@@ -174,30 +174,30 @@
+   --color-kumo-arrow-edge: transparent;
+   --color-kumo-arrow-stroke: var(--color-kumo-line);
+ 
+-  --text-color-kumo-default: oklch(0.92 0.01 285);
+-  --text-color-kumo-default-hover: oklch(0.97 0.006 285);
++  --text-color-kumo-default: oklch(0.92 0.01 170);
++  --text-color-kumo-default-hover: oklch(0.97 0.006 170);
+   --text-color-kumo-inverse: #ffffff;
+-  --text-color-kumo-strong: oklch(0.92 0.01 285);
+-  --text-color-kumo-subtle: oklch(0.66 0.02 285);
+-  --text-color-kumo-inactive: oklch(0.58 0.025 285);
+-  --text-color-kumo-brand: #ff8a5c;
+-  --text-color-kumo-link: #ff8a5c;
++  --text-color-kumo-strong: oklch(0.92 0.01 170);
++  --text-color-kumo-subtle: oklch(0.66 0.02 170);
++  --text-color-kumo-inactive: oklch(0.58 0.025 170);
++  --text-color-kumo-brand: #ff9a6a;
++  --text-color-kumo-link: #ff9a6a;
+   --text-color-kumo-success: oklch(79.2% 0.209 151.711);
+   --text-color-kumo-danger: oklch(70.4% 0.191 22.216);
+   --text-color-kumo-warning: oklch(82.8% 0.189 84.429);
+ 
+-  --color-accent-100: #b84e00;
+-  --color-accent-200: #ff8a5c;
+-  --color-background-100: oklch(0.115 0.012 285);
+-  --color-background-200: oklch(0.155 0.011 285);
+-  --color-background-300: oklch(0.225 0.025 285);
+-  --color-foreground-100: oklch(0.92 0.01 285);
+-  --color-foreground-200: oklch(0.78 0.018 285);
+-  --color-foreground-300: oklch(0.66 0.02 285);
+-  --color-border-100: oklch(0.34 0.022 285);
+-  --color-border-100-50: oklch(0.34 0.022 285 / 0.5);
++  --color-accent-100: #e85a25;
++  --color-accent-200: #ff9a6a;
++  --color-background-100: oklch(0.115 0.012 170);
++  --color-background-200: oklch(0.155 0.011 170);
++  --color-background-300: oklch(0.225 0.025 170);
++  --color-foreground-100: oklch(0.92 0.01 170);
++  --color-foreground-200: oklch(0.78 0.018 170);
++  --color-foreground-300: oklch(0.66 0.02 170);
++  --color-border-100: oklch(0.34 0.022 170);
++  --color-border-100-50: oklch(0.34 0.022 170 / 0.5);
+   --color-selection-bg: color-mix(in srgb, var(--color-kumo-brand) 28%, transparent);
+-  --color-selection-text: oklch(0.97 0.006 285);
++  --color-selection-text: oklch(0.97 0.006 170);
+   --color-shadow-accent-light: #ff663355;
+   --color-shadow-accent-dark: #00000080;
+ 

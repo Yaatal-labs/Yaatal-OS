@@ -4,8 +4,9 @@ Yaatal's creation workspace runs on upstream [Cloudflare OS](https://github.com/
 instead of a bespoke agent runtime. The OS already ships agent chat, sandboxed Gadgets, Blueprints,
 Gatekeepers and a human review gate for agent-written code; this folder only adapts it.
 
-Customization order: `/admin` settings → `deployment.jsonc` → custom Gatekeeper → upstream fork, the
-last only for a demonstrated gap. Yaatal Engine stays the authority for identity, merchant scope,
+Customization order: `/admin` settings → `deployment.jsonc` → custom Gatekeeper → a small patch set →
+upstream fork, the last two only for a demonstrated gap. The patch set covers what the Admin API cannot
+change; `overlay.sh` applies each patch or stops if upstream moved the lines, so nothing is lost silently. Yaatal Engine stays the authority for identity, merchant scope,
 business data, payments and inference policy.
 
 ## Contents
@@ -13,7 +14,11 @@ business data, payments and inference policy.
 | Path | Purpose |
 | --- | --- |
 | `upstream.json` | Pinned starter and upstream commits, and the required toolchain |
-| `scripts/bootstrap.sh` | Clones the starter at the pin and checks out the pinned upstream |
+| `scripts/bootstrap.sh` | Clones the starter at the pin, checks out the pinned upstream, runs the overlay |
+| `scripts/overlay.sh` | Copies `gatekeepers/*` into a checkout's upstream `packages/` and applies `patches/*.patch` (re-run after edits) |
+| `patches/0001-yaatal-home-fr.patch` | What the Admin API cannot set: French home copy, Yaatal starting points, a free-tier default model |
+| `yaatal/brand/yaatal-mark.png` | Site logo (PNG, as the OS requires), applied by `apply-admin.mjs` |
+| `gatekeepers/gatekeeper-yaatal` | Read-only Engine catalog for agents and Gadgets, pinned to one merchant |
 | `yaatal/admin-settings.json` | Yaatal identity: site name, accent, announcement, agent instructions |
 | `yaatal/apply-admin.mjs` | Applies the settings through the Admin API and verifies each field |
 | `yaatal/lib.mjs` | Shared RPC sign-in and helpers (same Cap'n Web API the UI uses) |
@@ -21,6 +26,7 @@ business data, payments and inference policy.
 | `yaatal/smoke/agent-build.mjs` | One agent build per model on a fixed prompt with fictional data |
 | `yaatal/smoke/review-changes.mjs` | Prints an agent's provisional code for human review |
 | `yaatal/smoke/publish-blueprint.mjs` | Accepts reviewed changes (`--accept`), publishes and features a Blueprint |
+| `yaatal/smoke/catalog-gatekeeper.mjs` | End-to-end catalog check through the OS, no model needed |
 
 The agent instructions encode Yaatal's rules: models propose and the Engine disposes; no payments,
 orders or messages; never invent prices or stock; treat personal data as sensitive; never trust a
@@ -55,6 +61,60 @@ node yaatal/smoke/review-changes.mjs <workspaceId>
 node yaatal/smoke/publish-blueprint.mjs <workspaceId> --title "Yaatal · Live-sale prep card" --accept
 ```
 
+## Engine catalog Gatekeeper
+
+`gatekeepers/gatekeeper-yaatal` gives agents and Gadgets the products of **one** Yaatal shop, read-only:
+
+```ts
+interface YaatalCatalogSession {
+  listProducts(options?: { page?: number; category?: string }): Promise<CatalogPage>;
+  getProduct(productId: string): Promise<CatalogProduct>;
+}
+```
+
+It returns the unified shell's `CatalogProduct` / `CatalogPage` shapes, read from Engine's public
+`GET /api/catalog` (active products only).
+
+- **The deployment chooses the shop, never the model.** `YAATAL_MERCHANT_ID` is configuration and no
+  method takes a merchant. A row from another merchant fails the whole read; another merchant's
+  product id reads as "Product not found", the same as a missing one.
+- **Validated both ways.** Product ids are checked before they reach a URL; Engine must answer 200
+  JSON within 8 s and 1 MB with no redirect; image URLs with credentials or non-HTTP schemes are
+  dropped; fields outside the DTO are not passed on.
+- **Every read is an observation first.** If the person declines it, Engine is never called.
+- **Unconfigured means unavailable.** Missing or unsafe settings raise "Yaatal catalog unavailable";
+  agents are told to say so rather than invent products, prices or stock.
+- **Text is plain text.** Gadgets must escape names and descriptions before putting them in HTML.
+
+Every user sees the same public catalog, so every observer may keep what it reads. Private reads
+(inactive products, orders) need a per-user Engine sign-in and observer verification first; they are
+not part of this Gatekeeper.
+
+Configure it locally in `<starter>/cloudflare-os/packages/gatekeeper-yaatal/.dev.vars` (untracked):
+
+```sh
+YAATAL_ENGINE_URL=https://engine.example.com/   # HTTPS; plain HTTP only on localhost/127.0.0.1/[::1]
+YAATAL_MERCHANT_ID=<merchant profile id>
+```
+
+After `bootstrap.sh` (or `overlay.sh` on an existing checkout), in `<starter>/cloudflare-os`:
+
+```sh
+pnpm install
+pnpm --filter @yaatal/gatekeeper-yaatal run types:generate
+pnpm --filter @yaatal/gatekeeper-yaatal run types:check
+pnpm --filter @yaatal/gatekeeper-yaatal run test:run    # denial and leak tests, in workerd
+pnpm run-local
+```
+
+Each user opts in once (Connectors page, or `provisionAmbientAccount("yaatal")`); an admin can make it
+automatic for everyone with `setGatekeeperMode("yaatal", "enabled")`. Workspaces then get it as the
+`YAATAL_CATALOG` capsule. Check it end to end, without a model:
+
+```sh
+node yaatal/smoke/catalog-gatekeeper.mjs <workspaceId>
+```
+
 ## Observed on the pin (local run, Workers AI free tier)
 
 - Nemotron 3 Super built the live-sale prep Gadget from one prompt (141 s, no errors). Review found a
@@ -64,5 +124,7 @@ node yaatal/smoke/publish-blueprint.mjs <workspaceId> --title "Yaatal · Live-sa
   `innerHTML` unescaped; GLM invented Wolof text. Review agent code before accepting it.
 - Upstream issue cloudflare/cloudflare-os#54 (multi-turn 400s on some Workers AI models) did not
   affect these four models; `gpt-oss-120b` is reported affected.
+- The catalog Gatekeeper read a live Engine end to end (20 of 30 products in about 0.5 s); path-like
+  and unknown ids were refused, and a merchant passed in by the caller changed nothing.
 - Agent-written Wolof is unreliable: the instructions ask for an editable Wolof field rather than
   generated Wolof.

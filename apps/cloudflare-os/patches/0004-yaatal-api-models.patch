@@ -1,0 +1,171 @@
+diff --git a/packages/workshop-frontend/src/AddModelModal.tsx b/packages/workshop-frontend/src/AddModelModal.tsx
+index 2f0529e1..775ec725 100644
+--- a/packages/workshop-frontend/src/AddModelModal.tsx
++++ b/packages/workshop-frontend/src/AddModelModal.tsx
+@@ -15,6 +15,21 @@ interface AddModelModalProps {
+ type SelectionType =
+   | { type: 'suggested', provider: AiModelProvider, modelId: string, displayName: string }
+   | { type: 'custom', provider: AiModelProvider }
++  // Yaatal: the Yaatal API, OpenAI-compatible (chat completions) and billed in FCFA from the
++  // user's own key. It rides the provider that speaks chat completions to any base URL.
++  | { type: 'yaatal', provider: 'ollama', modelId: string, displayName: string }
++
++// The Yaatal API origin, set at build time. Empty hides the Yaatal option.
++const YAATAL_API_URL = String(import.meta.env.VITE_YAATAL_API_URL ?? '').replace(/\/+$/, '')
++
++type YaatalModel = { id: string, tier: string, pricing: { input_per_million: number, output_per_million: number } }
++
++const fcfa = (n: number) => new Intl.NumberFormat('fr-FR').format(n)
++
++// "yaatal/nemotron-3-super" -> "Nemotron 3 Super"
++function yaatalName(id: string): string {
++  return id.replace(/^yaatal\//, '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
++}
+ 
+ const PROVIDER_LABELS: Record<AiModelProvider, string> = {
+   anthropic: 'Anthropic',
+@@ -50,6 +65,10 @@ function encodeSelection(provider: AiModelProvider, modelId?: string): string {
+ 
+ // Decode a Select value back into a SelectionType.
+ function decodeSelection(value: string): SelectionType {
++  if (value.startsWith('yaatal:')) {
++    const modelId = value.substring(7)
++    return { type: 'yaatal', provider: 'ollama', modelId, displayName: yaatalName(modelId) }
++  }
+   if (value.startsWith('other-')) {
+     return { type: 'custom', provider: value.substring(6) as AiModelProvider }
+   }
+@@ -61,8 +80,18 @@ function decodeSelection(value: string): SelectionType {
+ }
+ 
+ // Build the flat list of options for the Select dropdown.
+-function buildOptions(gatewayMode: boolean, enabledProviders: Set<string> | null) {
++function buildOptions(gatewayMode: boolean, enabledProviders: Set<string> | null, yaatalModels: YaatalModel[]) {
+   const options: { value: string; label: string; provider: string }[] = []
++  // Yaatal first: every call is billed in FCFA to the user's own balance.
++  if (!gatewayMode) {
++    for (const model of yaatalModels) {
++      options.push({
++        value: `yaatal:${model.id}`,
++        label: `${yaatalName(model.id)} · ${fcfa(model.pricing.input_per_million)} / ${fcfa(model.pricing.output_per_million)} FCFA par 1M tokens`,
++        provider: 'yaatal',
++      })
++    }
++  }
+   const providerOrder = Object.keys(SUGGESTED_MODELS) as AiModelProvider[]
+ 
+   for (const provider of providerOrder) {
+@@ -109,6 +138,18 @@ export default function AddModelModal({ visible, onCancel, onSuccess, authentica
+   // Advanced settings collapsible state
+   const [advancedOpen, setAdvancedOpen] = useState(false)
+ 
++  // Models and prices from the Yaatal API (public list, no key needed).
++  const [yaatalModels, setYaatalModels] = useState<YaatalModel[]>([])
++  useEffect(() => {
++    if (!visible || !YAATAL_API_URL || aiConfig?.enabled === true) return
++    let live = true
++    fetch(`${YAATAL_API_URL}/v1/models`)
++      .then(r => (r.ok ? r.json() : { data: [] }))
++      .then((list: { data?: YaatalModel[] }) => { if (live) setYaatalModels(list.data ?? []) })
++      .catch(() => { if (live) setYaatalModels([]) })
++    return () => { live = false }
++  }, [visible, aiConfig])
++
+   const gatewayMode = aiConfig?.enabled === true
+   const enabledProviders: Set<string> | null = gatewayMode
+     ? new Set(aiConfig.enabledProviders)
+@@ -138,13 +179,16 @@ export default function AddModelModal({ visible, onCancel, onSuccess, authentica
+     if (sel.type === 'custom') {
+       setModelId('')
+       setDisplayName('')
++    } else if (sel.type === 'yaatal') {
++      setModelId(sel.modelId)
++      setDisplayName(sel.displayName)
+     } else {
+       setModelId(sel.modelId)
+       setDisplayName(sel.displayName)
+     }
+     setApiToken('')
+     setAccountId('')
+-    setApiUrl(sel.provider === 'ollama' ? 'http://localhost:11434' : '')
++    setApiUrl(sel.type === 'yaatal' ? YAATAL_API_URL : sel.provider === 'ollama' ? 'http://localhost:11434' : '')
+   }
+ 
+   const validate = (): boolean => {
+@@ -167,6 +211,10 @@ export default function AddModelModal({ visible, onCancel, onSuccess, authentica
+       newErrors.apiToken = 'Please enter your API token'
+     }
+ 
++    if (showCredentials && selection?.type === 'yaatal' && !apiToken.trim().startsWith('yk_')) {
++      newErrors.apiToken = 'Collez votre clé API Yaatal (elle commence par yk_)'
++    }
++
+     if (showCredentials && isCloudflare && !accountId.trim()) {
+       newErrors.accountId = 'Please enter your Cloudflare account ID'
+     }
+@@ -184,7 +232,7 @@ export default function AddModelModal({ visible, onCancel, onSuccess, authentica
+ 
+     setLoading(true)
+     try {
+-      const isSuggested = selection!.type === 'suggested'
++      const isSuggested = selection!.type !== 'custom'
+       const finalModelId = isSuggested ? selection!.modelId : modelId.trim()
+       const finalDisplayName = isSuggested ? selection!.displayName : displayName.trim()
+ 
+@@ -213,7 +261,8 @@ export default function AddModelModal({ visible, onCancel, onSuccess, authentica
+     }
+   }
+ 
+-  const options = buildOptions(gatewayMode, enabledProviders)
++  const options = buildOptions(gatewayMode, enabledProviders, yaatalModels)
++  const isYaatal = selection?.type === 'yaatal'
+   const showCustomFields = selection?.type === 'custom'
+   const example = selection ? exampleModel(selection.provider) : null
+   const isOllama = selection?.provider === 'ollama'
+@@ -258,7 +307,7 @@ export default function AddModelModal({ visible, onCancel, onSuccess, authentica
+                   <div className="h-px bg-kumo-line my-1 mx-2" />
+                 )}
+                 <div className="px-3 py-1.5 text-xs font-medium text-kumo-subtle select-none">
+-                  {PROVIDER_LABELS[group.provider as AiModelProvider] || group.provider}
++                  {group.provider === 'yaatal' ? 'Yaatal · facturé en FCFA' : PROVIDER_LABELS[group.provider as AiModelProvider] || group.provider}
+                 </div>
+                 {group.items.map(opt => (
+                   <Select.Option key={opt.value} value={opt.value}>
+@@ -310,10 +359,12 @@ export default function AddModelModal({ visible, onCancel, onSuccess, authentica
+           {/* API Token */}
+           {showCredentials && selection && (
+             <SensitiveInput
+-              label="API Token"
+-              placeholder={API_TOKEN_PLACEHOLDERS[selection.provider]}
++              label={isYaatal ? 'Clé API Yaatal' : 'API Token'}
++              placeholder={isYaatal ? 'yk_...' : API_TOKEN_PLACEHOLDERS[selection.provider]}
+               description={
+-                isOllama
++                isYaatal
++                  ? 'Chaque réponse est décomptée de votre solde en FCFA. Votre clé reste sur votre compte.'
++                  : isOllama
+                   ? 'Optional for local Ollama access'
+                   : isCloudflare
+                   ? 'An API token with Workers AI Read + Edit permissions (in the dashboard: Workers AI > Use REST API > Create a Workers AI API Token)'
+@@ -327,7 +378,7 @@ export default function AddModelModal({ visible, onCancel, onSuccess, authentica
+           )}
+ 
+           {/* Ollama API URL (always visible for Ollama) */}
+-          {showCredentials && isOllama && (
++          {showCredentials && isOllama && !isYaatal && (
+             <Input
+               label="API URL"
+               placeholder="http://localhost:11434"
+diff --git a/packages/workshop-frontend/src/vite-env.d.ts b/packages/workshop-frontend/src/vite-env.d.ts
+index 209f5de1..07a3cad0 100644
+--- a/packages/workshop-frontend/src/vite-env.d.ts
++++ b/packages/workshop-frontend/src/vite-env.d.ts
+@@ -8,6 +8,8 @@ interface ImportMetaEnv {
+   // In this mode, password-based login/signup is disabled and the app authenticates
+   // via the CF Access JWT that Access injects into requests before they reach the server.
+   readonly VITE_CF_ACCESS_MODE?: string;
++  /** Yaatal: the Yaatal API origin; when set, "Add AI Model" offers its models billed in FCFA. */
++  readonly VITE_YAATAL_API_URL?: string;
+ }
+ 
+ interface ImportMeta {

@@ -1,0 +1,40 @@
+diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index 1aa9d1a..0817901 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -1,6 +1,8 @@
+ packages:
+   - cloudflare-os/packages/workshop-shared
+   - cloudflare-os/packages/error-reporting
++  # error-reporting depends on it from upstream a43210a on.
++  - cloudflare-os/scripts
+   - packages/*
+ 
+ # Mirror of cloudflare-os/pnpm-workspace.yaml's catalog. Required, not merely tidy: the two
+@@ -15,10 +17,12 @@ packages:
+ # split installs in CI and on a fresh checkout do not. See
+ # cloudflare-os/docs/integration-testing.md.
+ catalog:
+-  '@cloudflare/vitest-pool-workers': ^0.20.2
+-  capnweb: ^0.11.1
++  '@cloudflare/vitest-pool-workers': ^0.22.0
++  capnweb: ^0.12.0
++  # Needed by the submodule's workshop-shared from upstream a43210a on.
++  '@cloudflare/workers-types': ^5.20260903.1
+   # Exact: pinned in lockstep with capnweb (declared as a >=0.7.0 peer)
+-  capnweb-validate: 0.2.4
++  capnweb-validate: 0.3.0
+   # Exact: TypeScript 7 (tsgo). The submodule's tsconfig sets `singleThreaded`, which TS 5.9
+   # rejects outright, so every package extending it has to be on 7.x. Nothing here uses the JS
+   # compiler API, so the submodule's `typescript6` alias is not needed.
+@@ -27,8 +31,8 @@ catalog:
+   # decorators capnweb-validate's `@validateRpc()` relies on (cloudflare/workers-sdk#12626).
+   vite: 7.3.6
+   vite-plus: ^0.2.8
+-  vitest: ^4.1.10
+-  wrangler: ^4.119.0
++  vitest: ^4.1.11
++  wrangler: ^4.128.0
+ 
+ overrides:
+   # Vitest peers can resolve vite@latest, so the version is pinned rather than ranged. Points at the
