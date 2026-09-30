@@ -6,4 +6,4 @@ const root = document.getElementById("app");
 if (root) {
   initMarcheApp(root);
 }
-registerServiceWorker();
+registerServiceWorker(import.meta.env.VITE_CATALOGUE_URL);

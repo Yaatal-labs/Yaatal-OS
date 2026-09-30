@@ -16,7 +16,7 @@ permission/consent machinery. It is not wired to WhatsApp sign-in or real paymen
 cd apps/marche
 pnpm install
 pnpm dev      # http://localhost:5173 — the catalogue, with the seed apps below
-pnpm test     # vitest — 37 tests today
+pnpm test     # vitest — 45 tests today
 pnpm check    # tsc --noEmit
 pnpm build    # type-check, then produce dist/ (see "Build output" below)
 ```
@@ -27,6 +27,24 @@ each clearly named "(exemple)" so they can never be mistaken for a real listing.
 domains that don't resolve, so "Ouvrir" on one of them will fail to load in a browser — that's
 expected; the catalogue, search, category filter, and the permissions shown on the detail page
 all work without it.
+
+## Catalogue source
+
+By default the catalogue is the bundled `public/catalogue.json` above. Set `VITE_CATALOGUE_URL`
+(a build-time env var, e.g. in `.env.local` or on the `pnpm build`/`pnpm dev` invocation) to the
+origin of a running `apps/marche-api` Worker to fetch the live, founder-approved catalogue from
+`${VITE_CATALOGUE_URL}/v1/catalogue` instead:
+
+```sh
+VITE_CATALOGUE_URL=http://localhost:8787 pnpm dev
+```
+
+If that fetch fails for any reason — offline, misconfigured, the API down, a malformed response
+— it falls back to the bundled `catalogue.json`, same as when the variable is unset (see
+`src/catalogue/source.ts`). Either way, every entry still goes through `validateAppManifest`
+(via `loadCatalogue`) before it's shown; an invalid one is dropped, not crashed on. The service
+worker caches whichever catalogue is actually in use — remote or local — for offline use (see
+`public/sw.js`).
 
 ## Build output
 
