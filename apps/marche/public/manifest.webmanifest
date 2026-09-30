@@ -1,0 +1,16 @@
+{
+  "name": "Kairmel Marché",
+  "short_name": "Marché",
+  "description": "Marché Kairmel : retrouvez et ouvrez les apps publiées avec Créer.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["shopping", "utilities"],
+  "icons": [
+    { "src": "./icons/marche-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
