@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src __KAIRMEL_ORIGIN__; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>Kairmel — hors ligne</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+        background: #0f1115;
+        color: #f4f4f5;
+        text-align: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      main {
+        max-width: 420px;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+      }
+      p {
+        color: #a1a1aa;
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+      }
+      button {
+        font-size: 1rem;
+        padding: 0.6rem 1.4rem;
+        border-radius: 8px;
+        border: none;
+        background: #f4f4f5;
+        color: #0f1115;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Kairmel est injoignable</h1>
+      <p>Vérifiez votre connexion internet, puis réessayez.</p>
+      <button id="retry" type="button">Réessayer</button>
+    </main>
+    <script type="module">
+      import { wireRetryButton } from "./offline.mjs";
+
+      const KAIRMEL_URL = "__KAIRMEL_URL__";
+
+      wireRetryButton({
+        button: document.getElementById("retry"),
+        kairmelUrl: KAIRMEL_URL,
+        navigate: (url) => {
+          window.location.href = url;
+        },
+      });
+    </script>
+  </body>
+</html>

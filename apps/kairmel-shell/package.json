@@ -1,0 +1,17 @@
+{
+  "name": "@yaatal/kairmel-shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Thin Tauri 2 desktop shell that hosts the Kairmel web app.",
+  "scripts": {
+    "build": "node scripts/build-static.mjs",
+    "dev": "tauri dev",
+    "tauri": "tauri",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.2",
+    "vitest": "^3.2.4"
+  }
+}
