@@ -6,11 +6,15 @@ export interface KeyValueStorage {
 }
 
 /**
- * The host's per-device id. It is random, generated once, and stored locally — there is no
- * account behind it yet. `deriveAppUserId` below turns it into a per-app id that never
- * reveals the phone number. Once WhatsApp sign-in ships, this is replaced by the signed-in
- * user's stable account id; every id derived from today's device id changes when that
- * happens, so mini-apps must treat `identity()` as "stable for now", not "permanent".
+ * The host's per-device id: random, generated once, stored locally, no account behind it.
+ * `deriveAppUserId` below turns it into a per-app id that never reveals the phone number.
+ *
+ * This is **not** what `identity()` uses any more — WhatsApp sign-in shipped, and the real
+ * identity comes from the signed-in session instead (`host/identity-provider.ts`'s
+ * `SessionIdentityProvider`, backed by marche-api's `GET /v1/me/identity`). What's here now
+ * backs only the explicit dev-only fallback (`DeviceIdentityProvider` in the same file,
+ * gated by `VITE_DEV_PLACEHOLDER_IDENTITY` — see `src/vite-env.d.ts`), kept so `pnpm dev` in
+ * this app can still exercise `identity()` without a running marche-api + Engine.
  */
 export function getOrCreateDeviceId(storage: KeyValueStorage): string {
   const existing = storage.getItem(DEVICE_ID_STORAGE_KEY);

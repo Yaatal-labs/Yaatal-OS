@@ -3,12 +3,26 @@ import { attachBridgeHost } from "../src/host/bridge-host";
 import { createKairmelBridge, type BridgeWindow } from "../src/bridge/kairmel-bridge";
 import { KAIRMEL_PROTOCOL } from "../src/bridge/protocol";
 import { InMemoryConsentStore } from "../src/host/consent";
-import { deriveAppUserId } from "../src/host/identity";
+import type { IdentityProvider } from "../src/host/identity-provider";
 import type { AppManifest } from "../src/manifest/types";
 import { createFakeWindow, linkWindows } from "./helpers/fake-window";
 
 const HOST_ORIGIN = "https://marche.kairmel.test";
 const APP_ORIGIN = "https://boutique-express.example.com";
+
+/** A fake `IdentityProvider` (see host/identity-provider.ts): signed in by default, resolving to
+ *  a deterministic `id-for-<appId>` -- enough to exercise the bridge's own logic without pulling
+ *  in either real implementation (both of which talk to a real fetch/localStorage). */
+function fakeIdentityProvider(
+  options: { signedIn?: boolean; idFor?: (appId: string) => string } = {},
+): IdentityProvider & { isSignedIn: ReturnType<typeof vi.fn>; getIdentity: ReturnType<typeof vi.fn> } {
+  const signedIn = options.signedIn ?? true;
+  const idFor = options.idFor ?? ((appId: string) => `id-for-${appId}`);
+  return {
+    isSignedIn: vi.fn(async () => signedIn),
+    getIdentity: vi.fn(async (appId: string) => idFor(appId)),
+  };
+}
 
 function manifestWith(permissions: AppManifest["permissions"]): AppManifest {
   return {
@@ -26,7 +40,7 @@ function manifestWith(permissions: AppManifest["permissions"]): AppManifest {
 function setUp(
   manifest: AppManifest,
   requestIdentityConsent = vi.fn(async () => true),
-  options: { link?: boolean } = {},
+  options: { link?: boolean; identityProvider?: IdentityProvider } = {},
 ) {
   const host = createFakeWindow(HOST_ORIGIN);
   const frame = createFakeWindow(APP_ORIGIN);
@@ -40,12 +54,13 @@ function setUp(
   const share = vi.fn(async () => {
     /* no-op web-share */
   });
+  const identityProvider = options.identityProvider ?? fakeIdentityProvider();
 
   const detach = attachBridgeHost({
     manifest,
     frameWindow: frame,
     appOrigin: APP_ORIGIN,
-    deviceId: "device-abc",
+    identityProvider,
     consent,
     requestIdentityConsent,
     shareWindow: { navigator: { share } },
@@ -60,7 +75,7 @@ function setUp(
   };
   const bridge = createKairmelBridge(appWindow);
 
-  return { host, frame, consent, share, detach, bridge };
+  return { host, frame, consent, share, detach, bridge, identityProvider };
 }
 
 describe("bridge origin checks — host side", () => {
@@ -212,7 +227,7 @@ describe("permission enforcement, end to end through the bridge", () => {
 
     expect(consentPrompt).toHaveBeenCalledTimes(1);
     expect(first.userId).toBe(second.userId);
-    expect(first.userId).toBe(await deriveAppUserId("device-abc", "boutique-express"));
+    expect(first.userId).toBe("id-for-boutique-express");
   });
 
   it("asks again next time if the person said no", async () => {
@@ -230,5 +245,37 @@ describe("permission enforcement, end to end through the bridge", () => {
     const result = await bridge.share({ title: "Bazin", url: "https://boutique-express.example.com/p/1" });
     expect(result).toEqual({ shared: true, method: "web-share" });
     expect(share).toHaveBeenCalledWith({ title: "Bazin", url: "https://boutique-express.example.com/p/1" });
+  });
+});
+
+describe("identity() requires sign-in (host/identity-provider.ts)", () => {
+  it("rejects with not_signed_in when the identity provider reports signed out, and never prompts for consent", async () => {
+    const consentPrompt = vi.fn(async () => true);
+    const identityProvider = fakeIdentityProvider({ signedIn: false });
+    const { bridge } = setUp(manifestWith(["identity"]), consentPrompt, { identityProvider });
+
+    await expect(bridge.identity()).rejects.toMatchObject({ code: "not_signed_in" });
+    expect(consentPrompt).not.toHaveBeenCalled();
+    expect(identityProvider.getIdentity).not.toHaveBeenCalled();
+  });
+
+  it("still checks the declared permission before ever checking sign-in state", async () => {
+    const identityProvider = fakeIdentityProvider({ signedIn: false });
+    const { bridge } = setUp(manifestWith(["share"]), undefined, { identityProvider });
+
+    await expect(bridge.identity()).rejects.toMatchObject({ code: "permission_denied" });
+    expect(identityProvider.isSignedIn).not.toHaveBeenCalled();
+  });
+
+  it("proceeds normally (consent, then the real id) once signed in", async () => {
+    const consentPrompt = vi.fn(async () => true);
+    const identityProvider = fakeIdentityProvider({ signedIn: true, idFor: () => "whatsapp-backed-id" });
+    const { bridge } = setUp(manifestWith(["identity"]), consentPrompt, { identityProvider });
+
+    const result = await bridge.identity();
+
+    expect(identityProvider.isSignedIn).toHaveBeenCalledTimes(1);
+    expect(consentPrompt).toHaveBeenCalledTimes(1);
+    expect(result.userId).toBe("whatsapp-backed-id");
   });
 });
