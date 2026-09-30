@@ -1,10 +1,15 @@
 import { BRAND_NAME } from "../brand";
 import { filterByCategory, listCategories, loadCatalogue, searchApps } from "../catalogue/catalogue";
+import { resolveCatalogueSource } from "../catalogue/source";
 import type { AppManifest } from "../manifest/types";
 import { attachBridgeHost } from "../host/bridge-host";
 import { LocalStorageConsentStore, type ConsentStore } from "../host/consent";
 import { getOrCreateDeviceId, type KeyValueStorage } from "../host/identity";
 import { PERMISSION_LABELS_FR } from "./labels";
+
+/** Build-time catalogue source (see src/vite-env.d.ts and src/catalogue/source.ts). Unset ->
+ *  the bundled catalogue.json is used, same as before this was configurable. */
+const CATALOGUE_URL = import.meta.env.VITE_CATALOGUE_URL;
 
 /** Permissions this iframe sandbox grants, and why each one is needed:
  *   - allow-scripts       the mini-app is a web app; it needs to run JS at all.
@@ -212,8 +217,7 @@ export function initMarcheApp(root: HTMLElement): void {
     runnerEl.innerHTML = "";
   }
 
-  fetch("./catalogue.json")
-    .then((response) => response.json())
+  resolveCatalogueSource(fetch, CATALOGUE_URL)
     .then((raw) => {
       const result = loadCatalogue(raw);
       apps = result.apps;
