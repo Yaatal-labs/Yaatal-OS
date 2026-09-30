@@ -5,7 +5,7 @@
 
 import Html5QrcodeScanner from 'html5-qrcode/esm/html5-qrcode-scanner'
 import { Html5QrcodeScanType, Html5QrcodeCameraScanConfig } from 'html5-qrcode'
-import { parseBoboProductLink } from '@njooba/core'
+import { parseBoboProductLink } from '@yaatal/core'
 
 export interface QRScannerProps {
   onScan: (data: string) => void

@@ -1,32 +1,415 @@
-:root { color: #f6f2e9; background: #111612; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+:root {
+  color-scheme: light;
+  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  --canvas: #f4f0e6;
+  --surface: #fbf8f0;
+  --raised: #fffdf8;
+  --ink: #1d211d;
+  --muted: #686a61;
+  --forest: #214d3b;
+  --forest-soft: #dce6dc;
+  --bronze: #9a7444;
+  --live: #bc4a2e;
+  --border: #ddd5c5;
+  --border-strong: #c7bda9;
+  /* Contract: prefer separators and spacing over stacked cards and shadows.
+     Kept as a token so transient surfaces (menus, sheets) can still lift. */
+  --shadow: none;
+  --lift: 0 12px 36px rgb(62 49 31 / 8%);
+}
+
+/* Three theme states, not two. An explicit choice stamps data-theme; the default
+   system state stamps nothing, so without this media query a user whose OS is dark
+   sees the light palette until they find the toggle. Guarded so an explicit light
+   choice still beats a dark OS. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --canvas: #101412;
+    --surface: #171c18;
+    --raised: #20261f;
+    --ink: #f1e8d5;
+    --muted: #b9b09d;
+    --forest: #315e49;
+    --forest-soft: #203329;
+    --bronze: #b68b50;
+    --live: #d45832;
+    --border: #514633;
+    --border-strong: #6b5b41;
+    --shadow: none;
+  --lift: 0 14px 40px rgb(0 0 0 / 22%);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #101412;
+  --surface: #171c18;
+  --raised: #20261f;
+  --ink: #f1e8d5;
+  --muted: #b9b09d;
+  --forest: #315e49;
+  --forest-soft: #203329;
+  --bronze: #b68b50;
+  --live: #d45832;
+  --border: #514633;
+  --border-strong: #6b5b41;
+  --shadow: 0 14px 40px rgb(0 0 0 / 22%);
+}
+
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
-button, input { font: inherit; }
-button { cursor: pointer; border: 0; border-radius: 999px; background: #e8bd56; color: #17130a; font-weight: 750; padding: 0.75rem 1rem; }
-button:hover { background: #f6ce6d; }
-a { color: #f5ca60; font-weight: 700; }
-.shell { min-height: 100vh; padding: clamp(1.5rem, 5vw, 4rem); background: radial-gradient(circle at top right, #234735, transparent 45%), #111612; }
-.shop-shell { background: radial-gradient(circle at top right, #3f294f, transparent 45%), #16131c; }
-header { align-items: baseline; display: flex; justify-content: space-between; border-bottom: 1px solid #ffffff24; padding-bottom: 1rem; }
-.brand, .eyebrow { color: #b5c5aa; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.11em; margin: 0; text-transform: uppercase; }
-.window-name { color: #f6f2e9b8; font-size: 0.9rem; margin: 0; }
-.hero { max-width: 44rem; padding: 5rem 0 2rem; }
-h1 { font-family: Georgia, serif; font-size: clamp(2.6rem, 8vw, 5rem); line-height: 0.98; letter-spacing: -0.05em; margin: 0.7rem 0 1rem; }
-.hero > p:last-child, .status-card > p:last-child, .shop-target > p:last-child { color: #d4d8ce; line-height: 1.6; }
-.status-card, .shop-target { background: #f6f2e9; border-radius: 1.1rem; color: #172017; max-width: 38rem; padding: 1.25rem; }
-.status-card .eyebrow, .shop-target .eyebrow { color: #52644f; }
-.status-row { align-items: center; display: flex; font-size: 1.45rem; justify-content: space-between; margin: 0.5rem 0; }
-.signal { background: #dd6b35; border-radius: 50%; height: 0.75rem; width: 0.75rem; }
-.status-ready .signal { background: #3b9954; }
-.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
-.message { color: #f7c6ab; min-height: 1.4rem; }
-.cockpit-slot { margin-top: 1.5rem; }
-.cockpit-region { border: 1px solid #ffffff24; border-radius: 1.1rem; min-height: 9rem; overflow: hidden; background: #080b09; }
-.cockpit-region > p { color: #a9b1a7; margin: 0; padding: 2rem; }
-.cockpit-region iframe { border: 0; display: block; height: min(62vh, 720px); min-height: 520px; width: 100%; }
-.shop-target { margin-top: 1rem; }
-#shop-url { color: #586355; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
-.product-form { display: grid; gap: 0.65rem; margin-top: 1.5rem; max-width: 30rem; }
-.product-form input { border: 1px solid #ffffff45; border-radius: 0.6rem; padding: 0.75rem; }
-.product-form button { justify-self: start; }
-@media (max-width: 560px) { header { align-items: flex-start; flex-direction: column; gap: 0.4rem; } .hero { padding-top: 3.5rem; } }
+html, body, #app { height: 100%; }
+body { margin: 0; min-width: 320px; overflow: hidden; background: var(--canvas); color: var(--ink); }
+button, input { color: inherit; font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, iframe:focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }
+button:disabled { cursor: default; }
+
+.os-app {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  height: 100vh;
+  background: var(--canvas);
+}
+
+.os-rail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 18px 14px 14px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.os-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 42px;
+  padding: 0 10px;
+  color: var(--forest);
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.os-mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--bronze);
+  border: 1px solid var(--bronze);
+  border-radius: 50% 50% 46% 46%;
+  font-family: Georgia, serif;
+  font-size: 16px;
+}
+
+.os-nav { display: flex; flex: 1; flex-direction: column; gap: 5px; margin-top: 32px; }
+.os-nav button, .os-settings {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  text-align: left;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.os-nav button svg, .os-settings svg, .os-theme svg {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+.os-nav button:hover:not(:disabled), .os-settings:hover:not(:disabled) { color: var(--ink); background: var(--raised); }
+.os-nav button.active { color: var(--ink); background: var(--forest-soft); border-color: color-mix(in srgb, var(--forest) 22%, transparent); }
+.os-nav button.active svg { color: var(--forest); }
+.os-nav button:disabled { opacity: .46; }
+.os-nav small { margin-left: auto; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.os-settings { margin-top: 12px; border-top: 1px solid var(--border); border-radius: 0; opacity: .68; }
+
+/* The reference puts a collapse control at the foot of the rail. Without it the
+   rail only narrows at a breakpoint, so on a wide screen the user cannot reclaim
+   the 224px even when the workspace needs it. */
+.os-collapse {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 9px 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+.os-collapse:hover { color: var(--ink); }
+.os-collapse svg { flex: 0 0 auto; width: 20px; height: 20px; fill: none;
+  stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+  transition: transform 160ms ease; }
+.os-app[data-rail="collapsed"] .os-collapse svg { transform: rotate(180deg); }
+
+/* Collapsed is a state the user chose, so it must beat the viewport breakpoint. */
+.os-app[data-rail="collapsed"] { grid-template-columns: 72px minmax(0, 1fr); }
+.os-app[data-rail="collapsed"] .os-brand { justify-content: center; padding: 0; }
+.os-app[data-rail="collapsed"] .os-brand > span:last-child,
+.os-app[data-rail="collapsed"] .os-nav button span,
+.os-app[data-rail="collapsed"] .os-nav small,
+.os-app[data-rail="collapsed"] .os-settings span,
+.os-app[data-rail="collapsed"] .os-collapse span { display: none; }
+.os-app[data-rail="collapsed"] .os-nav button,
+.os-app[data-rail="collapsed"] .os-settings,
+.os-app[data-rail="collapsed"] .os-collapse { justify-content: center; padding-inline: 0; }
+
+.os-workspace { display: flex; min-width: 0; flex-direction: column; }
+.os-topbar {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  /* minmax(0, ...) on BOTH flanking columns. They were plain 1fr, and a 1fr track
+     refuses to shrink below its content, so the EMPTY spacer on the left still
+     claimed half the free space. That squeezed the account bar column below what
+     its nowrap children needed, and they overflowed leftward across the segments.
+     A spacer should collapse first; now it can. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 9px 20px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+.os-segments {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* was a hard 316px, which overflowed unaided once the rail collapsed. */
+  width: clamp(200px, 32vw, 316px);
+  padding: 3px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--canvas);
+}
+.os-segments button {
+  min-height: 36px;
+  min-width: 0;
+  padding: 6px 24px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.os-segments button.active { color: #fff8e9; background: var(--forest); }
+.os-accountbar { grid-column: 3; display: flex; align-items: center; justify-content: flex-end; gap: 15px; min-width: 0; overflow: hidden; }
+/* Every item may shrink and text truncates instead of widening the row. Without
+   min-width:0 a nowrap flex item keeps its full content width and overflows. */
+.os-connection, .os-language {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.os-connection i, .os-avatar, .os-theme { flex: 0 0 auto; }
+.os-connection span { overflow: hidden; text-overflow: ellipsis; }
+.os-connection i { width: 8px; height: 8px; border-radius: 50%; background: var(--bronze); }
+.os-connection i[data-state="ready"] { background: #5f9e73; }
+.os-connection i[data-state="failed"] { background: var(--live); }
+.os-language { padding-left: 14px; border-left: 1px solid var(--border); }
+/* The reference separates the account cluster from status with a rule rather than
+   spacing alone, which keeps the two readable when the bar tightens. */
+.os-profile { border-left: 1px solid var(--border); margin-left: 2px; }
+.os-theme {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+.os-theme:hover { color: var(--ink); background: var(--raised); }
+.os-profile { display: flex; flex: 0 1 auto; align-items: center; gap: 9px; min-width: 0; padding: 3px 0 3px 8px; background: transparent; border: 0; text-align: left; }
+.os-profile > span:last-child { display: flex; min-width: 0; flex-direction: column; }
+.os-profile strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.os-profile small { color: var(--muted); font-size: 10px; }
+.os-profile[data-session="active"] .os-avatar { background: var(--accent); color: #141613; }
+
+/* ── UXR-04: OS login dialog ─────────────────────────────── */
+#os-login-dialog { width: min(380px, calc(100vw - 48px)); border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 22px; }
+#os-login-dialog::backdrop { background: rgba(8,10,8,.62); }
+#os-login-dialog form { display: grid; gap: 10px; }
+#os-login-dialog h2 { margin: 0; font-family: "Newsreader", Georgia, serif; font-size: 21px; font-weight: 650; }
+#os-login-dialog p { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+#os-login-dialog label { font-size: 11px; font-weight: 700; }
+#os-login-dialog input { width: 100%; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--raised); color: var(--ink); font-size: 13px; }
+#os-login-dialog input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.os-login-error { color: var(--live) !important; min-height: 16px; }
+.os-login-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.os-login-cancel { padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: 8px; background: transparent; color: var(--ink); font-size: 12px; font-weight: 700; }
+.os-login-submit { padding: 8px 18px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: #141613; font-size: 12px; font-weight: 800; }
+.os-login-submit:disabled { opacity: .55; cursor: wait; }
+.os-eyebrow { font-size: 9.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+.os-avatar { display: grid; place-items: center; width: 32px; height: 32px; color: #fff8e9; background: var(--forest); border-radius: 50%; font-family: Georgia, serif; }
+
+/* min-width:0 as well as min-height:0 - a grid/flex child without it refuses to go
+   below its content size, which is how an inner pane pushes the whole shell wider. */
+.os-pane { flex: 1; min-width: 0; min-height: 0; overflow: hidden; background: var(--canvas); }
+.eyebrow { margin: 0; color: var(--bronze); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+
+/* The reference opens each workspace with a serif title, a state pill and one
+   primary action on the right. That header is shell chrome: it stays put while the
+   embedded surface changes underneath, which is what makes the two feel like one
+   application rather than a page in a frame. */
+.workspace-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 4px 0 12px;
+}
+.workspace-head h1 {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--live);
+  background: color-mix(in srgb, var(--live) 12%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.workspace-pill i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.workspace-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  min-height: 40px;
+  padding: 8px 16px;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.workspace-action:hover { border-color: var(--forest); color: var(--forest); }
+
+.sell-stage { display: flex; height: 100%; min-height: 0; flex-direction: column; padding: 0 20px 18px; }
+.sell-modebar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; min-height: 58px; gap: 16px; }
+.sell-context { display: flex; align-items: baseline; gap: 10px; }
+.sell-context { min-width: 0; }
+.sell-context strong { overflow: hidden; font-family: "Newsreader", Georgia, serif; font-size: 22px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.sell-mode-actions { display: flex; align-items: center; gap: 8px; }
+.sell-mode { display: flex; gap: 2px; padding: 3px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; }
+.sell-mode button, .sell-diag-toggle, .actions button {
+  min-height: 34px;
+  padding: 6px 13px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.sell-mode button.active { color: #fff8e9; background: var(--forest); }
+.sell-diag-toggle { border-color: var(--border); }
+.sell-diag-toggle:hover { color: var(--ink); background: var(--raised); }
+.sell-main { flex: 1; min-width: 0; min-height: 0; overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+.sell-main iframe { display: block; width: 100%; height: 100%; border: 0; background: var(--surface); }
+/* Was margin: 8vh auto inside an overflow:hidden parent, so on a short window the
+   card was pushed down and clipped with no way to scroll to it. The parent centres
+   it now and scrolls if it cannot fit. */
+.sell-main:has(> .sell-utility) { display: grid; place-items: center; overflow: auto; }
+.sell-utility { max-width: 620px; margin: 0 auto; padding: 34px; }
+.sell-utility h2 { margin: 10px 0; font-family: "Newsreader", Georgia, serif; font-size: 28px; font-weight: 600; }
+.sell-utility p:last-child { color: var(--muted); line-height: 1.65; }
+.sell-diagnostics { flex: 0 0 auto; padding-top: 10px; }
+.sell-diagnostics[hidden] { display: none; }
+.status-card { padding: 14px 16px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.status-row { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.signal { width: 8px; height: 8px; border-radius: 50%; background: var(--live); }
+.status-ready .signal { background: #5f9e73; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.actions button { color: #fff8e9; background: var(--forest); }
+.message { min-height: 16px; color: var(--live); font-size: 12px; }
+.sell-shell { display: grid; min-height: 100%; place-items: center; padding: 28px; }
+.readiness-card { width: min(460px, 100%); padding: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+.readiness-card h1 { margin: 8px 0; font-family: "Newsreader", Georgia, serif; font-size: 30px; font-weight: 600; }
+.readiness-card p { color: var(--muted); line-height: 1.55; }
+.spinner { width: 28px; height: 28px; margin-bottom: 16px; border: 3px solid var(--border); border-top-color: var(--forest); border-radius: 50%; animation: sell-spin 1s linear infinite; }
+@keyframes sell-spin { to { transform: rotate(360deg); } }
+
+.shop-stage, .shop-main { height: 100%; min-height: 0; }
+.shop-main { padding: 18px 20px; }
+.shop-main iframe { display: block; width: 100%; height: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+
+/* Shed chrome in order of expendability BEFORE anything is forced to overlap. One
+   1080px breakpoint was too coarse: between roughly 900 and 1200 the account bar
+   still wanted more room than its track could give. */
+@media (max-width: 1240px) {
+  .os-language { display: none; }
+}
+@media (max-width: 1140px) {
+  .os-profile > span:last-child { display: none; }
+  .os-profile { padding-left: 4px; }
+}
+
+@media (max-width: 1080px) {
+  .os-app { grid-template-columns: 72px minmax(0, 1fr); }
+  .os-brand { justify-content: center; padding: 0; }
+  .os-brand > span:last-child, .os-nav button span, .os-nav small, .os-settings span { display: none; }
+  .os-nav button, .os-settings { justify-content: center; padding-inline: 0; }
+  .os-accountbar { gap: 9px; }
+  .os-language, .os-profile > span:last-child { display: none; }
+}
+
+/* Last to go is the connection label; the dot still carries the state, which is the
+   part that actually matters. */
+@media (max-width: 860px) {
+  .os-connection span { display: none; }
+  .os-segments { width: clamp(168px, 40vw, 240px); }
+  .os-segments button { padding-inline: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

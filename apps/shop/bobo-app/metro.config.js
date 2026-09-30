@@ -11,7 +11,6 @@ const moduleAliases = new Map([
   ['zustand', path.join(zustandRoot, 'index.js')],
   ['zustand/vanilla', path.join(zustandRoot, 'vanilla.js')],
   ['zustand/middleware', path.join(zustandRoot, 'middleware.js')],
-  ['@yaatal/client', path.join(packagesRoot, 'client', 'dist', 'index.js')],
 ])
 
 config.watchFolders = Array.from(

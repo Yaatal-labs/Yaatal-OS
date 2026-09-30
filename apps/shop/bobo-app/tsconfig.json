@@ -7,16 +7,13 @@
       "@/*": [
         "./src/*"
       ],
-      "@njooba/core": [
+      "@yaatal/core": [
         "../packages/core/src"
       ],
-      "@yaatal/client": [
-        "./node_modules/@yaatal/client/dist"
-      ],
-      "@njooba/ai": [
+      "@yaatal/ai": [
         "../packages/ai/src"
       ],
-      "@njooba/shared": [
+      "@yaatal/shared": [
         "../packages/shared/src"
       ]
     },
@@ -34,4 +31,3 @@
     "node_modules"
   ]
 }
-

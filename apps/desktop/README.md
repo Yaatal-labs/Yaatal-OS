@@ -10,8 +10,12 @@ Windows POC shell for two local Tauri windows:
 ```powershell
 pnpm install
 Copy-Item apps/desktop/.env.example apps/desktop/.env
-pnpm --filter @yaatal/os-shell tauri dev
+pnpm --filter @yaatal/os-shell tauri:dev:unified
 ```
+
+The unified launcher sets the renderer gate and the matching Rust
+`unified-ui` feature together. Do not launch the unified renderer with only one
+of those gates enabled.
 
 The sidecar defaults to `apps/studio`, starts Python's `live.studio_server:app`
 on `127.0.0.1:8484`, and has a five-second `/api/status` startup probe. Its
@@ -25,10 +29,13 @@ parameter. It must never contain credentials.
 ## Verify
 
 ```powershell
-pnpm build
-pnpm check
-pnpm test
+pnpm --filter @yaatal/os-shell build
+pnpm --filter @yaatal/os-shell check
+pnpm --filter @yaatal/os-shell test
 cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
-cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings
-cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --features unified-ui --all-targets -- -D warnings
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --features unified-ui
 ```
+
+Create a packaged unified desktop build with
+`pnpm --filter @yaatal/os-shell tauri:build:unified`.

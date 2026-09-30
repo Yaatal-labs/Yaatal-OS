@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { useAuthStore } from '../../store/authStore'
-import { chatService, formatDateTime, getAvatarUrl, type Conversation } from '@njooba/core'
+import { chatService, formatDateTime, getAvatarUrl, type Conversation } from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
 
 export const ChatListScreen = ({ navigation }: any) => {

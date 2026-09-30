@@ -1,8 +1,11 @@
 """Tests for the Studio HTTP edge-turn integration."""
 
 import json
+import asyncio
 import unittest
+from unittest.mock import AsyncMock, patch
 
+import httpx
 import live.studio_server as server
 from fastapi.testclient import TestClient
 from live.governed_turn import GovernedTurnError
@@ -272,7 +275,130 @@ class StudioControlPlaneTest(unittest.TestCase):
             self.client.get("/api/studio/operator/session").json()["authenticated"]
         )
 
+    def test_engine_bootstrap_becomes_same_cookie_without_manual_token(self):
+        server.OPERATOR_SESSIONS = OperatorSessionStore("")
+        identity = {
+            "authenticated": True,
+            "surface": "studio",
+            "pid": "merchant-42",
+            "name": "Awa Ndiaye",
+            "is_verified": True,
+        }
+        nonce = "A" * server.BOOTSTRAP_NONCE_LEN
+        with patch.object(
+            server,
+            "redeem_engine_bootstrap",
+            new=AsyncMock(return_value=identity),
+        ) as redeem:
+            response = self.client.post(
+                "/api/studio/operator/bootstrap",
+                json={"nonce": nonce, "surface": "studio"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        redeem.assert_awaited_once_with(nonce)
+        cookie = response.headers["set-cookie"].lower()
+        self.assertIn("httponly", cookie)
+        self.assertIn("samesite=strict", cookie)
+        status = self.client.get("/api/studio/operator/session").json()
+        self.assertTrue(status["configured"])
+        self.assertTrue(status["authenticated"])
+
+    def test_invalid_or_replayed_bootstrap_fails_closed(self):
+        nonce = "B" * server.BOOTSTRAP_NONCE_LEN
+        with patch.object(
+            server,
+            "redeem_engine_bootstrap",
+            new=AsyncMock(
+                side_effect=server.StudioBootstrapError(
+                    "engine_bootstrap_rejected", 401
+                )
+            ),
+        ):
+            response = self.client.post(
+                "/api/studio/operator/bootstrap",
+                json={"nonce": nonce, "surface": "studio"},
+            )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json(), {"error": "engine_bootstrap_rejected"})
+        malformed = self.client.post(
+            "/api/studio/operator/bootstrap",
+            json={"nonce": "short", "surface": "studio"},
+        )
+        self.assertEqual(malformed.status_code, 400)
+
+    def test_engine_bootstrap_http_contract_and_replay_are_mocked(self):
+        calls = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            calls.append(request)
+            if len(calls) > 1:
+                return httpx.Response(401, json={"error": "unauthorized"})
+            return httpx.Response(
+                200,
+                json={
+                    "authenticated": True,
+                    "surface": "studio",
+                    "pid": "merchant-42",
+                    "name": "Awa Ndiaye",
+                    "is_verified": True,
+                },
+            )
+
+        nonce = "C" * server.BOOTSTRAP_NONCE_LEN
+        transport = httpx.MockTransport(handler)
+        identity = asyncio.run(
+            server.redeem_engine_bootstrap(nonce, transport=transport)
+        )
+        self.assertEqual(identity["surface"], "studio")
+        self.assertEqual(calls[0].url.path, "/api/auth/bootstrap")
+        self.assertEqual(
+            json.loads(calls[0].content),
+            {"nonce": nonce, "surface": "studio"},
+        )
+        with self.assertRaises(server.StudioBootstrapError) as error:
+            asyncio.run(server.redeem_engine_bootstrap(nonce, transport=transport))
+        self.assertEqual(error.exception.code, "engine_bootstrap_rejected")
+
     def test_voice_socket_rejects_missing_operator_session(self):
+        with self.assertRaises(WebSocketDisconnect) as error:
+            with self.client.websocket_connect("/api/studio/voice"):
+                pass
+        self.assertEqual(error.exception.code, 4401)
+
+    def test_voice_socket_accepts_engine_bootstrap_session_without_manual_token(self):
+        server.OPERATOR_SESSIONS = OperatorSessionStore("")
+        issued = server.OPERATOR_SESSIONS.issue_engine_bootstrap(
+            authenticated=True,
+            surface="studio",
+        )
+        self.assertIsNotNone(issued)
+        raw_session, _ = issued
+        self.client.cookies.set(server.SESSION_COOKIE, raw_session)
+
+        class AcceptingGateway:
+            def __init__(self, **_kwargs):
+                pass
+
+            async def serve(self, websocket):
+                await websocket.send_json({"type": "voice_session_accepted"})
+
+        with (
+            patch.object(server, "StudioVoiceGateway", AcceptingGateway),
+            patch.object(
+                server,
+                "get_engine_client",
+                new=AsyncMock(return_value=object()),
+            ),
+        ):
+            with self.client.websocket_connect("/api/studio/voice") as socket:
+                self.assertEqual(
+                    socket.receive_json(),
+                    {"type": "voice_session_accepted"},
+                )
+
+    def test_voice_socket_rejects_invalid_operator_session(self):
+        self.client.cookies.set(server.SESSION_COOKIE, "invalid-session")
         with self.assertRaises(WebSocketDisconnect) as error:
             with self.client.websocket_connect("/api/studio/voice"):
                 pass
@@ -309,6 +435,54 @@ class StudioControlPlaneTest(unittest.TestCase):
         self.assertEqual(self.client.get("/").status_code, 200)
         self.assertEqual(self.client.get("/dashboard/app.js").status_code, 200)
         self.assertEqual(self.client.get("/dashboard/styles.css").status_code, 200)
+        for filename in (
+            "bazin_robe.webp",
+            "bissap.webp",
+            "cosmetics.webp",
+            "gold_earrings.webp",
+            "leather_bag.webp",
+            "smartphone.webp",
+            "thiote_mat.webp",
+        ):
+            self.assertEqual(
+                self.client.get(f"/dashboard/img/{filename}").status_code,
+                200,
+                filename,
+            )
+
+    def test_catalog_demo_media_is_fallback_only_and_labeled(self):
+        old_demo_mode = server.STUDIO_DEMO_MODE
+        server.STUDIO_DEMO_MODE = True
+        try:
+            missing = server.normalize_studio_product(
+                {
+                    "id": "prod_infinix_hot",
+                    "name": "Infinix Hot 40i",
+                    "category": "tech",
+                    "images": [],
+                }
+            )
+            merchant = server.normalize_studio_product(
+                {
+                    "id": "prod_ankara_dress",
+                    "name": "Robe Ankara",
+                    "category": "fashion",
+                    "images": ["https://cdn.example/merchant-robe.webp"],
+                }
+            )
+        finally:
+            server.STUDIO_DEMO_MODE = old_demo_mode
+
+        self.assertEqual(missing["id"], "prod_infinix_hot")
+        self.assertEqual(missing["images"], ["/dashboard/img/smartphone.webp"])
+        self.assertTrue(missing["demo_visual"])
+        self.assertEqual(
+            missing["image_alt"], "Generic smartphone on cream studio backdrop"
+        )
+        self.assertEqual(
+            merchant["images"], ["https://cdn.example/merchant-robe.webp"]
+        )
+        self.assertNotIn("demo_visual", merchant)
 
 
 if __name__ == "__main__":

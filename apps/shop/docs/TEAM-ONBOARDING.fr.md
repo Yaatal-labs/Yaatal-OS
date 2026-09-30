@@ -13,13 +13,13 @@
 ```
 ┌─────────────┐     HTTP/JSON      ┌─────────────────────────┐
 │  App BOBO   │ ◄───────────────► │  Yaatal Engine (Rust)   │
-│  (Expo 54)  │   Bearer token    │  Railway Postgres         │
+│  (Expo 54)  │   Bearer token    │  engine.njooba.com         │
 └─────────────┘                    └─────────────────────────┘
 ```
 
 - **App BOBO** → propose des actions via HTTP
 - **IntentQueue** → cache local, envoi à la reconnexion *(à venir)*
-- **Engine** → API Rust sur Railway, seule source de vérité
+- **Engine** → API Rust (engine.njooba.com), seule source de vérité
 - **Postgres** → données canoniques avec porte d'audit
 
 ⚠️ **PowerSync est garé.** Les fichiers sont encore dans le repo comme parachute de secours, mais le démarrage est arrêté. Ne branche pas de nouvelles fonctionnalités dessus.
@@ -61,13 +61,13 @@ On n'est pas contre le hors ligne. On est contre le hors ligne **que personne ne
 | Fonctionnalité | Statut | Où le voir |
 |----------------|--------|------------|
 | Appli web BOBO | ✅ Déployée | `https://bobo-6g9.pages.dev` |
-| API Engine | ✅ Déployée | `https://yaatal-engine-production.up.railway.app` |
+| API Engine | ✅ Déployée | `https://engine.njooba.com` |
 | Auth (connexion, inscription) | ✅ Fonctionnel | `POST /api/auth/register`, `POST /api/auth/login` |
 | Catalogue produits | ✅ Fonctionnel | `GET /api/products` |
 | Paiement (espèces) | ✅ Fonctionnel | Se finalise immédiatement |
 | Paiement (Wave) | ⚠️ Bouchon seulement | Affiche "en attente", interroge le statut. Pas encore de vrai XOF. |
 | Catalogue vide | ⚠️ Pas de données seeds | Renvoie `200 []`. Besoin de merchants et produits seeds. |
-| IA, chat, livraison | ❌ Ancien chemin | Toujours sur les implémentations HTTP/PocketBase. Pas encore branchés au Engine. |
+| IA, chat, livraison | ✅ Moteur Engine | `chat.service.engine.ts`, `ai.service.engine.ts`, `delivery.service.engine.ts` appellent les endpoints de l'Engine. Les fonctionnalités marketplace de livraison (pool de livreurs, devis) en attente du marketplace Engine. |
 | Config EAS build | ❌ Manquant | Pas de `eas.json`. Soumission TestFlight / Play Console bloquée. |
 
 ---
@@ -84,7 +84,7 @@ git checkout codex/bobo-engine-netlify-integration
 pnpm install --frozen-lockfile
 
 # 3. Env — seule celle-là compte
-EXPO_PUBLIC_ENGINE_API_URL=https://yaatal-engine-production.up.railway.app
+EXPO_PUBLIC_ENGINE_API_URL=https://engine.njooba.com
 
 # 4. Type-check et build
 pnpm --filter bobo-app type-check
@@ -133,7 +133,7 @@ rg -n "yaatal-engine-production" bobo-app/dist/_expo/static/js/web # doit trouve
 | Yaatal Engine repo | `https://github.com/Yaatal-labs/Yaatal-Engine` |
 | Engine PR #28 (pont BOBO) | `https://github.com/Yaatal-labs/Yaatal-Engine/pull/28` |
 | BOBO web (déployé) | `https://bobo-6g9.pages.dev` |
-| API Engine (déployé) | `https://yaatal-engine-production.up.railway.app/health` |
+| API Engine (déployé) | `https://engine.njooba.com/health` |
 
 ---
 

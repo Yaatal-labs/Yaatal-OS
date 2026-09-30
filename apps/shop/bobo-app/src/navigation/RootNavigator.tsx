@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect } from 'react'
+import { Platform } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { useAuthStore } from '../store/authStore'
@@ -14,7 +15,11 @@ import { SignupScreen } from '../screens/auth/SignupScreen'
 
 // Main app navigators
 import { MerchantNavigator } from './MerchantNavigator'
-import { CustomerNavigator } from './CustomerNavigator'
+import { CustomerNavigator, EmbeddedCustomerNavigator } from './CustomerNavigator'
+import {
+  isEmbeddedWebGuestMode,
+  selectRootNavigatorSurface,
+} from './embeddedWebGuestMode'
 
 const Stack = createNativeStackNavigator()
 
@@ -38,6 +43,15 @@ const linking = {
 
 export const RootNavigator = () => {
   const { isAuthenticated, profile, initialize } = useAuthStore()
+  const isEmbeddedGuest = isEmbeddedWebGuestMode(
+    Platform.OS,
+    typeof window === 'undefined' ? undefined : window.location,
+  )
+  const navigatorSurface = selectRootNavigatorSurface({
+    isAuthenticated,
+    isMerchant: profile?.is_merchant === true,
+    isEmbedded: isEmbeddedGuest,
+  })
 
   // Initialize auth state on app start
   useEffect(() => {
@@ -46,15 +60,18 @@ export const RootNavigator = () => {
 
   return (
     <NavigationContainer linking={linking as any}>
-      {!isAuthenticated ? (
+      {navigatorSurface === 'auth' ? (
         // Auth Stack
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
         </Stack.Navigator>
-      ) : profile?.is_merchant ? (
+      ) : navigatorSurface === 'merchant' ? (
         // Merchant App
         <MerchantNavigator />
+      ) : navigatorSurface === 'embedded-read-only' ? (
+        // OS-embedded buyer catalog; no account or commerce mutation routes.
+        <EmbeddedCustomerNavigator />
       ) : (
         // Customer App
         <CustomerNavigator />

@@ -1,3 +1,8 @@
+> **⚠️ Stale (pre-Engine).** This document predates BOBO's migration onto the
+> Yaatal Engine and may describe an architecture that no longer matches the code.
+> Trust **`BOBO-ENGINE-ALIGNMENT.md`** (audited plan) and **`CLAUDE.md`** (repo
+> orientation) over this file where they disagree.
+
 # ARCHITECT.md
 
 ## Shifting Architect Identity

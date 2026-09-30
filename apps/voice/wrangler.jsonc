@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "yaatal-voice",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/server.ts",
+  // Workers AI for the ears (Nova-3, French) and the mouth (MeloTTS, French). No provider keys.
+  "ai": { "binding": "AI", "remote": true },
+  "durable_objects": {
+    "bindings": [{ "class_name": "YaatalVoice", "name": "YaatalVoice" }]
+  },
+  "migrations": [{ "new_sqlite_classes": ["YaatalVoice"], "tag": "v1" }],
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/agents/*"]
+  },
+  "vars": {
+    "VOICE_MODEL": "yaatal/nemotron-3-super",
+    // Nemotron streams its answer in `reasoning` once thinking is off (Workers AI parser quirk).
+    "VOICE_REASONING_IS_ANSWER": "true"
+  }
+  // Per-deployment settings live outside this file, so a deploy never overwrites them:
+  //   YAATAL_API_URL  the Yaatal API (OpenAI-compatible) that meters every voice turn in FCFA
+  //   YAATAL_API_KEY  a Yaatal key
+  //   PLAYGROUND_URL  optional: where "Ouvrir dans le Playground" sends the brief
+  // Locally in .dev.vars (see .dev.vars.example); in production with `wrangler secret put`.
+}

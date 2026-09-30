@@ -17,9 +17,9 @@ import {
   Alert,
 } from 'react-native'
 import { useAuthStore } from '../../store/authStore'
-import { ordersService, getProductImageUrl } from '@njooba/core'
+import { ordersService, getProductImageUrl } from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
-import { formatCFA, formatDateTime, formatOrderStatus, type Order } from '@njooba/core'
+import { formatCFA, formatDateTime, formatOrderStatus, type Order } from '@yaatal/core'
 
 type FilterStatus = 'active' | 'completed' | 'cancelled'
 

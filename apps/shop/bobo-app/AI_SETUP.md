@@ -1,5 +1,7 @@
 # AI-Powered Search Setup Guide
 
+> ⚠️ **STALE:** This document references Supabase, which has been removed. The Engine API is now the backend. AI search is now Engine-backed via `ai.service.engine.ts`.
+
 BOBO features AI search powered by Vercel AI SDK + Groq.
 
 ## Features
@@ -38,7 +40,7 @@ React Native (BOBO App)
         |
    Groq AI (Llama 3)
         |
-   Supabase (Results via PowerSync)
+   Engine API (engine.njooba.com)
 ```
 
 ## Setup Instructions
@@ -77,8 +79,7 @@ vercel env add GROQ_API_KEY
 cp .env.example .env
 
 # Edit .env
-EXPO_PUBLIC_SUPABASE_URL=your-supabase-url
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+EXPO_PUBLIC_ENGINE_API_URL=https://engine.njooba.com
 EXPO_PUBLIC_VERCEL_API_URL=https://your-deployment.vercel.app
 ```
 
@@ -181,7 +182,7 @@ model: groq('llama-3.1-70b-versatile')
 
 ### Search History Analytics
 
-Query search patterns in Supabase dashboard or via SQL:
+Query search patterns via the Engine API or Supabase dashboard (legacy):
 
 ```sql
 SELECT

@@ -1,19 +1,52 @@
 # Yaatal OS Symphony Board
 
-Updated: 2026-09-02
+Updated: 2026-09-11
 Execution handoff: [`OS-REAL-SURFACES-HANDOFF.md`](./OS-REAL-SURFACES-HANDOFF.md)
 
 ## Goal
 
-Deliver a functional and testable Windows POC with Sell and Shop windows, a supervised Studio
-sidecar, capability isolation, and one governed cross-window commerce flow.
+Deliver a functional and testable Windows POC with one unified native window,
+Sell and Shop workspaces, a supervised Studio sidecar, narrow capabilities,
+and one governed cross-pane commerce flow.
+
+## Parallel unified UI lane
+
+The iframe POC remains runnable on `yaatal/poc-demo-closure`. The direct
+React + TypeScript + Tailwind + shadcn/ui renderer is isolated on `yaatal/unified-ui-poc` from base
+`5587306f9dba9e5a047a359b431676632af1679b`.
+
+Execution contract and card ownership:
+[`UIR-01-UNIFIED-TYPESCRIPT-UI.md`](./scopes/UIR-01-UNIFIED-TYPESCRIPT-UI.md)
+([Français](./scopes/UIR-01-UNIFIED-TYPESCRIPT-UI.fr.md)).
+
+The only required non-UI seam is a narrow native Studio gateway. It keeps the
+Engine JWT and Studio cookie in Rust while the renderer receives typed,
+sanitized results. The lane does not rewrite Engine, Harness, Studio business
+logic, BOBO services, or payments.
+
+The React foundation was reviewed and committed at c1268a1. Native integration is in progress; unified commerce and physical-phone acceptance remain open. See the [execution supplement](./plans/2026-09-10-unified-ui-execution-plan.md) and [foundation evidence](./evidence/UIR-02A-REACT-FOUNDATION.md).
+
+## Unified UI checkpoint — 2026-09-11
+
+Execution uses Terra High workers with separate file ownership, per user instruction. Root coordinates integration and the board. Checkpoint completion requires implementation, focused validation, spec review, then quality review; started work is not accepted work.
+
+| Card | Worker | Exclusive ownership | Current checkpoint |
+|---|---|---|---|
+| React foundation | completed | existing shell and primitives | Reviewed, committed c1268a1; 33 tests passed |
+| Native session gateway | terra_gateway; Sol review | desktop src-tauri source and Cargo manifests | Request-size review fix complete; default 8 / unified 13 tests pass; Sol re-review pending |
+| SHOP workspace | Terra fix; Sol review | unified/features/shop; pure BOBO media helper extraction and existing wrapper | Initial 4 tests and desktop check passed; fixing retry and sold-out sharing findings |
+| Frontend typed adapter | Terra fix; Sol review | unified/contracts.ts, native.ts and their tests | Initial 7 tests pass; sanitizing subscription errors from Sol review |
+| SELL cockpit | terra_adapter (Terra High) | unified/features/sell only | Implementing with existing injected adapter; shell and commerce wiring remain pending |
+| Native and phone acceptance | integration/review | evidence and targeted acceptance | Pending; canonical variants have no authoritative source |
+
+The three active cards may run in parallel because their write sets do not overlap. This user-authorized arrangement supersedes the earlier sequential-implementer note in the execution plan. Shared-file changes require an explicit ownership handoff; tests are coordinated to avoid duplicate broad runs. Keep the legacy renderer available through acceptance.
 
 ## Build tracks
 
 | Track | Scope | Checkpoint | Status |
 |---|---|---|---|
-| A — Shell | Tauri 2 host, two windows, IPC capabilities, health surface | Both windows launch; Shop cannot invoke Studio commands | Validated |
-| B — Shop | BOBO web export and desktop platform boundary | Static Shop loads in Tauri and can read Engine products | Ready |
+| A — Shell | Tauri 2 host, one window, SELL/SHOP router, narrow IPC, health surface | Unified window launches; only explicitly registered commands exist | Revalidation required |
+| B — Shop | BOBO web export and desktop platform boundary | Static Shop loads in Tauri and can read Engine products | Validated `d6eb509` |
 | C — Studio | Python sidecar packaging and sanitized event bridge | Sidecar starts/stops and exposes health without leaking credentials | Validated |
 | S — Social checkout | Opaque intent, social links, mobile sheet, sandbox payment, conversion | WhatsApp/Telegram/live link → sheet → attributed receipt | Validated |
 | R — Review | Spec, security, and integration review | No open critical findings | Pending |
@@ -55,36 +88,58 @@ implemented separately.
 ## Validation checkpoint — 2026-09-02
 
 - `python -m pytest apps/studio/live -q`: **77 passed, 1 skipped**.
-- `pnpm test`: **5 passed** across shell and protocol packages.
+- `pnpm test`: **11 passed** across shell and protocol packages.
 - `pnpm check` and `pnpm build`: **passed**.
-- `cargo fmt --check`, `cargo test`, and warning-denying Clippy: **passed**;
-  three native authority/sanitization tests passed.
+- `cargo fmt --check`, `cargo check`, `cargo test`, and warning-denying Clippy:
+  **passed**; two native sanitization tests passed.
 - `tauri dev --no-watch`: native `yaatal-os-shell.exe` launched successfully.
 - Real-browser acceptance: operator unlock → arm Studio → put demo product on
   air → create share links → open mobile sheet → choose Orange Money → confirm
   sandbox payment → receipt appears → Studio counter changes from 0 to 1.
 
-Track B and Track I remain open: the imported BOBO web export still needs to
-become the bundled Shop target, and the original Harness-approved product
-switch must be reflected across both native windows.
+At this 2026-09-02 checkpoint, Track B and Track I remained open for
+product-level acceptance. BOBO was bundled and the product-navigation seam
+existed, but the combined SELL/SHOP flow had not yet been exercised through
+the native app against one canonical catalog and one OS-owned session.
+
+## Catalog acceptance checkpoint — 2026-09-04
+
+- `d6eb509` makes BOBO SHOP consume the same live Engine catalog as SELL and
+  carries Engine IDs, names, formatted prices, stock and category aliases
+  without a second fixture.
+- The seven 4:5 WebPs are installed from Studio into the packaged Shop export;
+  merchant media always wins and fallback media is visibly labeled
+  `Demo visual` with alt text.
+- Live Engine versus isolated current-source Studio: **20/20 IDs equal, zero
+  name/price/stock differences, zero fallback-media mapping differences**.
+- Real browser at **1280×800** and **900×600**: SHOP catalog and product detail
+  render the same `prod_infinix_hot`, `95 000 FCFA`, stock `22`, category
+  `Électronique`, and labeled smartphone fallback shown in SELL. All rendered
+  catalog-media requests returned 200; zero broken catalog images.
+- BOBO: type-check passed; **67 tests passed**. Studio: **78 passed, 1 skipped**.
+  OS: check/build passed; **11 tests passed**. Tauri: fmt passed, **2 tests
+  passed**, warning-denying Clippy passed.
+
+Track B and UXR-05 are closed. Track I remains open because the authenticated
+native SELL → SHOP handoff and Commerce Sheet receipt belong to UXR-06.
 
 ## Real-surfaces correction
 
-The validated shell is plumbing, not the finished desktop product. Its Sell
-window still presents sidecar controls before embedding Studio; its Shop window
-is a URL/product-ID placeholder; and the existing navigation command flows from
-Shop to Sell instead of from Studio/Sell to BOBO/Shop. Do not use the successful
-native launch as evidence that the merchant and buyer experiences are complete.
+The original validated shell at `c5f9854` was plumbing, not the finished desktop
+product. It used two native windows, placed sidecar controls before Studio, and
+left Shop as a URL/product-ID placeholder. The real-surfaces branch intentionally
+replaced that topology with one ChatGPT/Codex-style native workspace at
+`d27c5a3`. Do not restore the old two-window shell.
 
 The frozen target is:
 
 ```text
-Sell window
-  ├── Live — real Studio cockpit
-  └── Utility — merchant boutik/operations surface (preview in this POC)
-
-Shop window
-  └── real bundled BOBO buyer surface
+One Yaatal OS window
+  ├── SELL
+  │   ├── Live — real Studio cockpit
+  │   └── Utility — merchant boutik/operations surface (preview in this POC)
+  └── SHOP
+      └── real bundled BOBO buyer surface
 ```
 
 The Clip4Clicks Windows alpha is a pattern donor only. Its SQLite, transition,
@@ -96,10 +151,10 @@ Tauri permissions, renderer-visible API key, and null CSP must not be imported.
 | Card | Lane | Owner/write set | Depends on | Checkpoint | Status |
 |---|---|---|---|---|---|
 | OSR-00 — Handoff | Spec | `docs/**` | — | Source pins, decisions, gotchas, acceptance and stop conditions are explicit | Validated |
-| OSR-01 — Clean branch and refresh provenance | Ready | Git/provenance; no product code | OSR-00 | `yaatal/os-real-surfaces` starts from reviewed PR #1; BOBO remote `735a90db` imported cleanly | Pending |
-| OSR-02 — Real Sell surface | Ready | `apps/desktop/src/**`, Studio lifecycle Rust | OSR-01 | App reaches full-window Studio automatically; diagnostics are secondary | Pending |
-| OSR-03 — Bundled BOBO Shop | Ready | `apps/shop/**`, Shop build/loading | OSR-01 | Static BOBO export loads from packaged assets without localhost | Pending |
-| OSR-04 — Sell → Shop product handoff | Build | `packages/os-protocol/**`, narrow Rust commands/adapters | OSR-02, OSR-03 | Studio product ID focuses matching BOBO product; sensitive fields rejected | Pending |
+| OSR-01 — Clean branch and refresh provenance | Validated | Git/provenance; no product code | OSR-00 | Branch `yaatal/os-real-surfaces` from `1a97929`; BOBO `735a90db` imported at `6dca165` with exact tree parity; provenance updated | Validated |
+| OSR-02 — Real Sell workspace | In progress | `apps/desktop/src/**`, Studio lifecycle Rust | OSR-01 | SELL reaches full-pane Studio automatically; diagnostics are secondary | Validated `51e8c1b` → embedded cockpit surface in `156f775` (Live/Catalog/Media/Insights); revalidated under pane model |
+| OSR-03 — Bundled BOBO Shop workspace | In progress | `apps/shop/**`, Shop build/loading | OSR-01 | Static BOBO export loads in SHOP from packaged assets without localhost | Validated `ae46bf9`; blank-screen root cause fixed in build script (root-absolute paths → public-root spread); renders verified in browser |
+| OSR-04 — SELL → SHOP product handoff | Build | `packages/os-protocol/**`, narrow Rust commands/adapters | OSR-02, OSR-03 | Studio product ID switches/focuses matching BOBO product; sensitive fields rejected | Validated `2f877e2` (studio-origin sanitizer) + `d27c5a3` (pane-model relay); browser-verified |
 | OSR-05 — Minimal offline outbox | Build | New Rust state module and tests | OSR-01; integrates after OSR-04 | Same idempotent handoff survives restart and reconciles once | Pending |
 | OSR-06 — Native + Telegram acceptance | Validate | Tests and evidence only | OSR-04; OSR-05 separately | Sell → Shop plus Telegram → sheet → sandbox receipt → Studio conversion passes | Pending |
 | OSR-07 — Review and ship | Review | Findings, fixes, release notes | OSR-06 | No critical security/contract findings; gates green; exact SHA pushed | Pending |
@@ -117,6 +172,38 @@ OSR-00
 
 OSR-02 and OSR-03 are the only immediately parallel implementation cards. Keep
 their write sets separate. OSR-04 owns the shared contract integration.
+
+## Initial product upgrades — required before OSR-05
+
+These cards capture the original product direction and take priority over the
+offline outbox. The target is one coherent desktop product, not two web apps
+displayed inside a wrapper.
+
+| Card | Lane | Owner/write set | Depends on | Checkpoint | Status |
+|---|---|---|---|---|---|
+| UXR-01 — Pane lifecycle and trusted navigation | Ready | `apps/desktop/src/**` | OSR-04 | Repeated SELL/SHOP switching creates one poller and one listener per mounted pane; only the mounted Studio frame can trigger product navigation | Validated in `c90b3d1` (PaneController dispose, single poller/listener) |
+| UXR-02 — Unified shell design contract | Review | `docs/design/**`, shell tokens only | OSR-01 | Approved SELL/SHOP references exist in light and dark; palette, typography, ownership, density and responsive acceptance are documented | Validated — founder approved references 2026-09-03; contract at `docs/design/YAATAL-OS-UI-CONTRACT.md` |
+| UXR-03 — Embedded surface mode | Build | Studio dashboard and BOBO desktop adapters | UXR-02 | OS owns brand, primary navigation, language, theme, status, and account chrome; embedded Studio/BOBO do not render duplicate headers or navigation | Validated `9a6f9d1` — Studio embedded surface now page-level view strip, no brand/secondary rail; assistant panel Live-only; BOBO chrome suppressed via skin (`1b6c021`); browser-verified per contract |
+| UXR-04 — Native Engine session broker | Shape | Tauri Rust session state, Engine auth adapter, Studio/BOBO bootstrap adapters | UXR-01 | One login unlocks authorized SELL and SHOP routes; raw access/refresh tokens never enter iframe state or web `localStorage`; logout clears both surfaces | POC broker implemented `19e171d`; authenticated BOBO mutation delivery remains deferred because current SHOP and Commerce Sheet paths are public |
+| UXR-04B — Native Studio session delivery | Validated | Tauri session/grant command, shell lifecycle coordinator, Studio redemption and cookie session | UXR-04; Engine auth bootstrap `160524e9` | Native login obtains a single-use Studio grant without exposing the Engine JWT; Studio redeems it into an HttpOnly cookie; logout and remount fail closed | Code and security review validated through `8c95565`; full gates green; [checkpoint](./scopes/UXR-04B-NATIVE-STUDIO-SESSION.md); live acceptance waits on Engine deployment |
+| UXR-05 — Canonical demo catalog and media | Validated | Studio/BOBO catalog adapters, product assets, Shop build | OSR-03 | SELL and SHOP show the same IDs, names, prices, stock, and optimized 4:5 media; assets have provenance, alt text, and bounded size | Validated `d6eb509`: both panes consume the live Engine catalog; Shop mirrors Studio's fallback-only WebPs with visible labels and alt text; 20/20 live IDs and metadata matched; browser-verified at 1280×800 and 900×600. Heavy PNG duplicates removed. |
+| UXR-06A — Embedded SELL checkout launcher | Validated | Embedded Studio dashboard and focused tests | UXR-03, UXR-05, Track S | SELL creates server-attributed copy, livestream, WhatsApp and Telegram links for the selected canonical product; stale responses cannot replace the current product or Insights result | Validated `5f01acb` + hardening `26c97b9`; [checkpoint](./scopes/UXR-06A-EMBEDDED-SOCIAL-CHECKOUT.md) |
+| UXR-06 — Unified visual and commerce acceptance | Validate | Tests and evidence only | UXR-03, UXR-04, UXR-05, UXR-06A | Login → SELL → select product → SHOP detail → Commerce Sheet → sandbox receipt passes at 1280×800 and 900×600 without nested chrome | Blocked on the deployed Engine bootstrap contract. The missing generated SHOP document that caused an OS-in-OS fallback was repaired and regression-tested; full authenticated acceptance remains recorded in [`UXR-06-UNIFIED-ACCEPTANCE.md`](./scopes/UXR-06-UNIFIED-ACCEPTANCE.md). |
+
+### Corrected execution order
+
+```text
+UXR-01 lifecycle fix ───────────────────────────────┐
+UXR-02 design contract ── UXR-03 embedded mode ────┼─ UXR-06 acceptance
+UXR-04 shared native session ── UXR-04B Studio ────┤
+UXR-05 canonical catalog/media ── UXR-06A launcher ┘
+
+UXR-06 ── OSR-05 offline outbox ── OSR-07 review and ship
+```
+
+The first implementation card is UXR-01. UXR-02 can proceed in parallel when
+an independent design/doc owner is available. Do not begin the offline outbox
+until the single-window product shell, session, and catalog are coherent.
 
 ## Agent pickup protocol
 
@@ -136,4 +223,3 @@ their write sets separate. OSR-04 owns the shared contract integration.
 - Automatic Telegram/WhatsApp publishing and privileged livestream product APIs.
 - Qwen Audio Agent sidecar qualification with no DashScope dependency.
 - Mobile Tauri, signing, updater, distribution, multitenancy and white-label.
-

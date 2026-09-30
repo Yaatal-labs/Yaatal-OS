@@ -17,20 +17,26 @@ import {
 } from 'react-native'
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av'
 import { useAuthStore } from '../../store/authStore'
-import { productsService, getProductImageUrl, getAvatarUrl, getFileUrl } from '@njooba/core'
+import {
+  catalogService,
+  productsService,
+  getProductImageUrl,
+  getAvatarUrl,
+  getFileUrl,
+  type CatalogProductView,
+} from '@yaatal/core'
 import { colors, typography, spacing } from '../../theme'
 import { formatCFA } from '../../utils/formatters'
 import { calculateLevel } from '../../constants/gamification'
-import type { Product } from '../../types/models'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
-export const ProductDetailScreen = ({ route, navigation }: any) => {
+export const ProductDetailScreen = ({ route, navigation, isReadOnly = false }: any) => {
   const { productId } = route.params
   const { profile } = useAuthStore()
   const videoRef = useRef<any>(null)
 
-  const [product, setProduct] = useState<Product | null>(null)
+  const [product, setProduct] = useState<CatalogProductView | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isUpvoted, setIsUpvoted] = useState(false)
   const [upvoteCount, setUpvoteCount] = useState(0)
@@ -44,7 +50,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
     setIsLoading(true)
 
     try {
-      const fetchedProduct = await productsService.getById(productId)
+      const fetchedProduct = await catalogService.getCatalogProduct(productId)
 
       if (!fetchedProduct) {
         Alert.alert('Erreur', 'Produit introuvable')
@@ -52,7 +58,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
         return
       }
 
-      setProduct(fetchedProduct as unknown as Product)
+      setProduct(fetchedProduct)
       setUpvoteCount(fetchedProduct.upvotes || 0)
 
       // Check if user has upvoted (simplified - would use a upvotes junction table in production)
@@ -66,7 +72,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
   }
 
   const handleUpvote = async () => {
-    if (!profile || !product) return
+    if (isReadOnly || !profile || !product) return
 
     const result = await productsService.toggleUpvote(product.id, profile.id)
 
@@ -77,7 +83,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
   }
 
   const handleBuyNow = () => {
-    if (!product) return
+    if (isReadOnly || !product) return
 
     // Navigate to checkout with product and default quantity of 1
     navigation.navigate('Checkout', {
@@ -87,7 +93,7 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
   }
 
   const handleContactSeller = () => {
-    if (!product?.expand?.seller_id) return
+    if (isReadOnly || !product?.expand?.seller_id) return
 
     // Navigate to chat (to be implemented in Days 4-7)
     Alert.alert(
@@ -130,11 +136,39 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
 
   const hasDiscount = product.discount_price && product.discount_price < product.price
   const displayPrice = hasDiscount ? product.discount_price! : product.price
-  const isOutOfStock = product.stock_quantity === 0
-  const imageUrl = getProductImageUrl(product.image_url) || 'https://via.placeholder.com/400'
+  // Prefer the Engine's preformatted catalog display strings, fall back to numeric.
+  const priceText = product.discount_price_display || product.price_display || formatCFA(displayPrice)
+  const originalPriceText = product.price_display || formatCFA(product.price)
+  const isOutOfStock = product.stock_status
+    ? product.stock_status === 'out_of_stock'
+    : product.stock_quantity === 0
+  const imageUrl =
+    (product.demo_visual
+      ? product.images[0] || product.image_url
+      : getProductImageUrl(product.images[0] || product.image_url)) ||
+    'https://via.placeholder.com/400'
   const videoUrl = product.video_url ? getFileUrl('videos', product.video_url) : null
   const seller = product.expand?.seller_id
   const sellerLevel = seller ? calculateLevel(seller.xp) : null
+  const SellerSummary = () => (
+    <>
+      <Image
+        source={{
+          uri: getAvatarUrl(seller?.avatar_url, 48) || 'https://via.placeholder.com/48',
+        }}
+        style={styles.sellerAvatar}
+      />
+      <View style={styles.sellerInfo}>
+        <Text style={styles.sellerName}>{seller?.username}</Text>
+        {sellerLevel && (
+          <View style={styles.sellerLevel}>
+            <Text style={styles.sellerLevelEmoji}>{sellerLevel.emoji}</Text>
+            <Text style={styles.sellerLevelText}>{sellerLevel.title}</Text>
+          </View>
+        )}
+      </View>
+    </>
+  )
 
   return (
     <View style={styles.container}>
@@ -163,7 +197,18 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
             )}
           </View>
         ) : (
-          <Image source={{ uri: imageUrl }} style={styles.image} />
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.image}
+              accessibilityLabel={product.image_alt || product.title}
+            />
+            {product.demo_visual && (
+              <View style={styles.demoBadge}>
+                <Text style={styles.demoBadgeText}>Demo visual</Text>
+              </View>
+            )}
+          </View>
         )}
 
         {/* Product Info */}
@@ -180,10 +225,10 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
 
           {/* Price */}
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>{formatCFA(displayPrice)}</Text>
+            <Text style={styles.price}>{priceText}</Text>
             {hasDiscount && (
               <View style={styles.discountRow}>
-                <Text style={styles.originalPrice}>{formatCFA(product.price)}</Text>
+                <Text style={styles.originalPrice}>{originalPriceText}</Text>
                 <View style={styles.discountBadge}>
                   <Text style={styles.discountText}>
                     -{Math.round(((product.price - product.discount_price!) / product.price) * 100)}%
@@ -208,32 +253,24 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
 
           {/* Seller Info */}
           {seller && (
-            <TouchableOpacity
-              style={styles.sellerCard}
-              onPress={() => {
-                // TODO: Navigate to seller profile
-                Alert.alert('Coming soon', 'Profil du vendeur bientôt disponible!')
-              }}
-            >
-              <Image
-                source={{
-                  uri: getAvatarUrl(seller.avatar_url, 48) || 'https://via.placeholder.com/48',
-                }}
-                style={styles.sellerAvatar}
-              />
-              <View style={styles.sellerInfo}>
-                <Text style={styles.sellerName}>{seller.username}</Text>
-                {sellerLevel && (
-                  <View style={styles.sellerLevel}>
-                    <Text style={styles.sellerLevelEmoji}>{sellerLevel.emoji}</Text>
-                    <Text style={styles.sellerLevelText}>{sellerLevel.title}</Text>
-                  </View>
-                )}
+            isReadOnly ? (
+              <View style={styles.sellerCard}>
+                <SellerSummary />
               </View>
-              <TouchableOpacity style={styles.contactButton} onPress={handleContactSeller}>
-                <Text style={styles.contactButtonText}>💬 Contacter</Text>
+            ) : (
+              <TouchableOpacity
+                style={styles.sellerCard}
+                onPress={() => {
+                  // TODO: Navigate to seller profile
+                  Alert.alert('Coming soon', 'Profil du vendeur bientôt disponible!')
+                }}
+              >
+                <SellerSummary />
+                <TouchableOpacity style={styles.contactButton} onPress={handleContactSeller}>
+                  <Text style={styles.contactButtonText}>💬 Contacter</Text>
+                </TouchableOpacity>
               </TouchableOpacity>
-            </TouchableOpacity>
+            )
           )}
 
           {/* Description */}
@@ -270,33 +307,42 @@ export const ProductDetailScreen = ({ route, navigation }: any) => {
             </View>
           </View>
 
-          {/* Social Stats */}
-          <View style={styles.section}>
-            <TouchableOpacity style={styles.upvoteButton} onPress={handleUpvote}>
-              <Text style={styles.upvoteIcon}>{isUpvoted ? '❤️' : '🤍'}</Text>
-              <Text style={[styles.upvoteText, isUpvoted && styles.upvoteTextActive]}>
-                {upvoteCount} j'aime
+          {isReadOnly ? (
+            <View style={styles.readOnlyNotice}>
+              <Text style={styles.readOnlyNoticeTitle}>Consultation uniquement</Text>
+              <Text style={styles.readOnlyNoticeText}>
+                Pour acheter, contacter le vendeur ou gérer une commande, ouvrez Commerce Sheet.
               </Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          ) : (
+            <View style={styles.section}>
+              <TouchableOpacity style={styles.upvoteButton} onPress={handleUpvote}>
+                <Text style={styles.upvoteIcon}>{isUpvoted ? '❤️' : '🤍'}</Text>
+                <Text style={[styles.upvoteText, isUpvoted && styles.upvoteTextActive]}>
+                  {upvoteCount} j'aime
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Spacer for bottom buttons */}
           <View style={styles.bottomSpacer} />
         </View>
       </ScrollView>
 
-      {/* Bottom Action Buttons */}
-      <View style={styles.bottomActions}>
-        <TouchableOpacity
-          style={[styles.buyButton, isOutOfStock && styles.buyButtonDisabled]}
-          onPress={handleBuyNow}
-          disabled={isOutOfStock}
-        >
-          <Text style={styles.buyButtonText}>
-            {isOutOfStock ? 'Rupture de stock' : `🛒 Acheter - ${formatCFA(displayPrice)}`}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {!isReadOnly && (
+        <View style={styles.bottomActions}>
+          <TouchableOpacity
+            style={[styles.buyButton, isOutOfStock && styles.buyButtonDisabled]}
+            onPress={handleBuyNow}
+            disabled={isOutOfStock}
+          >
+            <Text style={styles.buyButtonText}>
+              {isOutOfStock ? 'Rupture de stock' : `🛒 Acheter - ${formatCFA(displayPrice)}`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   )
 }
@@ -350,10 +396,30 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   image: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH,
+    width: '100%',
+    aspectRatio: 4 / 5,
     resizeMode: 'cover',
     backgroundColor: colors.background.subtle,
+  },
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    backgroundColor: colors.background.subtle,
+  },
+  demoBadge: {
+    position: 'absolute',
+    left: spacing.md,
+    bottom: spacing.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(20, 31, 27, 0.82)',
+    borderRadius: 6,
+  },
+  demoBadgeText: {
+    ...typography.micro,
+    color: colors.text.inverse,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   infoContainer: {
     padding: spacing.lg,
@@ -530,6 +596,23 @@ const styles = StyleSheet.create({
   },
   upvoteTextActive: {
     color: colors.error,
+  },
+  readOnlyNotice: {
+    backgroundColor: colors.background.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border.light,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  readOnlyNoticeTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+  },
+  readOnlyNoticeText: {
+    ...typography.body,
+    color: colors.text.secondary,
   },
   bottomSpacer: {
     height: spacing.xl,

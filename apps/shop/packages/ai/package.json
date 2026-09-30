@@ -1,5 +1,5 @@
 {
-  "name": "@njooba/ai",
+  "name": "@yaatal/ai",
   "version": "0.1.0",
   "description": "NJOOBA AI services - Bo assistant, NLP, and intelligent features",
   "main": "./src/index.ts",
@@ -16,6 +16,6 @@
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "@njooba/core": "workspace:*"
+    "@yaatal/core": "workspace:*"
   }
 }

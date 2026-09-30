@@ -8,13 +8,17 @@ import {
 } from "../src/index";
 
 describe("OS protocol sanitizers", () => {
-  it("keeps only a bounded product identifier", () => {
-    expect(sanitizeProductNavigation({ kind: "product-navigation", productId: "  kaftan_42 " })).toEqual({
+  it("keeps only a bounded product identifier with a studio origin", () => {
+    expect(sanitizeProductNavigation({ kind: "product-navigation", productId: "  kaftan_42 ", source: "studio" })).toEqual({
       version: OS_PROTOCOL_VERSION,
       kind: "product-navigation",
       productId: "kaftan_42",
+      source: "studio",
     });
-    expect(sanitizeProductNavigation({ kind: "product-navigation", productId: "https://shop/?token=x" })).toBeNull();
+    expect(sanitizeProductNavigation({ kind: "product-navigation", productId: "https://shop/?token=x", source: "studio" })).toBeNull();
+    // Navigation must originate from Studio — the Shop window never sends it.
+    expect(sanitizeProductNavigation({ kind: "product-navigation", productId: "kaftan_42", source: "shop" })).toBeNull();
+    expect(sanitizeProductNavigation({ kind: "product-navigation", productId: "kaftan_42" })).toBeNull();
   });
 
   it("allows only refresh scopes understood by the shell", () => {

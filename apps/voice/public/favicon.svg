@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <clipPath id="tile"><rect width="256" height="256" rx="56"/></clipPath>
+  <rect width="256" height="256" rx="56" fill="#15302c"/>
+  <g clip-path="url(#tile)" fill="none" stroke-linejoin="round">
+    <!-- the orange strip comes in from the top left and tucks under the cream one -->
+    <path d="M30 -8 L128 118" stroke="#e85a25" stroke-width="40"/>
+    <!-- the cream strip: in from the top right, folds, and runs down as the stem -->
+    <path d="M226 -8 L128 118 L128 272" stroke="#15302c" stroke-width="56"/>
+    <path d="M226 -8 L128 118 L128 272" stroke="#f3dcc0" stroke-width="40"/>
+    <!-- woven stripes across the stem, as on strip cloth -->
+    <path d="M108 190 H148 M108 206 H148" stroke="#e85a25" stroke-width="6"/>
+  </g>
+</svg>

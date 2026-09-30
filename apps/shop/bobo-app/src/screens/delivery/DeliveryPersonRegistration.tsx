@@ -14,7 +14,7 @@ import {
   ScrollView,
   ActivityIndicator
 } from 'react-native'
-import { deliveryService } from '@njooba/core'
+import { deliveryService } from '@yaatal/core'
 
 export const DeliveryPersonRegistration = () => {
   const [formData, setFormData] = useState({

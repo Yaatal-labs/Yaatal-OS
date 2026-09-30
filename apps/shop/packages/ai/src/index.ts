@@ -1,2 +1,3 @@
 // AI Services
-export * from './ai.service'
+// AI services are Engine-backed.
+// AI features are pending Engine integration.

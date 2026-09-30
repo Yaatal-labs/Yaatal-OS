@@ -1,3 +1,8 @@
+> **⚠️ Stale (pre-Engine).** This log predates BOBO's migration onto the Yaatal
+> Engine and describes the older PocketBase/Supabase standalone extraction. It is
+> kept for history only. For the current backend reality and the active work plan,
+> see **`BOBO-ENGINE-ALIGNMENT.md`** and **`CLAUDE.md`**.
+
 # BOBO Standalone Extraction - Removal Log
 
 **Date:** 2026-01-19
@@ -34,7 +39,7 @@
 
 ### BOBO Imports Check
 - `bobo-app/` imports from `yokk-app/`: **NONE**
-- `bobo-app/` imports from `@njooba/design`: **NONE** (alias defined but unused)
+- `bobo-app/` imports from `@yaatal/design`: **NONE** (alias defined but unused)
 - `bobo-app/` imports from `n8n-workflows/`: **NONE**
 - `packages/core/` imports from YOKK items: **NONE**
 - `packages/ai/` imports from YOKK items: **NONE**
@@ -106,8 +111,8 @@ packages:
 - Removed references to deleted Vite configs
 
 ### bobo-app/tsconfig.json
-- Removed unused `@njooba/design` path alias
-- Added `@njooba/shared` path alias
+- Removed unused `@yaatal/design` path alias
+- Added `@yaatal/shared` path alias
 
 ### .env.example
 - Removed: n8n variables, Cloudflare, NEXT_PUBLIC vars
@@ -129,7 +134,7 @@ packages:
 ## ISSUES ENCOUNTERED
 
 ### Issue 1: Stale Lock File Entries
-**Problem:** pnpm-lock.yaml contained references to removed packages (yokk-app, @njooba/design)
+**Problem:** pnpm-lock.yaml contained references to removed packages (yokk-app, @yaatal/design)
 **Resolution:** Ran `pnpm install` to regenerate clean lock file
 **Status:** Resolved
 
@@ -164,9 +169,9 @@ These represent technical debt to address in future sessions.
 **Workspace Packages Recognized:**
 1. bobo@0.1.0 (root)
 2. bobo-app@1.0.0
-3. @njooba/ai@0.1.0
-4. @njooba/core@0.1.0
-5. @njooba/shared@0.1.0
+3. @yaatal/ai@0.1.0
+4. @yaatal/core@0.1.0
+5. @yaatal/shared@0.1.0
 
 ---
 

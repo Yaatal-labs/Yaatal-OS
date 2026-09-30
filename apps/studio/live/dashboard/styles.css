@@ -621,6 +621,65 @@ body[data-lang="fr"] .i18n-fr { display: inline; }
 [data-theme="light"] .scene-active-label { background: rgba(255,255,255,0.85); color: #1a1a2e; }
 [data-theme="light"] .chat-user { color: var(--accent-2); }
 
+/* ─── Yaatal OS embedded surface ────────────────────────────────
+   The native shell owns app chrome, theme, language and identity. */
+html[data-embedded="true"] .topbar,
+html[data-embedded="true"] .sidebar { display: none; }
+html[data-embedded="true"] body { min-height: 100%; }
+html[data-embedded="true"] .layout { height: 100%; }
+html[data-embedded="true"] .main { padding: 18px 20px 24px; }
+html[data-embedded="true"] body { font-family: "Source Sans 3", "Segoe UI", sans-serif; }
+html[data-embedded="true"] h1,
+html[data-embedded="true"] .card-header h2,
+html[data-embedded="true"] .product-name { font-family: "Newsreader", Georgia, serif; }
+
+body[data-theme="light"] {
+  --bg-0: #f4f0e6;
+  --bg-1: #fbf8f0;
+  --bg-2: #fffdf8;
+  --bg-3: #ece6da;
+  --border: #ddd5c5;
+  --border-light: #c7bda9;
+  --text: #1d211d;
+  --text-dim: #686a61;
+  --text-muted: #817e73;
+  --accent: #214d3b;
+  --accent-2: #9a7444;
+  --accent-3: #9a7444;
+  --danger: #bc4a2e;
+  --ok: #4e8a63;
+  --warn: #a36d27;
+  --shadow: 0 10px 28px rgba(62, 49, 31, 0.07);
+  --topbar-grad: #fbf8f0;
+  background: var(--bg-0);
+}
+
+body[data-theme="dark"] {
+  --bg-0: #101412;
+  --bg-1: #171c18;
+  --bg-2: #20261f;
+  --bg-3: #293129;
+  --border: #514633;
+  --border-light: #6b5b41;
+  --text: #f1e8d5;
+  --text-dim: #b9b09d;
+  --text-muted: #918978;
+  --accent: #5f9e73;
+  --accent-2: #b68b50;
+  --accent-3: #b68b50;
+  --danger: #d45832;
+  --ok: #68a87d;
+  --warn: #c89146;
+  --shadow: 0 12px 34px rgba(0, 0, 0, 0.2);
+  --topbar-grad: #171c18;
+  background: var(--bg-0);
+}
+
+html[data-embedded="true"] .card,
+html[data-embedded="true"] .product-card { box-shadow: var(--shadow); }
+html[data-embedded="true"] .nav-item.active { background: var(--bg-3); border-left-color: var(--accent); }
+html[data-embedded="true"] .status-pill.ok .dot { box-shadow: none; }
+
 /* ─── Governed operator lane ─────────────────────────────────── */
 .is-hidden { display: none !important; }
 .operator-status {

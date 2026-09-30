@@ -1,0 +1,16 @@
+{
+  "$comment": "Pinned upstream for the Yaatal Cloudflare OS adaptation. scripts/bootstrap.sh reads this. Bump deliberately, re-run yaatal/smoke/access.mjs and apply-admin.mjs, and record the result.",
+  "starter": {
+    "repo": "https://github.com/cloudflare/cloudflare-os-starter.git",
+    "commit": "3d211477ad009e13a98d863d843e5c12a29ad02b"
+  },
+  "upstream": {
+    "path": "cloudflare-os",
+    "repo": "https://github.com/cloudflare/cloudflare-os.git",
+    "commit": "a43210a79720c50381f0f7e9719cff21ef0db74e"
+  },
+  "toolchain": {
+    "node": ">=24.19.0",
+    "pnpm": "11.17.0"
+  }
+}

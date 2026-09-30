@@ -30,5 +30,11 @@
     "@eslint/js": "^10.0.1",
     "@types/qrcode": "^1.5.6",
     "globals": "^17.6.0"
+  },
+  "//pnpm-overrides": "The tree resolved two @types/react (18.3.27 and 19.2.4). React's own types declare the Component class, so two copies mean two structurally incompatible Components, and every third-party component typed against the other one fails TS2786 ('cannot be used as a JSX component' / 'Property refs is missing'). That is what made `pnpm type-check` red across CameraView, Svg, QRCode and GiftedChat. bobo-app runs react 18.3.1, so the types are pinned to match the runtime.",
+  "pnpm": {
+    "overrides": {
+      "@types/react": "~18.3.11"
+    }
   }
 }

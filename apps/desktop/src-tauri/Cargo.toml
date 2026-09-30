@@ -4,6 +4,10 @@ version = "0.1.0"
 description = "Yaatal OS Windows POC shell"
 edition = "2021"
 
+[features]
+default = []
+unified-ui = ["dep:tungstenite"]
+
 [workspace]
 
 [build-dependencies]
@@ -11,8 +15,10 @@ tauri-build = { version = "2.2.0", features = [] }
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 tauri = { version = "2.5.1", features = [] }
+tauri-plugin-http = "2.6.0"
+tungstenite = { version = "0.28", default-features = false, features = ["handshake"], optional = true }
 
 [dev-dependencies]
-serde_json = "1"
 tempfile = "3"

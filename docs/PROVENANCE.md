@@ -4,7 +4,8 @@ The POC imports source only from pinned commits. Dirty or untracked working-tree
 
 | Component | Source | Pinned revision |
 |---|---|---|
-| BOBO Shop | `C:/Users/momo-/OneDrive/Desktop/YAATAL/BOBO-` | `607b8eb07f31ca034476924387763cf38ca34415` |
+| BOBO Shop | `https://github.com/MouhamedN96/BOBO-.git` branch `codex/bobo-engine-netlify-integration` | `735a90dbb4954e46e0ca4a5b5517eea7b80a7880` (imported 2026-09-02, commit `6dca165`) |
+| BOBO Shop (previous) | same | `607b8eb07f31ca034476924387763cf38ca34415` (imported at `89b1e43`) |
 | Studio | Yaatal Engine Git ref `studio/yaatal/studio-os-closure` | `074c5278a1a9a03617389539efa44c1ed2b1f9d7` |
 | Engine API contract | `Yaatal-labs/Yaatal-Engine` | `74be4bdd575d366158e2e0dab30528102040aff9` |
 | Engine voice seam | `Yaatal-labs/Yaatal-Engine` | `e93100971be8f3e4ce5d67af584ee135e7e24704` |
@@ -12,7 +13,7 @@ The POC imports source only from pinned commits. Dirty or untracked working-tree
 | Harness main | `Yaatal-labs/Yaatal-Harness` | `9a3ed3b3f65d2ba3b307b859d569265afef3496e` |
 | Harness edge-turn lane | `Yaatal-labs/Yaatal-Harness` | `dfc80e176f777c3322c680b401339e8ca36fd7a2` |
 | TypeScript SDK | `C:/Users/momo-/OneDrive/Desktop/YAATAL/Yaatal-SDK` | `5f69c276a715ffda065c000ce82915eafe2a6c90` |
+| UXR-05 demo catalog media | Yaatal-generated FAL FLUX visuals, September 2026 | Seven optimized 800×1000 WebPs introduced in `8aa4ee5`; reused byte-for-byte in packaged SHOP by `d6eb509` |
 
 Engine, Harness, and the voice service remain independently deployed services. Their revisions are
 recorded here as acceptance-environment dependencies, not vendored runtime components.
-

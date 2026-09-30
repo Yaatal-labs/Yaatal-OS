@@ -13,13 +13,13 @@
 ```
 ┌─────────────┐     HTTP/JSON      ┌─────────────────────────┐
 │  BOBO App   │ ◄───────────────► │  Yaatal Engine (Rust)   │
-│  (Expo 54)  │   Bearer token    │  Railway Postgres         │
+│  (Expo 54)  │   Bearer token    │  engine.njooba.com         │
 └─────────────┘                    └─────────────────────────┘
 ```
 
 - **BOBO App** → proposes actions via HTTP
 - **IntentQueue** → local cache, flush on reconnect *(coming soon)*
-- **Engine** → Rust API on Railway, single source of truth
+- **Engine** → Rust API (engine.njooba.com), single source of truth
 - **Postgres** → canonical data with audit gate
 
 ⚠️ **PowerSync is parked.** Files are still in the repo as a rollback parachute, but startup is stopped. Do not wire new features through it.
@@ -61,13 +61,13 @@ We are not against offline. We are against **offline that nobody controls**. In 
 | Feature | Status | Evidence |
 |---------|--------|----------|
 | BOBO web app | ✅ Deployed | `https://bobo-6g9.pages.dev` |
-| Engine API | ✅ Deployed | `https://yaatal-engine-production.up.railway.app` |
+| Engine API | ✅ Deployed | `https://engine.njooba.com` |
 | Auth (login, register) | ✅ Working | `POST /api/auth/register`, `POST /api/auth/login` |
 | Product catalog | ✅ Working | `GET /api/products` |
 | Checkout (cash) | ✅ Working | Completes immediately |
 | Checkout (Wave) | ⚠️ Stub only | Shows pending screen, polls status. No real XOF yet. |
 | Product catalog empty | ⚠️ No seed data | Returns `200 []`. Need seed merchants + products. |
-| AI, chat, delivery | ❌ Legacy path | Still on old HTTP/PocketBase. Not Engine-backed. |
+| AI, chat, delivery | ✅ Engine-backed | `chat.service.engine.ts`, `ai.service.engine.ts`, `delivery.service.engine.ts` call Engine API endpoints. Marketplace delivery features (driver pool, quotes) pending Engine marketplace. |
 | EAS build config | ❌ Missing | No `eas.json`. TestFlight / Play Console blocked. |
 
 ---
@@ -84,7 +84,7 @@ git checkout codex/bobo-engine-netlify-integration
 pnpm install --frozen-lockfile
 
 # 3. Env — only this one matters
-EXPO_PUBLIC_ENGINE_API_URL=https://yaatal-engine-production.up.railway.app
+EXPO_PUBLIC_ENGINE_API_URL=https://engine.njooba.com
 
 # 4. Type-check and build
 pnpm --filter bobo-app type-check
@@ -133,7 +133,7 @@ rg -n "yaatal-engine-production" bobo-app/dist/_expo/static/js/web # should find
 | Yaatal Engine repo | `https://github.com/Yaatal-labs/Yaatal-Engine` |
 | Engine PR #28 (BOBO bridge) | `https://github.com/Yaatal-labs/Yaatal-Engine/pull/28` |
 | BOBO web (deployed) | `https://bobo-6g9.pages.dev` |
-| Engine API (deployed) | `https://yaatal-engine-production.up.railway.app/health` |
+| Engine API (deployed) | `https://engine.njooba.com/health` |
 
 ---
 

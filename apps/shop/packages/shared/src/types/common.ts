@@ -1,5 +1,13 @@
 export type UserRole = 'customer' | 'merchant' | 'delivery' | 'admin';
-export type PaymentMethod = 'orange_money' | 'wave' | 'cash';
+/**
+ * Payment methods, as the Engine defines them.
+ *
+ * Not redeclared here. `payment_rail()` in the Engine's `bobo_checkout.rs` is
+ * the list and it answers 400 for anything else, so a local copy could only
+ * drift into offering a method that gets rejected — which is what happened to
+ * `orange_money`, carried in this union for months and never accepted.
+ */
+export type { BoboPaymentMethod as PaymentMethod } from '@yaatal/client';
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up' | 'delivering' | 'delivered' | 'cancelled';
 export type DeliveryStatus = 'pending' | 'accepted' | 'picked_up' | 'in_transit' | 'delivered' | 'failed';
 export type LivestreamPlatform = 'tiktok' | 'instagram' | 'facebook' | 'youtube';

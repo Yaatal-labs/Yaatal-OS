@@ -1,5 +1,5 @@
 [build]
-command = "pnpm --filter @yaatal/client build && pnpm --filter bobo-app exec expo export -p web"
+command = "pnpm --filter bobo-app exec expo export -p web"
 publish = "bobo-app/dist"
 
 [[redirects]]

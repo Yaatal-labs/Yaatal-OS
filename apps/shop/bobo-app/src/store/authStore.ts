@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { authService } from '@njooba/core'
+import { authService } from '@yaatal/core'
 import type { Profile, SignupFormData, LoginFormData } from '../types/models'
 
 interface AuthState {

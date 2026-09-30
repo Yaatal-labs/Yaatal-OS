@@ -6,9 +6,9 @@ without moving business authority out of Yaatal Engine or policy authority out o
 
 ## POC contract
 
-- **Sell window:** Studio cockpit, voice session, governed actions, and OBS controls.
-- **Shop window:** BOBO's Expo web surface backed by `@yaatal/client`.
-- **Tauri host:** window lifecycle, capability-scoped IPC, sidecar supervision, deep links, and local secrets.
+- **Sell workspace:** Studio cockpit, voice session, governed actions, and OBS controls.
+- **Shop workspace:** BOBO's Expo web surface backed by `@yaatal/client`.
+- **Tauri host:** one unified native window, narrow IPC, sidecar supervision, deep links, and local secrets.
 - **Remote services:** Engine owns identity and commerce; Harness owns policy and audit; the voice service owns inference.
 
 The first product acceptance flows are:
@@ -26,6 +26,8 @@ responsibilities. See [the social-commerce POC runbook](docs/SOCIAL-COMMERCE-POC
 The native shell and sandbox social checkout are validated, but the real Studio
 and BOBO user surfaces are not yet integrated. Start with the
 [Symphony board](docs/BOARD.md) and the
-[real-surfaces execution handoff](docs/OS-REAL-SURFACES-HANDOFF.md). Do not treat
+[real-surfaces execution handoff](docs/OS-REAL-SURFACES-HANDOFF.md). The approved
+[SELL/SHOP light and dark UI contract](docs/design/YAATAL-OS-UI-CONTRACT.md)
+defines the product target. Do not treat
 a successful shell launch as finished-product acceptance.
 

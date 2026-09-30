@@ -4,7 +4,7 @@
 Cross-platform marketplace (React Native + PWA) for African Live Commerce.
 
 ## Completed
-- Core Architecture: Expo SDK 54, React Native 0.76, Supabase + PowerSync
+- Core Architecture: Expo SDK 54, React Native 0.76, Yaatal Engine (Rust, engine.njooba.com). Supabase excised. PowerSync stopped (legacy preserved).
 - Design System: "Classy Afro-Tech" (Midnight Indigo + Lagos Gold)
 - Type Safety: Zero tsc errors
 - Core Flows: Authentication, Product Discovery, Checkout, Order Management
@@ -25,4 +25,4 @@ Cross-platform marketplace (React Native + PWA) for African Live Commerce.
 
 ## Execution Log
 - 2025-12-23: Migrated to Expo 54. Fixed all 226 type errors. Refactored UI.
-- 2026-01-19: Standalone extraction complete. Supabase + PowerSync backend.
+- 2026-01-19: Standalone extraction complete. Yaatal Engine (Rust, engine.njooba.com) backend. Supabase excised, PowerSync stopped.
