@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="wo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yaatal CTA Bar</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: transparent;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .cta-bar {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(90deg, #c62828 0%, #e53935 100%);
+            color: white;
+            padding: 14px 48px;
+            border-radius: 30px;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            animation: pulse 2s ease-in-out infinite;
+            white-space: nowrap;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.03); }
+        }
+
+        .cta-bar .icon {
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="cta-bar" id="ctaBar">
+        <span class="icon">🛒</span>
+        <span id="ctaText">Achetez maintenant</span>
+    </div>
+
+    <script>
+        function updateCTA(text) {
+            document.getElementById('ctaText').textContent = text;
+        }
+
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'updateCTA') {
+                updateCTA(event.data.text);
+            }
+        });
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('text')) {
+            updateCTA(params.get('text'));
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Yaatal OS",
+  "version": "0.1.0",
+  "identifier": "com.yaatal.os",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "devUrl": "http://127.0.0.1:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "security": { "capabilities": ["default"] },
+    "windows": [
+      { "label": "sell", "title": "Yaatal OS — Sell", "width": 1000, "height": 720, "minWidth": 720, "minHeight": 560 },
+      { "label": "shop", "title": "Yaatal OS — Shop", "width": 900, "height": 680, "minWidth": 640, "minHeight": 520 }
+    ]
+  },
+  "bundle": { "active": true, "targets": "all", "icon": ["icons/icon.ico"] }
+}

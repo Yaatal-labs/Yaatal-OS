@@ -1,0 +1,4 @@
+
+> bobo-app@1.0.0 test
+> jest --testPathPattern=services|store --noStackTrace
+

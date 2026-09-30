@@ -1,0 +1,37 @@
+{
+  "version": "yaatal.sidecar-manifest.v1",
+  "id": "studio-runtime",
+  "launcher": {
+    "executable": "python",
+    "args": [
+      "sidecars/studio-runtime/launcher.py",
+      "--ready-file",
+      "{ready_file}"
+    ],
+    "working_directory": "apps/studio"
+  },
+  "network": {
+    "host": "127.0.0.1",
+    "port": {
+      "default": 8484,
+      "override": "--port or STUDIO_SIDECAR_PORT",
+      "discovery": "use --port 0 and read {ready_file}"
+    },
+    "health_path": "/health",
+    "os_status_path": "/api/os/status"
+  },
+  "lifecycle": {
+    "startup_timeout_ms": 10000,
+    "graceful_shutdown_timeout_ms": 5000,
+    "termination": "send SIGTERM, SIGINT, or Windows CTRL_BREAK; launcher drains Uvicorn and removes the ready file"
+  },
+  "security": {
+    "credentials": "inherited environment only",
+    "forbidden_command_arguments": [
+      "Engine JWT",
+      "Engine credentials",
+      "Harness credentials",
+      "voice upstream URL"
+    ]
+  }
+}

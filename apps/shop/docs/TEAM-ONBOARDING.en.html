@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BOBO Squad Onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f7f2e8;
+  --paper-2:#efe6d6;
+  --ink:#17130e;
+  --muted:#63594b;
+  --soft:#8a7b68;
+  --line:#ddcfba;
+  --card:#fffaf0;
+  --card-2:#fbf1df;
+  --green:#2e7658;
+  --green-bg:#e5f2eb;
+  --rust:#ad4b32;
+  --rust-bg:#f6dfd7;
+  --blue:#365f9e;
+  --blue-bg:#e4ebf6;
+  --gold:#9c6b1e;
+  --gold-bg:#f3e6c8;
+  --violet:#6650a4;
+  --violet-bg:#ebe5f8;
+  --amber:#b8860b;
+  --amber-bg:#fdf6dc;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--paper);color:var(--ink);line-height:1.55;font-size:15px}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+code{font-family:'IBM Plex Mono',monospace;font-size:.92em;background:#f0e8d8;padding:2px 6px;border-radius:4px;color:var(--rust)}
+pre code{display:block;padding:14px;background:#f5efe4;border-radius:8px;overflow-x:auto;line-height:1.45}
+
+.topbar{position:sticky;top:0;z-index:50;background:rgba(247,242,232,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:12px 24px;display:flex;justify-content:space-between;align-items:center}
+.topbar .logo{font-family:'Fraunces',serif;font-weight:700;font-size:18px;color:var(--ink)}
+.topbar nav{display:flex;gap:16px;align-items:center;font-size:13px}
+.topbar nav a{color:var(--soft);font-weight:500}.topbar nav a.active{color:var(--ink);font-weight:600}
+.lang-pill{background:var(--card);border:1px solid var(--line);padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;color:var(--muted)}
+.lang-pill a{color:var(--soft);margin-left:6px}.lang-pill a.active{color:var(--ink)}
+
+.hero{padding:64px 24px 40px;text-align:center;max-width:720px;margin:0 auto}
+.hero h1{font-family:'Fraunces',serif;font-size:clamp(32px,5vw,52px);font-weight:700;line-height:1.1;margin-bottom:16px}
+.hero p.lede{font-size:18px;color:var(--muted);max-width:560px;margin:0 auto 28px;line-height:1.5}
+.hero .tag{display:inline-block;background:var(--green-bg);color:var(--green);padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600}
+
+.wrap{max-width:1100px;margin:0 auto;padding:24px}
+.grid-shell{display:grid;grid-template-columns:200px 1fr;gap:32px}
+@media(max-width:840px){.grid-shell{grid-template-columns:1fr}}
+
+aside nav.sticky{position:sticky;top:72px}
+aside nav ul{list-style:none;font-size:13px}
+aside nav li{margin-bottom:8px}
+aside nav a{color:var(--soft);display:block;padding:4px 0}
+aside nav a:hover{color:var(--ink)}
+
+.section-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 32px;margin-bottom:24px}
+.section-card h2{font-family:'Fraunces',serif;font-size:26px;font-weight:700;margin-bottom:10px}
+.section-card .kicker{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin-bottom:8px}
+
+.map{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:20px}
+.node{background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:16px;text-align:center;font-size:13px}
+.node .label{font-weight:600;color:var(--ink);margin-bottom:4px}
+.node .desc{font-size:12px;color:var(--soft)}
+.node.on{background:var(--green-bg);border-color:#c3dfc8}
+.node.off{background:var(--rust-bg);border-color:#e4c5bc}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:18px}
+.tile{background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:18px}
+.tile h4{font-size:14px;font-weight:600;margin-bottom:6px}
+.tile p{font-size:13px;color:var(--muted);line-height:1.45}
+
+.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:18px}
+.status-card{border:1px solid var(--line);border-radius:12px;padding:18px;position:relative}
+.status-card .dot{width:10px;height:10px;border-radius:50%;position:absolute;top:16px;right:16px}
+.status-card.ok{background:var(--green-bg);border-color:#c3dfc8}
+.status-card.ok .dot{background:var(--green)}
+.status-card.warn{background:var(--amber-bg);border-color:#e8daa0}
+.status-card.warn .dot{background:var(--amber)}
+.status-card.bad{background:var(--rust-bg);border-color:#e4c5bc}
+.status-card.bad .dot{background:var(--rust)}
+.status-card h4{font-size:14px;font-weight:600;margin-bottom:6px}
+.status-card p{font-size:13px;color:var(--muted);line-height:1.45}
+
+.flow{background:#f5efe4;border-radius:12px;padding:20px;margin-top:18px;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.flow ol{list-style:none;counter-reset:step}
+.flow li{counter-increment:step;padding:8px 0;border-bottom:1px dashed var(--line)}
+.flow li:last-child{border:none}
+.flow li::before{content:counter(step,decimal-leading-zero);display:inline-block;width:28px;color:var(--soft);font-weight:500}
+
+.callout{border-left:4px solid var(--blue);background:var(--blue-bg);padding:14px 18px;border-radius:0 10px 10px 0;margin-top:16px;font-size:14px}
+.callout strong{display:block;margin-bottom:4px;color:var(--ink)}
+
+.refs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:18px}
+.ref-card{background:var(--card-2);border:1px solid var(--line);border-radius:10px;padding:16px;font-size:13px}
+.ref-card .tag{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-bottom:6px}
+.ref-card h4{font-size:14px;font-weight:600;margin-bottom:4px}
+.ref-card a{font-size:12px;color:var(--blue);word-break:break-all}
+.ref-card a::after{content:" ↗";font-size:10px}
+
+.footer{text-align:center;padding:40px 24px;color:var(--soft);font-size:13px;border-top:1px solid var(--line);margin-top:40px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">BOBO · Squad Onboarding</div>
+  <nav>
+    <span class="lang-pill">EN <a href="#" class="active">EN</a><a href="TEAM-ONBOARDING.fr.html">FR</a></span>
+    <a href="#map" class="active">Map</a>
+    <a href="#rules">Rules</a>
+    <a href="#state">State</a>
+    <a href="#work">Work</a>
+    <a href="#help">Help</a>
+  </nav>
+</div>
+
+<section class="hero">
+  <div class="tag">Branch: codex/bobo-engine-netlify-integration</div>
+  <h1>Welcome to the squad.</h1>
+  <p class="lede">You are building a social-commerce app for African SMBs. We are mid-cutover: goodbye PowerSync, hello the Yaatal Engine. This page tells you where things stand and how to work without breaking the wire.</p>
+</section>
+
+<div class="wrap">
+<div class="grid-shell">
+
+<aside>
+  <nav class="sticky">
+    <ul>
+      <li><strong>On this page</strong></li>
+      <li><a href="#map">The map</a></li>
+      <li><a href="#why">Why we changed</a></li>
+      <li><a href="#rules">Golden rules</a></li>
+      <li><a href="#state">Current state</a></li>
+      <li><a href="#work">How to work</a></li>
+      <li><a href="#fix">Fixing bugs</a></li>
+      <li><a href="#help">Who to ask</a></li>
+      <li><a href="#links">Links</a></li>
+    </ul>
+  </nav>
+</aside>
+
+<main>
+
+<div class="section-card" id="map">
+  <div class="kicker">01 · System Map</div>
+  <h2>This is the wire now</h2>
+  <div class="map">
+    <div class="node on"><div class="label">BOBO App</div><div class="desc">Expo 54<br>React Native</div></div>
+    <div class="node on"><div class="label">IntentQueue</div><div class="desc">Local cache<br>Flush on reconnect</div></div>
+    <div class="node on"><div class="label">Engine HTTP</div><div class="desc">Rust API<br>Railway</div></div>
+    <div class="node on"><div class="label">Postgres</div><div class="desc">Single truth<br>Audit gate</div></div>
+  </div>
+  <div class="callout" style="border-color:var(--rust);background:var(--rust-bg)">
+    <strong>PowerSync is parked.</strong>
+    Files are still in the repo as a rollback parachute, but startup is stopped. Do not wire new features through it.
+  </div>
+</div>
+
+<div class="section-card" id="why">
+  <div class="kicker">02 · The Decision</div>
+  <h2>Why we cut over</h2>
+  <p>PowerSync gave us offline-first SQLite sync. It worked, but every device owned a copy of truth. When AI started generating product descriptions and merchant responses, we had no gate to review that content before it went live. A hallucinated price could reach customers unchecked.</p>
+  <p style="margin-top:10px">The Engine is now the single source of truth. The app proposes <em>intents</em>; the Engine decides to accept, reject, or audit them. This gives us:</p>
+  <div class="tiles">
+    <div class="tile"><h4>Control</h4><p>We see every write before it becomes canonical.</p></div>
+    <div class="tile"><h4>Auditability</h4><p>AI-generated content gets flagged automatically for review.</p></div>
+    <div class="tile"><h4>Sovereignty</h4><p>Our data lives in our Postgres, not a third-party sync service.</p></div>
+  </div>
+  <p style="margin-top:14px;color:var(--muted);font-size:14px">In Senegal, signal drops and bandwidth is expensive. The app still queues actions locally and flushes when signal returns — but the Engine validates every single one before it goes live. This is <em>offline-capable</em>, not naive offline-first.</p>
+</div>
+
+<div class="section-card" id="rules">
+  <div class="kicker">03 · Rules</div>
+  <h2>Five rules — no exceptions</h2>
+  <div class="flow">
+    <ol>
+      <li><strong>Talk to the Engine, not Supabase.</strong> If you find yourself importing <code>@supabase/supabase-js</code> in new code, stop. Use <code>packages/core/src/services/engine.client.ts</code>.</li>
+      <li><strong>Do not bring PowerSync back.</strong> It is preserved for rollback only. If you need offline buffering, build on <code>IntentQueue</code> (coming), not PowerSync.</li>
+      <li><strong>One env var rules the backend.</strong> <code>EXPO_PUBLIC_ENGINE_API_URL</code> points to the Engine. Nothing else matters.</li>
+      <li><strong>No new Supabase tables.</strong> If a feature needs persistence, it needs an Engine migration and an API endpoint.</li>
+      <li><strong>Protect <code>Standalone</code>.</strong> It is the rollback-safe baseline. Never force-push. Branch from <code>codex/bobo-engine-netlify-integration</code>.</li>
+    </ol>
+  </div>
+</div>
+
+<div class="section-card" id="state">
+  <div class="kicker">04 · Current State</div>
+  <h2>What is real right now</h2>
+  <div class="status-grid">
+    <div class="status-card ok"><div class="dot"></div><h4>BOBO web app</h4><p>Deployed at <code>bobo-6g9.pages.dev</code></p></div>
+    <div class="status-card ok"><div class="dot"></div><h4>Engine API</h4><p>Deployed at <code>yaatal-engine-production.up.railway.app</code></p></div>
+    <div class="status-card ok"><div class="dot"></div><h4>Auth (login, register)</h4><p>JWT via <code>/api/auth/*</code></p></div>
+    <div class="status-card ok"><div class="dot"></div><h4>Product catalog</h4><p><code>GET /api/products</code> works</p></div>
+    <div class="status-card ok"><div class="dot"></div><h4>Checkout (cash)</h4><p>Completes immediately</p></div>
+    <div class="status-card warn"><div class="dot"></div><h4>Checkout (Wave)</h4><p>Stub only — shows pending, polls status. No real XOF moves yet.</p></div>
+    <div class="status-card warn"><div class="dot"></div><h4>Product catalog empty</h4><p>Returns <code>200 []</code>. Needs seed merchants and products.</p></div>
+    <div class="status-card bad"><div class="dot"></div><h4>AI, chat, delivery</h4><p>Still on legacy HTTP/PocketBase. Not Engine-backed yet.</p></div>
+    <div class="status-card bad"><div class="dot"></div><h4>EAS build config</h4><p>No <code>eas.json</code>. TestFlight / Play Console blocked.</p></div>
+  </div>
+</div>
+
+<div class="section-card" id="work">
+  <div class="kicker">05 · Daily Work</div>
+  <h2>How to work with this branch</h2>
+  <p style="margin-bottom:16px">Clone, install, env, type-check, build. Always type-check before pushing.</p>
+  <pre><code># 1. Clone and branch
+git clone https://github.com/MouhamedN96/BOBO-.git
+cd BOBO-
+git checkout codex/bobo-engine-netlify-integration
+
+# 2. Install
+pnpm install --frozen-lockfile
+
+# 3. Env — only this one matters
+EXPO_PUBLIC_ENGINE_API_URL=https://yaatal-engine-production.up.railway.app
+
+# 4. Type-check and build
+pnpm --filter bobo-app type-check
+pnpm --filter bobo-app build
+
+# 5. Start dev server
+pnpm --filter bobo-app start
+
+# 6. Verify web bundle
+pnpm build
+rg -n "import\.meta" bobo-app/dist/_expo/static/js/web   # should return nothing
+rg -n "yaatal-engine-production" bobo-app/dist/_expo/static/js/web # should find hits
+</code></pre>
+  <div class="callout">
+    <strong>Do not set dead env vars.</strong> <code>EXPO_PUBLIC_SUPABASE_URL</code> and <code>EXPO_PUBLIC_POWERSYNC_URL</code> are inactive. Setting them will not break anything, but it will confuse the next engineer who reads <code>.env</code>.
+  </div>
+</div>
+
+<div class="section-card" id="fix">
+  <div class="kicker">06 · Troubleshooting</div>
+  <h2>Hit a wall? Check here first</h2>
+  <div class="tiles">
+    <div class="tile"><h4>TypeError: Cannot read 'products'</h4><p>Engine returned an unexpected shape. Check Network tab, then update the mapper in <code>products.service.engine.ts</code>.</p></div>
+    <div class="tile"><h4>Engine 401</h4><p>Token expired. Re-login. The token lives in <code>authStore</code> and is injected into <code>engine.client.ts</code>.</p></div>
+    <div class="tile"><h4>Build fails: import.meta.env</h4><p>Zustand import mapped wrong. Check <code>metro.config.js</code> — must use CommonJS entrypoints for web.</p></div>
+    <div class="tile"><h4>PowerSync is not initialized</h4><p>You are on the wrong branch, or an old file still imports <code>lib/powersync</code>.</p></div>
+  </div>
+</div>
+
+<div class="section-card" id="help">
+  <div class="kicker">07 · People</div>
+  <h2>Who to ask</h2>
+  <div class="tiles">
+    <div class="tile"><h4>Engine API question</h4><p>Tag the Engine squad on <code>Yaatal-labs/Yaatal-Engine</code>.</p></div>
+    <div class="tile"><h4>BOBO app question</h4><p>Tag <code>@MouhamedN96</code> or open an issue in <code>MouhamedN96/BOBO-</code>.</p></div>
+    <div class="tile"><h4>Urgent blocker</h4><p>Post in team chat with the error, branch name, and last commit hash. Do not just say "it broke."</p></div>
+  </div>
+</div>
+
+<div class="section-card" id="links">
+  <div class="kicker">08 · Links</div>
+  <h2>Everything you need</h2>
+  <div class="refs">
+    <div class="ref-card"><div class="tag">Repo</div><h4>BOBO repo</h4><a href="https://github.com/MouhamedN96/BOBO-/tree/codex/bobo-engine-netlify-integration" target="_blank" rel="noopener">github.com/MouhamedN96/BOBO-</a></div>
+    <div class="ref-card"><div class="tag">Pull Request</div><h4>BOBO PR #1</h4><a href="https://github.com/MouhamedN96/BOBO-/pull/1" target="_blank" rel="noopener">Engine cutover + Pages repair</a></div>
+    <div class="ref-card"><div class="tag">Engine</div><h4>Yaatal Engine</h4><a href="https://github.com/Yaatal-labs/Yaatal-Engine" target="_blank" rel="noopener">github.com/Yaatal-labs/Yaatal-Engine</a></div>
+    <div class="ref-card"><div class="tag">Engine PR</div><h4>Engine PR #28</h4><a href="https://github.com/Yaatal-labs/Yaatal-Engine/pull/28" target="_blank" rel="noopener">BOBO bridge + Railway deploy</a></div>
+    <div class="ref-card"><div class="tag">Deployed</div><h4>BOBO web</h4><a href="https://bobo-6g9.pages.dev" target="_blank" rel="noopener">bobo-6g9.pages.dev</a></div>
+    <div class="ref-card"><div class="tag">Deployed</div><h4>Engine API</h4><a href="https://yaatal-engine-production.up.railway.app/health" target="_blank" rel="noopener">yaatal-engine-production.up.railway.app</a></div>
+  </div>
+</div>
+
+</main>
+</div>
+</div>
+
+<div class="footer">
+  Last updated 2026-06-10 · Branch <code>codex/bobo-engine-netlify-integration</code> · If this page is stale, check <code>docs/deployment/bobo-engine-pr-set.md</code>
+</div>
+
+</body>
+</html>

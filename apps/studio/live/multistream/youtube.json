@@ -1,0 +1,22 @@
+{
+  "name": "YouTube Live",
+  "platform": "youtube",
+  "protocol": "RTMP",
+  "note": "YouTube Live accepts RTMP ingest. Set in OBS → Settings → Stream.",
+  "obs_settings": {
+    "service": "YouTube - RTMPS",
+    "server": "rtmps://a.rtmps.youtube.com:443/live2",
+    "key": "YOUR_STREAM_KEY",
+    "instructions": [
+      "1. Go to YouTube Studio → Create → Go Live",
+      "2. Copy the Stream Key from the Live Control Room",
+      "3. Paste in OBS → Settings → Stream → Stream Key",
+      "4. Set Service to 'YouTube - RTMPS'",
+      "5. Use obs-multi-rtmp plugin to stream to YouTube + Facebook simultaneously"
+    ]
+  },
+  "regions": {
+    "senegal": "YouTube has Africa edge servers. Latency ~1-3s from Dakar.",
+    "west_africa": "Good coverage. Low latency from most West African capitals."
+  }
+}

@@ -1,0 +1,5 @@
+packages:
+  - 'packages/ai'
+  - 'packages/core'
+  - 'packages/shared'
+  - 'bobo-app'

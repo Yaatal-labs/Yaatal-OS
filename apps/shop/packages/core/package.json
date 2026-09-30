@@ -1,0 +1,32 @@
+{
+  "name": "@njooba/core",
+  "version": "0.1.0",
+  "description": "BOBO core package - types, utilities, and Engine-backed shared services",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@yaatal/client": "github:Yaatal-labs/Yaatal-SDK#main",
+    "dayjs": "^1.11.10",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.4.0",
+    "pocketbase": "^0.21.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "@supabase/supabase-js": "*",
+    "expo-speech": "~14.0.8",
+    "expo-av": "~16.0.8",
+    "expo-image-picker": "~17.0.11"
+  }
+}
+
+
+

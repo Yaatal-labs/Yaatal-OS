@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="wo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yaatal Viewer Comments</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: transparent;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .comments-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 380px;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 8px;
+        }
+
+        .comment {
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            animation: commentIn 0.3s ease-out;
+            border-left: 3px solid #d4af37;
+        }
+
+        @keyframes commentIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .comment.fade-out {
+            animation: fadeOut 0.4s ease-in forwards;
+        }
+
+        @keyframes fadeOut {
+            to { transform: translateX(-120%); opacity: 0; }
+        }
+
+        .comment .user {
+            font-weight: 700;
+            color: #d4af37;
+            margin-right: 6px;
+        }
+
+        .comment .text {
+            font-weight: 400;
+        }
+
+        .comment.highlight {
+            background: rgba(212, 175, 55, 0.85);
+            color: #1a1a1a;
+            border-left-color: white;
+        }
+
+        .comment.highlight .user {
+            color: #1a1a1a;
+        }
+    </style>
+</head>
+<body>
+    <div class="comments-container" id="commentsContainer"></div>
+
+    <script>
+        const MAX_COMMENTS = 5;
+        const COMMENT_DISPLAY_TIME = 15000; // 15 seconds
+
+        function addComment(user, text, highlight = false) {
+            const container = document.getElementById('commentsContainer');
+            const comment = document.createElement('div');
+            comment.className = 'comment' + (highlight ? ' highlight' : '');
+
+            const userSpan = document.createElement('span');
+            userSpan.className = 'user';
+            userSpan.textContent = user + ':';
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'text';
+            textSpan.textContent = text;
+
+            comment.appendChild(userSpan);
+            comment.appendChild(textSpan);
+            container.appendChild(comment);
+
+            // Remove old comments if over max
+            while (container.children.length > MAX_COMMENTS) {
+                container.removeChild(container.firstChild);
+            }
+
+            // Auto-remove after display time
+            setTimeout(() => {
+                comment.classList.add('fade-out');
+                setTimeout(() => comment.remove(), 400);
+            }, COMMENT_DISPLAY_TIME);
+        }
+
+        // Listen for comments from MCP server / gateway
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'addComment') {
+                addComment(event.data.user, event.data.text, event.data.highlight || false);
+            }
+        });
+
+        // Demo comments (remove in production)
+        // addComment('Awa', 'Combien?', true);
+        // addComment('Moussa', 'Livraison Dakar?');
+    </script>
+</body>
+</html>
