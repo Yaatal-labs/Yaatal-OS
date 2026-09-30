@@ -48,20 +48,42 @@ export async function accountForKey(db: D1Database, key: string): Promise<Accoun
   return row ? { id: row.id, name: row.name, balanceUxof: row.balance_uxof } : null;
 }
 
-export async function createAccount(db: D1Database, name: string): Promise<Account> {
+export async function createAccount(db: D1Database, name: string, issuer: string | null = null): Promise<Account> {
   const id = crypto.randomUUID();
-  await db.prepare("INSERT INTO accounts (id, name) VALUES (?, ?)").bind(id, name).run();
+  await db.prepare("INSERT INTO accounts (id, name, issuer) VALUES (?, ?, ?)").bind(id, name, issuer).run();
   return { id, name, balanceUxof: 0 };
 }
 
-/** Creates a key and returns it. Only its hash is stored, so this is the one time it is visible. */
-export async function createKey(db: D1Database, accountId: string, label: string): Promise<string> {
+/** The account's issuer (null = admin-only), or undefined when no such account exists. */
+export async function accountIssuer(db: D1Database, accountId: string): Promise<string | null | undefined> {
+  const row = await db.prepare("SELECT issuer FROM accounts WHERE id = ?").bind(accountId).first<{ issuer: string | null }>();
+  return row ? row.issuer : undefined;
+}
+
+/** Assigns or clears the issuer an account is reachable through. False when no such account exists. */
+export async function setAccountIssuer(db: D1Database, accountId: string, issuer: string | null): Promise<boolean> {
+  const result = await db.prepare("UPDATE accounts SET issuer = ? WHERE id = ?").bind(issuer, accountId).run();
+  return result.meta.changes === 1;
+}
+
+export interface CreatedKey {
+  /** Stable id for later management (label, revoke) without ever holding the raw key again. */
+  id: string;
+  /** The raw key. Only its hash is stored, so this is the one time it is visible. */
+  key: string;
+}
+
+/** Creates a key for an account, which must already exist. An account may hold several keys. */
+export async function createKey(db: D1Database, accountId: string, label: string): Promise<CreatedKey> {
+  const exists = await db.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(accountId).first();
+  if (!exists) throw new UnknownAccountError();
+  const id = crypto.randomUUID();
   const key = newApiKey();
   await db
-    .prepare("INSERT INTO api_keys (key_hash, account_id, label) VALUES (?, ?, ?)")
-    .bind(await sha256Hex(key), accountId, label)
+    .prepare("INSERT INTO api_keys (id, key_hash, account_id, label) VALUES (?, ?, ?, ?)")
+    .bind(id, await sha256Hex(key), accountId, label)
     .run();
-  return key;
+  return { id, key };
 }
 
 export async function revokeKey(db: D1Database, key: string): Promise<boolean> {
@@ -70,6 +92,23 @@ export async function revokeKey(db: D1Database, key: string): Promise<boolean> {
     .bind(await sha256Hex(key))
     .run();
   return result.meta.changes === 1;
+}
+
+export async function revokeKeyById(db: D1Database, id: string): Promise<boolean> {
+  const result = await db
+    .prepare("UPDATE api_keys SET revoked_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND revoked_at IS NULL")
+    .bind(id)
+    .run();
+  return result.meta.changes === 1;
+}
+
+/** The issuer of the account that holds this key, or undefined when no such key exists. */
+export async function keyAccountIssuer(db: D1Database, keyId: string): Promise<string | null | undefined> {
+  const row = await db
+    .prepare("SELECT a.issuer FROM api_keys k JOIN accounts a ON a.id = k.account_id WHERE k.id = ?")
+    .bind(keyId)
+    .first<{ issuer: string | null }>();
+  return row ? row.issuer : undefined;
 }
 
 export async function credit(db: D1Database, accountId: string, amountUxof: number, note: string): Promise<number> {

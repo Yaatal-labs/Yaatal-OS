@@ -25,6 +25,10 @@
   },
   // Secrets (wrangler secret put, or .dev.vars locally):
   //   ADMIN_TOKEN        bearer token for /admin/* (account, key and credit management)
+  //   KEY_ISSUER_TOKEN   optional: key create/revoke only, for a platform minting per-app keys --
+  //                      and only on accounts an admin assigned to it (see KEY_ISSUER_NAME)
+  //   KEY_ISSUER_NAME    required alongside KEY_ISSUER_TOKEN: the accounts.issuer value that
+  //                      token may act on; left unset, the token is refused entirely
   //   UPSTREAM_API_KEY   key for "openai"-kind upstreams, when a model uses one
   "observability": { "enabled": true }
 }
