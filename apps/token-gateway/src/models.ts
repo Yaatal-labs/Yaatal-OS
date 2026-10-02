@@ -1,10 +1,10 @@
-// The models Yaatal sells, their price in XOF (FCFA), and where their tokens come from. Each model lists its
+// The models Kairmel sells, their price in XOF (FCFA), and where their tokens come from. Each model lists its
 // upstreams in order: the gateway fails over to the next one when an upstream is rate limited or
 // down, so the wholesale supplier, Workers AI or a self-hosted server can back the same public id.
 //
 // Prices are XOF per million tokens, which is exactly micro-XOF per token (see the ledger schema).
 // Each price is derived from the model's upstream cost (USD per million tokens, from the Workers AI
-// catalog), the exchange rate and Yaatal's markup, so no model is ever sold below cost. Update
+// catalog), the exchange rate and our markup, so no model is ever sold below cost. Update
 // USD_TO_XOF and MARKUP here; update a model's cost when its upstream changes.
 
 export type Upstream =
@@ -110,25 +110,25 @@ const PAID = { paidPlan: true } as const;
 // order: the frontier models people ask for first, the older open models last.
 // Checked on 2026-09-26 against a Workers Free account: models marked PAID answer 403 there.
 export const MODELS: readonly ModelOffer[] = [
-  offer("yaatal/kimi-k2.7-code", "reasoning", [WORKERS_AI("@cf/moonshotai/kimi-k2.7-code")], { input: 0.95, output: 4 }, PAID),
-  offer("yaatal/glm-5.3", "reasoning", [WORKERS_AI("@cf/zai-org/glm-5.3")], { input: 1.4, output: 4.4 },
+  offer("kairmel/kimi-k2.7-code", "reasoning", [WORKERS_AI("@cf/moonshotai/kimi-k2.7-code")], { input: 0.95, output: 4 }, PAID),
+  offer("kairmel/glm-5.3", "reasoning", [WORKERS_AI("@cf/zai-org/glm-5.3")], { input: 1.4, output: 4.4 },
     { ...PAID, thinksInContent: true }),
-  offer("yaatal/deepseek-v4-pro", "reasoning", [WORKERS_AI("@cf/deepseek-ai/deepseek-v4-pro-0813")], { input: 1.32, output: 3.96 }, PAID),
-  offer("yaatal/qwen3.8-27b", "standard", [WORKERS_AI("@cf/qwen/qwen3.8-27b")], { input: 0.45, output: 3.2 }),
+  offer("kairmel/deepseek-v4-pro", "reasoning", [WORKERS_AI("@cf/deepseek-ai/deepseek-v4-pro-0813")], { input: 1.32, output: 3.96 }, PAID),
+  offer("kairmel/qwen3.8-27b", "standard", [WORKERS_AI("@cf/qwen/qwen3.8-27b")], { input: 0.45, output: 3.2 }),
   // Suppliers first when configured, Workers AI last. SiliconFlow's list price and OpenRouter's cap
   // (checked 2026-09-28) are both below Workers AI's, which the price is based on.
-  offer("yaatal/deepseek-v4-flash", "standard", [
+  offer("kairmel/deepseek-v4-flash", "standard", [
     SILICONFLOW("deepseek-ai/DeepSeek-V4-Flash", { input: 0.22, output: 0.66 }),
     OPENROUTER("deepseek/deepseek-v4-flash-0731", { input: 0.25, output: 0.7 }),
     WORKERS_AI("@cf/deepseek-ai/deepseek-v4-flash-0731"),
   ], { input: 0.44, output: 1.32 }, PAID),
-  offer("yaatal/glm-5.3-flash", "standard", [WORKERS_AI("@cf/zai-org/glm-5.3-flash")], { input: 0.15, output: 0.5 }, PAID),
-  offer("yaatal/nemotron-3-super", "standard", [WORKERS_AI("@cf/nvidia/nemotron-3-120b-a12b")], { input: 0.5, output: 1.5 }),
-  offer("yaatal/glm-4.7-flash", "micro",
+  offer("kairmel/glm-5.3-flash", "standard", [WORKERS_AI("@cf/zai-org/glm-5.3-flash")], { input: 0.15, output: 0.5 }, PAID),
+  offer("kairmel/nemotron-3-super", "standard", [WORKERS_AI("@cf/nvidia/nemotron-3-120b-a12b")], { input: 0.5, output: 1.5 }),
+  offer("kairmel/glm-4.7-flash", "micro",
     [WHOLESALE("glm-4.7-flash"), WORKERS_AI("@cf/zai-org/glm-4.7-flash")], { input: 0.0605, output: 0.4 }),
-  offer("yaatal/gemma-4-26b", "standard", [WORKERS_AI("@cf/google/gemma-4-26b-a4b-it")], { input: 0.1, output: 0.3 }),
-  offer("yaatal/llama-3.3-70b", "standard", [WORKERS_AI("@cf/meta/llama-3.3-70b-instruct-fp8-fast")], { input: 0.293, output: 2.253 }),
-  offer("yaatal/granite-4.0-micro", "micro", [WORKERS_AI("@cf/ibm-granite/granite-4.0-h-micro")], { input: 0.017, output: 0.112 }),
+  offer("kairmel/gemma-4-26b", "standard", [WORKERS_AI("@cf/google/gemma-4-26b-a4b-it")], { input: 0.1, output: 0.3 }),
+  offer("kairmel/llama-3.3-70b", "standard", [WORKERS_AI("@cf/meta/llama-3.3-70b-instruct-fp8-fast")], { input: 0.293, output: 2.253 }),
+  offer("kairmel/granite-4.0-micro", "micro", [WORKERS_AI("@cf/ibm-granite/granite-4.0-h-micro")], { input: 0.017, output: 0.112 }),
 ];
 
 /** The models this deployment can serve: Workers Paid models only when WORKERS_PAID is "true". */
@@ -136,8 +136,13 @@ export function availableModels(env: { WORKERS_PAID?: string }): readonly ModelO
   return env.WORKERS_PAID === "true" ? MODELS : MODELS.filter(model => !model.paidPlan);
 }
 
+/** Models were published as `yaatal/…` before the product was named Kairmel; those ids stay valid. */
+const LEGACY_PREFIX = "yaatal/";
+
 export function findModel(id: unknown, models: readonly ModelOffer[] = MODELS): ModelOffer | undefined {
-  return typeof id === "string" ? models.find(model => model.id === id) : undefined;
+  if (typeof id !== "string") return undefined;
+  const wanted = id.startsWith(LEGACY_PREFIX) ? `kairmel/${id.slice(LEGACY_PREFIX.length)}` : id;
+  return models.find(model => model.id === wanted);
 }
 
 /** Cost in micro-FCFA. Integer arithmetic only. */

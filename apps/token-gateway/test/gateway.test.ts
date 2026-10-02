@@ -104,8 +104,8 @@ describe("catalog", () => {
     const response = await call("/v1/models");
     expect(response.headers.get("access-control-allow-origin")).toBe("*"); // readable from the Playground
     const { data } = (await response.json()) as { data: { id: string; tier: string; pricing: Record<string, unknown> }[] };
-    expect(data.map(model => model.id)).toContain("yaatal/glm-4.7-flash");
-    const glm = data.find(model => model.id === "yaatal/glm-4.7-flash")!;
+    expect(data.map(model => model.id)).toContain("kairmel/glm-4.7-flash");
+    const glm = data.find(model => model.id === "kairmel/glm-4.7-flash")!;
     expect(glm.tier).toBe("micro");
     // Workers AI cost $0.0605 / $0.40 per million, at 600 FCFA per dollar and a 2x markup.
     expect(glm.pricing).toEqual({ currency: "XOF", input_per_million: 100, output_per_million: 500 });
@@ -325,11 +325,11 @@ describe("chat completions", () => {
     const { api_key } = await newAccount(5_000);
     const { ai, seen } = fakeAi(() => completion(1_000, 500));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
     }, { AI: ai });
     expect(response.status).toBe(200);
     const json = (await response.json()) as { model: string; choices: unknown[] };
-    expect(json.model).toBe("yaatal/nemotron-3-super");
+    expect(json.model).toBe("kairmel/nemotron-3-super");
     expect(seen[0]!.url).toContain("/workers-ai/v1/chat/completions");
     expect(seen[0]!.body.model).toBe("@cf/nvidia/nemotron-3-120b-a12b");
     // 1,000 input tokens at 600 FCFA/M plus 500 output tokens at 1,800 FCFA/M = 1.5 FCFA.
@@ -343,7 +343,7 @@ describe("chat completions", () => {
     const { ai, seen } = fakeAi(() => completion(10, 10));
     await call("/v1/chat/completions", {
       method: "POST", auth: `Bearer ${api_key}`,
-      body: chatBody("yaatal/nemotron-3-super", { user: "customer-42", metadata: { phone: "+221" }, store: true }),
+      body: chatBody("kairmel/nemotron-3-super", { user: "customer-42", metadata: { phone: "+221" }, store: true }),
     }, { AI: ai });
     expect(seen[0]!.headers.get("cf-aig-collect-log")).toBe("false");
     for (const field of ["user", "metadata", "store"]) expect(seen[0]!.body).not.toHaveProperty(field);
@@ -354,7 +354,7 @@ describe("chat completions", () => {
     const { api_key } = await newAccount();
     const { ai, seen } = fakeAi(() => completion(1, 1));
     await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super", { max_completion_tokens: 1_000_000 }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { max_completion_tokens: 1_000_000 }),
     }, { AI: ai });
     expect(seen[0]!.body.max_tokens).toBe(8192);
     expect(seen[0]!.body).not.toHaveProperty("max_completion_tokens");
@@ -370,7 +370,7 @@ describe("chat completions", () => {
     const upstreamText = await sse(chunks).text();
     const { ai, seen } = fakeAi(() => sse(chunks));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { stream: true }),
     }, { AI: ai });
     expect(await response.text()).toBe(upstreamText);
     expect(seen[0]!.body.stream_options).toEqual({ include_usage: true });
@@ -386,11 +386,11 @@ describe("chat completions", () => {
       { model: "@cf/nvidia/nemotron-3-120b-a12b", choices: [], usage: { prompt_tokens: 10, completion_tokens: 3 } },
     ]));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { stream: true }),
     }, { AI: ai });
     const text = await response.text();
     expect(text).not.toContain("@cf/");
-    expect(text.match(/"model":"yaatal\/nemotron-3-super"/g)).toHaveLength(2);
+    expect(text.match(/"model":"kairmel\/nemotron-3-super"/g)).toHaveLength(2);
     expect(text).toContain("data: [DONE]");
   });
 
@@ -398,7 +398,7 @@ describe("chat completions", () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => sse([{ choices: [{ index: 0, delta: { content: "x".repeat(400) } }] }]));
     await (await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { stream: true }),
     }, { AI: ai })).text();
     const { recent } = await balanceOf(api_key);
     expect(recent[0]).toMatchObject({ estimated: true, output_tokens: 100 });
@@ -416,7 +416,7 @@ describe("leaked reasoning", () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => completion(10, 10, "Le client veut 17 x 23, soit 391.</think>\n\n17 x 23 = 391."));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
     }, { AI: ai });
     const { choices } = (await response.json()) as { choices: { message: Record<string, string> }[] };
     expect(choices[0]!.message.content).toBe("17 x 23 = 391.");
@@ -427,7 +427,7 @@ describe("leaked reasoning", () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => completion(10, 10, "Waaw, mangi fi."));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
     }, { AI: ai });
     const { choices } = (await response.json()) as { choices: { message: Record<string, unknown> }[] };
     expect(choices[0]!.message).toEqual({ role: "assistant", content: "Waaw, mangi fi." });
@@ -443,7 +443,7 @@ describe("leaked reasoning", () => {
       { choices: [], usage: { prompt_tokens: 10, completion_tokens: 12 } },
     ]));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-5.3", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-5.3", { stream: true }),
     }, { AI: ai, WORKERS_PAID: "true" });
     const text = await response.text();
     expect(streamed(text, "content")).toBe("391.");
@@ -460,7 +460,7 @@ describe("leaked reasoning", () => {
       { choices: [{ index: 0, delta: { content: "fi rekk." }, finish_reason: "stop" }] },
     ]));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-5.3", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-5.3", { stream: true }),
     }, { AI: ai, WORKERS_PAID: "true" });
     const text = await response.text();
     expect(streamed(text, "content")).toBe("Mangi fi rekk.");
@@ -475,7 +475,7 @@ describe("leaked reasoning", () => {
       { choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
     ]));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-5.3", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-5.3", { stream: true }),
     }, { AI: ai, WORKERS_PAID: "true" });
     const text = await response.text();
     expect(streamed(text, "reasoning_content")).toBe("Je calcule.");
@@ -487,7 +487,7 @@ describe("leaked reasoning", () => {
     const chunks = [{ choices: [{ index: 0, delta: { content: "a</think>b" } }] }];
     const { ai } = fakeAi(() => sse(chunks));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { stream: true }),
     }, { AI: ai });
     expect(streamed(await response.text(), "content")).toBe("a</think>b");
   });
@@ -499,7 +499,7 @@ describe("failover", () => {
     const wholesale = fakeWholesale(() => new Response("slow down", { status: 429 }));
     const { ai, seen } = fakeAi(() => completion(1_000, 1_000));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-4.7-flash"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-4.7-flash"),
     }, { AI: ai, WHOLESALE_BASE_URL: WHOLESALE_URL, WHOLESALE_API_KEY: "wk-test" });
     expect(response.status).toBe(200);
     expect(response.headers.get("x-yaatal-failover")).toBe("1");
@@ -516,7 +516,7 @@ describe("failover", () => {
     const { api_key, account } = await newAccount();
     const wholesale = fakeWholesale(() => completion(5, 5));
     await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-4.7-flash", { user: "c-9" }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-4.7-flash", { user: "c-9" }),
     }, { AI: fakeAi(() => completion(1, 1)).ai, WHOLESALE_BASE_URL: WHOLESALE_URL });
     const sent = JSON.stringify({ ...wholesale[0], headers: [...wholesale[0]!.headers] });
     for (const secret of [api_key, account.id, "c-9"]) expect(sent).not.toContain(secret);
@@ -526,7 +526,7 @@ describe("failover", () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => completion(1, 1));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-4.7-flash"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-4.7-flash"),
     }, { AI: ai });
     expect(response.status).toBe(200);
     expect(response.headers.get("x-yaatal-failover")).toBeNull();
@@ -537,7 +537,7 @@ describe("failover", () => {
     fakeWholesale(() => new Response("", { status: 429 }));
     const { ai } = fakeAi(() => new Response("", { status: 429 }));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-4.7-flash"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-4.7-flash"),
     }, { AI: ai, WHOLESALE_BASE_URL: WHOLESALE_URL });
     expect(response.status).toBe(429);
     const { balance_xof, recent } = await balanceOf(api_key);
@@ -566,10 +566,10 @@ describe("suppliers", () => {
     const sent = fakeWholesale(() => completion(1_000, 1_000));
     const { ai, seen } = fakeAi(() => completion(1, 1));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/deepseek-v4-flash"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/deepseek-v4-flash"),
     }, { AI: ai, ...suppliers });
     expect(response.status).toBe(200);
-    expect(((await response.json()) as { model: string }).model).toBe("yaatal/deepseek-v4-flash");
+    expect(((await response.json()) as { model: string }).model).toBe("kairmel/deepseek-v4-flash");
     expect(sent).toHaveLength(1);
     expect(sent[0]!.url).toBe(`${SF}/chat/completions`);
     expect(sent[0]!.headers.get("authorization")).toBe("Bearer sf-test");
@@ -583,7 +583,7 @@ describe("suppliers", () => {
     const { api_key } = await newAccount();
     const sent = fakeWholesale((_, url) => url.startsWith(SF) ? new Response("", { status: 429 }) : completion(5, 5));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/deepseek-v4-flash"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/deepseek-v4-flash"),
     }, { AI: fakeAi(() => completion(1, 1)).ai, ...suppliers });
     expect(response.status).toBe(200);
     expect(response.headers.get("x-yaatal-failover")).toBe("1");
@@ -599,7 +599,7 @@ describe("suppliers", () => {
     const sent = fakeWholesale((_, url) => url.startsWith(SF) ? new Response("", { status: 503 }) : completion(5, 5));
     const tools = [{ type: "function", function: { name: "stock", parameters: { type: "object" } } }];
     await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/deepseek-v4-flash", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/deepseek-v4-flash", {
         models: ["anthropic/claude-opus-5"], provider: { data_collection: "allow" }, route: "fallback",
         plugins: [{ id: "web" }], user: "c-9", temperature: 0.2, tools,
       }),
@@ -617,7 +617,7 @@ describe("suppliers", () => {
     const sent = fakeWholesale(() => completion(1, 1));
     const { ai, seen } = fakeAi(() => completion(1, 1));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/deepseek-v4-flash"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/deepseek-v4-flash"),
     }, { AI: ai, WORKERS_PAID: "true" });
     expect(response.status).toBe(200);
     expect(sent).toHaveLength(0);
@@ -632,7 +632,7 @@ describe("guards", () => {
     await env.DB.prepare("UPDATE accounts SET balance_uxof = 0 WHERE id = ?").bind(account.id).run();
     const { ai, seen } = fakeAi(() => completion(1, 1));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
     }, { AI: ai });
     expect(response.status).toBe(402);
     expect(seen).toHaveLength(0);
@@ -643,7 +643,7 @@ describe("guards", () => {
     const auth = `Bearer ${api_key}`;
     expect((await call("/v1/chat/completions", { method: "POST", auth, body: chatBody("gpt-5") })).status).toBe(404);
     expect((await call("/v1/chat/completions", {
-      method: "POST", auth, body: JSON.stringify({ model: "yaatal/glm-4.7-flash", messages: [] }),
+      method: "POST", auth, body: JSON.stringify({ model: "kairmel/glm-4.7-flash", messages: [] }),
     })).status).toBe(400);
     expect((await call("/v1/chat/completions", { method: "POST", auth, body: "{" })).status).toBe(400);
     expect((await balanceOf(api_key)).balance_xof).toBe(5_000);
@@ -657,7 +657,7 @@ describe("customer pages", () => {
     const html = await response.text();
     expect(html).toContain("Facturé en FCFA");
     expect(html).toContain("partout en zone UEMOA");
-    expect(html).toContain("yaatal/qwen3.8-27b");
+    expect(html).toContain("kairmel/qwen3.8-27b");
     expect(html).toMatch(/550<\/td><td class="num">3 850/); // qwen3.8-27b, the newest free-plan model
     for (const estimate of ["Ticket", "≈", "data-count"]) expect(html).not.toContain(estimate); // rates only, no estimates of ours
     expect(html).not.toContain("jetons");
@@ -685,7 +685,7 @@ describe("customer pages", () => {
     const home = await call("/");
     const html = await home.text();
     expect(html).toContain('id="talk"');
-    expect(html).toContain("Parler à Yaatal");
+    expect(html).toContain("Parler à Kairmel");
     expect(html).toContain('<dialog class="call-sheet" id="call"');
     const csp = home.headers.get("content-security-policy") ?? "";
     expect(csp).toMatch(/script-src 'nonce-[^']+' 'self' blob:/); // the call's files, and its audio worklet
@@ -707,13 +707,27 @@ describe("customer pages", () => {
   });
 });
 
+describe("model ids", () => {
+  it("still accepts the yaatal/ ids published before the product was named Kairmel", async () => {
+    const { findModel } = await import("../src/models.js");
+    expect(findModel("yaatal/glm-5.3")?.id).toBe("kairmel/glm-5.3");
+    expect(findModel("kairmel/glm-5.3")?.id).toBe("kairmel/glm-5.3");
+    expect(findModel("other/glm-5.3")).toBeUndefined();
+  });
+});
+
 describe("playground hand-off", () => {
-  it("with the call available, every idea opens the call and the hero has no form", async () => {
-    const html = await (await call("/", {}, { PLAYGROUND_URL: "https://os.yaatal.test" })).text();
+  it("with the call available but no builder, every idea opens the call and the hero has no form", async () => {
+    const html = await (await call("/")).text();
     expect(html).not.toContain('name="prompt"');
     expect(html).toContain('data-idea="Je veux vendre mes tissus en ligne, en FCFA."');
     expect(html).toMatch(/<button class="tile" type="button" data-idea="/); // templates open the call too
-    expect(html).toContain('Déjà client ? <a href="https://os.yaatal.test/">Se connecter</a>');
+  });
+
+  it("with the builder configured, ideas go to the builder even when the call is bound", async () => {
+    const html = await (await call("/", {}, { PLAYGROUND_URL: "https://os.yaatal.test" })).text();
+    expect(html).toContain('name="prompt"');
+    expect(html).not.toContain('id="talk"');
   });
 
   it("without the call, sends the idea to the Playground's prompt deep link, allowed by the form policy", async () => {
@@ -722,7 +736,7 @@ describe("playground hand-off", () => {
     expect(html).toContain('<form class="ask reveal d3" method="get" action="https://os.yaatal.test/">');
     expect(html).toContain('name="prompt" maxlength="4000"');
     expect(html).toContain("https://os.yaatal.test/blueprint/8f3639f6abcdef12");
-    expect(html).toContain("https://os.yaatal.test/signup");
+    expect(html).toContain("https://os.yaatal.test/");
     expect(response.headers.get("content-security-policy")).toContain("form-action https://os.yaatal.test");
   });
 
@@ -781,16 +795,16 @@ describe("plan-gated models", () => {
   it("hides and refuses Workers Paid models on a free account, and serves them once enabled", async () => {
     const list = async (extra = {}) =>
       ((await (await call("/v1/models", {}, extra)).json()) as { data: { id: string }[] }).data.map(m => m.id);
-    expect(await list()).not.toContain("yaatal/glm-5.3");
-    expect(await list({ WORKERS_PAID: "true" })).toContain("yaatal/glm-5.3");
+    expect(await list()).not.toContain("kairmel/glm-5.3");
+    expect(await list({ WORKERS_PAID: "true" })).toContain("kairmel/glm-5.3");
     const { api_key } = await newAccount();
-    const refused = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-5.3") });
+    const refused = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-5.3") });
     expect(refused.status).toBe(404);
     const { ai } = fakeAi(() => completion(1, 1));
-    const served = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/glm-5.3") }, { AI: ai, WORKERS_PAID: "true" });
+    const served = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-5.3") }, { AI: ai, WORKERS_PAID: "true" });
     expect(served.status).toBe(200);
     const page = await (await call("/")).text();
-    expect(page).toContain('yaatal/glm-5.3</code> <span class="soon">bientôt</span>'); // listed, marked as coming
+    expect(page).toContain('kairmel/glm-5.3</code> <span class="soon">bientôt</span>'); // listed, marked as coming
     expect(await (await call("/", {}, { WORKERS_PAID: "true" })).text()).not.toContain('class="soon"');
   });
 });
@@ -827,7 +841,7 @@ describe("usage tracking", () => {
     const { api_key, account } = await newAccount(2_000);
     const { ai } = fakeAi(() => completion(1_000, 500));
     for (let i = 0; i < 2; i++) {
-      await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("yaatal/nemotron-3-super") }, { AI: ai });
+      await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super") }, { AI: ai });
     }
     const after = await report();
     expect(after.accounts.total - before.accounts.total).toBe(1);
@@ -842,7 +856,7 @@ describe("usage tracking", () => {
     expect(mine.spend_xof).toBeCloseTo(3, 6);
     expect(mine.balance_xof).toBeCloseTo(1_997, 6);
     expect(mine.last_used).not.toBeNull();
-    expect(after.by_model.find(row => row.model === "yaatal/nemotron-3-super")!.requests).toBeGreaterThanOrEqual(2);
+    expect(after.by_model.find(row => row.model === "kairmel/nemotron-3-super")!.requests).toBeGreaterThanOrEqual(2);
     const today = new Date().toISOString().slice(0, 10);
     const day = after.daily.find(row => row.day === today)!;
     expect(day.new_accounts).toBeGreaterThanOrEqual(1);
@@ -853,10 +867,10 @@ describe("usage tracking", () => {
     const before = await report();
     const broke = await newAccount(1);
     await env.DB.prepare("UPDATE accounts SET balance_uxof = 0 WHERE id = ?").bind(broke.account.id).run();
-    await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${broke.api_key}`, body: chatBody("yaatal/nemotron-3-super") },
+    await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${broke.api_key}`, body: chatBody("kairmel/nemotron-3-super") },
       { AI: fakeAi(() => completion(1, 1)).ai });
     const funded = await newAccount(5_000);
-    await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${funded.api_key}`, body: chatBody("yaatal/nemotron-3-super") },
+    await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${funded.api_key}`, body: chatBody("kairmel/nemotron-3-super") },
       { AI: fakeAi(() => new Response("", { status: 500 })).ai });
     const after = await report();
     expect(after.refused.insufficient_balance.count - before.refused.insufficient_balance.count).toBe(1);
@@ -865,8 +879,8 @@ describe("usage tracking", () => {
     const events = await env.DB.prepare("SELECT account_id, kind, model FROM request_events WHERE account_id IN (?, ?)")
       .bind(broke.account.id, funded.account.id).all();
     expect(events.results).toEqual(expect.arrayContaining([
-      { account_id: broke.account.id, kind: "insufficient_balance", model: "yaatal/nemotron-3-super" },
-      { account_id: funded.account.id, kind: "upstream_error", model: "yaatal/nemotron-3-super" },
+      { account_id: broke.account.id, kind: "insufficient_balance", model: "kairmel/nemotron-3-super" },
+      { account_id: funded.account.id, kind: "upstream_error", model: "kairmel/nemotron-3-super" },
     ]));
   });
 });

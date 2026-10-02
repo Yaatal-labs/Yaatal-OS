@@ -1,6 +1,6 @@
 // The customer-facing pages. The landing page sells one thing: build anything, from a merchant's
 // website to a device's firmware, on one AI API billed in FCFA. Every idea goes straight to the
-// Playground (the Yaatal OS) through its `/?prompt=` deep link. Prices are rendered from the model
+// builder (kairmel.com) through its `/?prompt=` deep link. Prices are rendered from the model
 // catalog so the page cannot drift from billing. No supplier or upstream model name appears here.
 import { availableModels, MODELS } from "./models.js";
 
@@ -9,7 +9,7 @@ export interface SiteEnv {
   VOICE?: Fetcher;
   /** "true" on Workers Paid: the page then lists the models that need it. */
   WORKERS_PAID?: string;
-  /** Public origin of the Playground (the Yaatal OS). HTTPS, or HTTP on loopback. */
+  /** Public origin of the builder (kairmel.com). HTTPS, or HTTP on loopback. */
   PLAYGROUND_URL?: string;
   /** Blueprint id featured as a one-click template in the Playground. */
   FEATURED_BLUEPRINT_ID?: string;
@@ -82,18 +82,18 @@ const IDEAS: readonly Idea[] = [
 ];
 
 const FAQ: readonly [string, string][] = [
-  ["C'est quoi, Yaatal ?",
+  ["C'est quoi, Kairmel ?",
     "Un espace où des agents d'IA construisent avec vous des sites, des outils, des assistants et des prototypes d'objets connectés. Tout ce qui est construit utilise la même API d'IA, que vous payez en FCFA."],
   ["Faut-il savoir coder ?",
     "Non. Vous décrivez ce que vous voulez en français, ou en français-wolof comme au quotidien ; l'agent pose ses questions, construit, et vous montre le résultat. Chaque changement attend votre accord avant d'être appliqué. Si vous codez, tout reste modifiable."],
   ["Comment je paie ?",
     "À la consommation, en FCFA, dans les 8 pays de l'UEMOA, sans carte Visa ni Mastercard. Vous rechargez un solde, comme du crédit ; chaque appel d'IA en déduit le prix affiché dans les tarifs. Pendant la bêta, les recharges se font avec l'équipe."],
   ["Et pour les objets, vous fabriquez ?",
-    "Le Playground produit le firmware, le schéma de câblage et la liste des pièces, que vous relisez avant tout achat. La fabrication se fait sur commande, avec nos partenaires : impression 3D, fournisseurs de composants, conseil technique."],
+    "Kairmel produit le firmware, le schéma de câblage et la liste des pièces, que vous relisez avant tout achat. La fabrication se fait sur commande, avec nos partenaires : impression 3D, fournisseurs de composants, conseil technique."],
   ["Puis-je utiliser l'API dans mon propre code ?",
-    "Oui. L'API Yaatal est compatible OpenAI : vous changez la base URL et la clé API, votre code et vos SDK restent les mêmes."],
+    "Oui. L'API Kairmel est compatible OpenAI : vous changez la base URL et la clé API, votre code et vos SDK restent les mêmes."],
   ["Que devient ce que j'envoie ?",
-    "Yaatal ne garde ni vos prompts ni les réponses. Nous gardons seulement l'usage (modèle, tokens, montant, date), et nous supprimons votre compte et cet historique sur demande."],
+    "Kairmel ne garde ni vos prompts ni les réponses. Nous gardons seulement l'usage (modèle, tokens, montant, date), et nous supprimons votre compte et cet historique sur demande."],
 ];
 
 function escape(text: string): string {
@@ -105,7 +105,7 @@ const num = (value: number) => new Intl.NumberFormat("fr-FR").format(value).repl
 function whatsappLink(env: SiteEnv): string | null {
   const number = env.CONTACT_WHATSAPP?.trim();
   if (!number || !/^[1-9][0-9]{7,14}$/.test(number)) return null;
-  return `https://wa.me/${number}?text=${encodeURIComponent("Bonjour, je souhaite un accès bêta à Yaatal.")}`;
+  return `https://wa.me/${number}?text=${encodeURIComponent("Bonjour, je souhaite un accès bêta à Kairmel.")}`;
 }
 
 /** The Playground origin: configured (HTTPS, or HTTP on loopback), else the local OS when served locally. */
@@ -140,19 +140,14 @@ const icon = {
   chip: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>`,
 };
 
-// The Yaatal mark: two cloth strips woven into a Y, after Senegalese strip-woven cloth. The orange
-// strip tucks under the cream one, which folds down into the stem. The wordmark is drawn, not typed.
+// Placeholder Kairmel mark until the visual identity is designed: a "K" on the same deep green
+// tile, and a typed wordmark. Yaatal (the company) keeps its woven-Y mark for its own pages.
 const MARK_INNER =
-  "<clipPath id='ym'><rect width='256' height='256' rx='56'/></clipPath><rect width='256' height='256' rx='56' fill='#15302c'/>" +
-  "<g clip-path='url(#ym)' fill='none' stroke-linejoin='round'><path d='M30 -8 L128 118' stroke='#e85a25' stroke-width='40'/>" +
-  "<path d='M226 -8 L128 118 L128 272' stroke='#15302c' stroke-width='56'/><path d='M226 -8 L128 118 L128 272' stroke='#f3dcc0' stroke-width='40'/>" +
-  "<path d='M108 190 H148 M108 206 H148' stroke='#e85a25' stroke-width='6'/></g>";
+  "<rect width='256' height='256' rx='56' fill='#15302c'/>" +
+  "<path d='M84 56V200M84 136L172 56M118 106L178 200' fill='none' stroke='#f3dcc0' stroke-width='30' stroke-linecap='round' stroke-linejoin='round'/>" +
+  "<path d='M150 214H190' stroke='#e85a25' stroke-width='12' stroke-linecap='round'/>";
 const MARK = `<svg class="mark" width="30" height="30" viewBox="0 0 256 256" aria-hidden="true">${MARK_INNER}</svg>`;
-const WORDMARK =
-  `<svg class="word" viewBox="-4 -4 492 108" height="17" aria-hidden="true"><g fill="currentColor">` +
-  `<path d="M0 0H22L35 30L48 0H70L45 54V100H25V54Z"/><path d="M86 100L113 0H129L156 100H136L121 42L106 100Z"/>` +
-  `<path d="M172 100L199 0H215L242 100H222L207 42L192 100Z"/><path d="M258 0H322V20H300V100H280V20H258Z"/>` +
-  `<path d="M338 100L365 0H381L408 100H388L373 42L358 100Z"/><path d="M424 0H444V80H484V100H424Z"/></g></svg>`;
+const WORDMARK = `<span class="word" style="font-weight:700;font-size:19px;letter-spacing:-.01em">Kairmel</span>`;
 const FAVICON = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'>${MARK_INNER}</svg>`);
 
 const STYLE = `
@@ -357,7 +352,7 @@ function page(title: string, body: string, options: { script?: string; formActio
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(title)}</title>
-<meta name="description" content="Décrivez un site, un outil ou un objet connecté : Yaatal le construit avec vous. L'IA se paie en FCFA, partout en zone UEMOA.">
+<meta name="description" content="Décrivez un site, un outil ou un objet connecté : Kairmel le construit avec vous. L'IA se paie en FCFA, partout en zone UEMOA.">
 <meta name="theme-color" content="#f7f3ec" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121312" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -390,10 +385,10 @@ function page(title: string, body: string, options: { script?: string; formActio
 
 function topNav(playground: string | null, contact: string | null): string {
   const cta = playground
-    ? `<a class="btn ghost" href="${escape(playground)}/">Ouvrir le Playground</a>`
+    ? `<a class="btn ghost" href="${escape(playground)}/">Ouvrir Kairmel</a>`
     : contact ? `<a class="btn ghost" href="${escape(contact)}" rel="noopener">Accès bêta</a>` : "";
   return `<header class="top"><nav class="wrap" aria-label="Principale">
-<a class="logo" href="/" aria-label="Yaatal, accueil">${MARK}${WORDMARK}</a>
+<a class="logo" href="/" aria-label="Kairmel, accueil">${MARK}${WORDMARK}</a>
 <div class="links"><a href="/#modeles">Exemples</a><a href="/#comment">Comment ça marche</a><a href="/#tarifs">Tarifs</a><a href="/#api">API</a></div>
 ${cta}</nav></header>`;
 }
@@ -405,7 +400,7 @@ const BUILD_TOKENS = 184_000;
 const WAVE = [8, 14, 22, 12, 26, 18, 10, 24, 30, 16, 9, 20, 28, 14, 22, 11, 18, 26, 12, 8, 16, 24, 20, 10, 14, 22, 18, 9, 12, 20];
 
 /**
- * The hero's one moving moment: a WhatsApp voice note becomes a shop. The note plays, Yaatal asks
+ * The hero's one moving moment: a WhatsApp voice note becomes a shop. The note plays, Kairmel asks
  * back, the shop card builds. Everything is visible at rest; the script only replays it.
  */
 function thread(): string {
@@ -444,7 +439,7 @@ function story(): string {
     <p class="kicker">Comment ça marche</p>
     <h2>Un message, un build, un site en ligne.</h2>
     <ol class="beats">
-      <li class="beat"><span class="num">01</span><div><h3>Décrire</h3><p>Dans le Playground, avec vos mots, en français ou en wolof. L'agent demande ce qui manque : produits, prix, numéro.</p></div></li>
+      <li class="beat"><span class="num">01</span><div><h3>Décrire</h3><p>Dans Kairmel, avec vos mots, en français ou en wolof. L'agent demande ce qui manque : produits, prix, numéro.</p></div></li>
       <li class="beat"><span class="num">02</span><div><h3>Construire</h3><p>L'agent écrit et teste le code dans une sandbox. Vous voyez chaque fichier et chaque test.</p></div></li>
       <li class="beat"><span class="num">03</span><div><h3>Valider et publier</h3><p>Rien ne part en ligne sans votre accord. Vous payez les tokens utilisés, en FCFA, point.</p></div></li>
     </ol>
@@ -511,7 +506,7 @@ const CALL_SCRIPT = `
   const openCall = async idea => {
     sheet.showModal();
     if (close) return;
-    if (!host.shadowRoot) wait("Connexion à Yaatal…");
+    if (!host.shadowRoot) wait("Connexion à Kairmel…");
     try {
       const call = await import("/voix/embed.js");
       host.replaceChildren();
@@ -544,7 +539,9 @@ export function home(request: Request, env: SiteEnv): Response {
   const live = new Set(models.map(model => model.id));
   // Every model is listed; those the current plan cannot serve yet are marked "bientôt" (and the API refuses them).
   const rows = MODELS.map(model => `<tr><td><code>${escape(model.id)}</code>${live.has(model.id) ? "" : ' <span class="soon">bientôt</span>'}</td><td>${TIER_LABEL[model.tier]}</td><td class="num">${num(model.inputXofPerMillion)}</td><td class="num">${num(model.outputXofPerMillion)}</td></tr>`).join("");
-  const voice = Boolean(env.VOICE);
+  // The product's voice call lives on kairmel.com now: when the builder origin is configured,
+  // every idea goes there instead of the older call sheet.
+  const voice = Boolean(env.VOICE) && !playground;
   const chips = IDEAS.map(idea =>
     `<button class="chip" type="button" data-prompt="${escape(idea.prompt)}" data-example="${escape(idea.example)}">${escape(idea.title)}</button>`).join("");
   const tiles = IDEAS.map(idea => {
@@ -558,9 +555,9 @@ export function home(request: Request, env: SiteEnv): Response {
   // With the call available, voice is the only way in: every idea on the page opens the call.
   const signIn = playground ? `<span class="alt">Déjà client ? <a href="${escape(playground)}/">Se connecter</a></span>`
     : contact ? `<span class="alt"><a href="${escape(contact)}" rel="noopener">Demander un accès bêta</a></span>`
-    : `<span class="alt">Le Playground ouvre bientôt au public.</span>`;
+    : `<span class="alt">Kairmel ouvre bientôt au public.</span>`;
   const actions = voice
-    ? `<div class="actions reveal d3"><button class="talk" id="talk" type="button" aria-haspopup="dialog"><span class="ic">${icon.mic}</span>Parler à Yaatal</button>${signIn}</div>`
+    ? `<div class="actions reveal d3"><button class="talk" id="talk" type="button" aria-haspopup="dialog"><span class="ic">${icon.mic}</span>Parler à Kairmel</button>${signIn}</div>`
     : "";
   const saidLines: [string, string][] = [
     ["Mes commandes arrivent sur WhatsApp, aide-moi à les suivre.", "Bot WhatsApp"],
@@ -574,11 +571,11 @@ export function home(request: Request, env: SiteEnv): Response {
     ? `<form class="ask reveal d3" method="get" action="${escape(playground)}/">
 <label class="skip" for="prompt">Décrivez ce que vous voulez construire</label>
 <textarea id="prompt" name="prompt" maxlength="${MAX_PROMPT}" required placeholder="Ex. : ${escape(IDEAS[0]!.example)}…"></textarea>
-<div class="bar"><small>Le Playground s'ouvre avec votre idée. Un compte est nécessaire.</small><button class="btn accent" type="submit">Construire ${icon.arrow}</button></div>
+<div class="bar"><small>Kairmel s'ouvre avec votre idée. Un compte est nécessaire.</small><button class="btn accent" type="submit">Construire ${icon.arrow}</button></div>
 </form>
 <div class="chips reveal d4" role="group" aria-label="Idées pour commencer">${chips}</div>`
     : contact ? `<p class="reveal d3" style="margin-top:32px"><a class="btn accent" href="${escape(contact)}" rel="noopener">Demander un accès bêta</a></p>`
-    : `<p class="reveal d3" style="margin-top:32px">Le Playground ouvre bientôt au public.</p>`;
+    : `<p class="reveal d3" style="margin-top:32px">Kairmel ouvre bientôt au public.</p>`;
 
   const body = `
 ${topNav(playground, contact)}
@@ -587,19 +584,19 @@ ${topNav(playground, contact)}
  <div>
   <span class="eyebrow reveal">Fait à Dakar · pour toute la zone UEMOA</span>
   <h1><span class="w"><span style="--i:0">De</span></span> <span class="w"><span style="--i:1">l'idée</span></span> <span class="w"><span style="--i:2">à</span></span> <span class="w"><span style="--i:3">l'outil</span></span> <span class="w wf"><span style="--i:4"><em class="waxtext">qui tourne.</em></span></span></h1>
-  <p class="lede reveal d2">Parlez de votre idée, en français ou en wolof. Yaatal pose quelques questions, puis construit.</p>
+  <p class="lede reveal d2">Parlez de votre idée, en français ou en wolof. Kairmel pose quelques questions, puis construit.</p>
   ${actions}
   ${ask}
  </div>
  ${thread()}
 </div>
-<div class="wrap"><div class="said-row reveal d4" role="group" aria-label="Ce que vous dites, ce que Yaatal construit">${said}</div></div>
-${voice ? `<dialog class="call-sheet" id="call" aria-label="Appel avec Yaatal"><div id="call-host"></div></dialog>` : ""}
+<div class="wrap"><div class="said-row reveal d4" role="group" aria-label="Ce que vous dites, ce que Kairmel construit">${said}</div></div>
+${voice ? `<dialog class="call-sheet" id="call" aria-label="Appel avec Kairmel"><div id="call-host"></div></dialog>` : ""}
 
 <section id="gens" style="padding-top:56px"><div class="wrap">
   <p class="kicker">Pour qui</p>
   <h2>Pour celles et ceux qui vendent déjà.</h2>
-  <p class="sub">Couturières, commerçantes, vendeurs de rue : le travail se fait déjà sur WhatsApp et au marché. Yaatal part de là et en fait des outils, sans carte bancaire ni jargon.</p>
+  <p class="sub">Couturières, commerçantes, vendeurs de rue : le travail se fait déjà sur WhatsApp et au marché. Kairmel part de là et en fait des outils, sans carte bancaire ni jargon.</p>
   <div class="people">
     <figure><img src="/img/market.webp" alt="Une commerçante trie des graines dans des paniers devant son étal." loading="lazy" width="1000" height="1153"><figcaption>Commerce de rue, Sénégal</figcaption></figure>
     <figure><img src="/img/wax.webp" alt="Des rouleaux de tissus wax aux motifs colorés empilés sur des étagères." loading="lazy" width="1400" height="786"><figcaption>Tissus wax</figcaption></figure>
@@ -612,7 +609,7 @@ ${voice ? `<dialog class="call-sheet" id="call" aria-label="Appel avec Yaatal"><
 <section id="modeles"><div class="wrap">
   <p class="kicker">Templates</p>
   <h2>Partez d'un template. Adaptez-le.</h2>
-  <p class="sub">Chaque carte ouvre le Playground avec un prompt déjà écrit. Vous le modifiez, l'agent pose ses questions, puis construit.</p>
+  <p class="sub">Chaque carte ouvre Kairmel avec un prompt déjà écrit. Vous le modifiez, l'agent pose ses questions, puis construit.</p>
   <div class="gallery">${tiles}</div>
   ${featuredLink ? `<p style="margin-top:22px"><a class="btn ghost" href="${escape(featuredLink)}">Ouvrir un template déjà construit : prépa live TikTok ${icon.arrow}</a></p>` : ""}
 </div></section>
@@ -623,7 +620,7 @@ ${story()}
   <div>
     <p class="kicker">Objets connectés</p>
     <h2>Du prototype à l'objet fini.</h2>
-    <p class="sub">Décrivez l'objet : le Playground produit le firmware, le schéma de câblage et la liste des pièces, que vous relisez avant d'acheter quoi que ce soit. On fabrique seulement ce qui est commandé.</p>
+    <p class="sub">Décrivez l'objet : Kairmel produit le firmware, le schéma de câblage et la liste des pièces, que vous relisez avant d'acheter quoi que ce soit. On fabrique seulement ce qui est commandé.</p>
     <div class="boards" aria-label="Cartes courantes"><span>ESP32-S3</span><span>ESP32</span><span>Raspberry Pi Pico</span><span>Arduino</span><span>STM32</span></div>
   </div>
   <div class="partners">
@@ -636,27 +633,27 @@ ${story()}
 <section id="api"><div class="wrap"><div class="band">
   <p class="kicker">API</p>
   <h2>Une API pour toute votre IA.</h2>
-  <p class="sub">Le Playground, les sites qu'il construit, vos objets et votre propre code passent par la même API. Un solde en FCFA, une facture, et si un modèle ne répond pas, un autre prend le relais.</p>
+  <p class="sub">Kairmel, les sites qu'il construit, vos objets et votre propre code passent par la même API. Un solde en FCFA, une facture, et si un modèle ne répond pas, un autre prend le relais.</p>
   <div class="tabs">
     <input type="radio" name="t" id="t1" checked><label for="t1">curl</label>
     <input type="radio" name="t" id="t2"><label for="t2">JavaScript</label>
     <input type="radio" name="t" id="t3"><label for="t3">Python</label>
 <pre class="p1">curl ${escape(origin)}/v1/chat/completions \\
-  -H "Authorization: Bearer VOTRE_CLE_YAATAL" \\
+  -H "Authorization: Bearer VOTRE_CLE_KAIRMEL" \\
   -H "Content-Type: application/json" \\
   -d '{"model": "${escape(example.id)}", "messages": [{"role": "user", "content": "Salaam!"}]}'</pre>
 <pre class="p2">import OpenAI from "openai";
 
-const yaatal = new OpenAI({ baseURL: "${escape(origin)}/v1", apiKey: process.env.YAATAL_API_KEY });
-const reply = await yaatal.chat.completions.create({
+const kairmel = new OpenAI({ baseURL: "${escape(origin)}/v1", apiKey: process.env.KAIRMEL_API_KEY });
+const reply = await kairmel.chat.completions.create({
   model: "${escape(example.id)}",
   messages: [{ role: "user", content: "Salaam!" }],
 });</pre>
 <pre class="p3">import os
 from openai import OpenAI
 
-yaatal = OpenAI(base_url="${escape(origin)}/v1", api_key=os.environ["YAATAL_API_KEY"])
-reply = yaatal.chat.completions.create(
+kairmel = OpenAI(base_url="${escape(origin)}/v1", api_key=os.environ["KAIRMEL_API_KEY"])
+reply = kairmel.chat.completions.create(
     model="${escape(example.id)}",
     messages=[{"role": "user", "content": "Salaam!"}],
 )</pre>
@@ -668,7 +665,7 @@ reply = yaatal.chat.completions.create(
   <div class="pay">
     <div>
       <h2>Vous payez ce que vous consommez, en FCFA.</h2>
-      <p class="sub" style="margin-bottom:0">Recharger Yaatal, c'est comme acheter du crédit au coin de la rue. Le prix se compte en tokens (les bouts de texte que le modèle lit et écrit), et un appel qui échoue n'est pas facturé. Pendant la bêta, les recharges se font avec l'équipe.</p>
+      <p class="sub" style="margin-bottom:0">Recharger Kairmel, c'est comme acheter du crédit au coin de la rue. Le prix se compte en tokens (les bouts de texte que le modèle lit et écrit), et un appel qui échoue n'est pas facturé. Pendant la bêta, les recharges se font avec l'équipe.</p>
     </div>
     <figure><img src="/img/ngor.webp" alt="Deux jeunes vendeurs de recharges téléphoniques au bord d'une route." loading="lazy" width="1200" height="800"><figcaption>Vendeurs de recharges téléphoniques, Ngor, Dakar</figcaption></figure>
   </div>
@@ -683,7 +680,7 @@ reply = yaatal.chat.completions.create(
   <h2>Les quatre questions qu'on nous pose.</h2>
   <div class="qa">
     <div class="card"><h3>Où sont-elles traitées ?</h3><p>Chez le fournisseur cloud du modèle choisi, le temps de produire la réponse.</p></div>
-    <div class="card"><h3>Combien de temps sont-elles gardées ?</h3><p>Yaatal ne garde ni vos prompts ni les réponses.</p></div>
+    <div class="card"><h3>Combien de temps sont-elles gardées ?</h3><p>Kairmel ne garde ni vos prompts ni les réponses.</p></div>
     <div class="card"><h3>Y a-t-il des logs ?</h3><p>Seulement l'usage : modèle, tokens, montant, date.</p></div>
     <div class="card"><h3>Peut-on les supprimer ?</h3><p>Oui : sur demande, votre compte et son historique d'usage.</p></div>
   </div>
@@ -699,12 +696,12 @@ reply = yaatal.chat.completions.create(
 <section class="final"><div class="wrap">
   <h2>Votre prochaine idée, construite cette semaine.</h2>
   <div class="row">
-    ${playground ? `<a class="btn accent" href="${escape(playground)}/signup">Créer un compte</a>` : ""}
+    ${playground ? `<a class="btn accent" href="${escape(playground)}/">Créer un compte</a>` : ""}
     ${contact ? `<a class="btn ghost" href="${escape(contact)}" rel="noopener">Parler à l'équipe sur WhatsApp</a>` : ""}
   </div>
 </div></section>
 </main>
-<footer class="wrap"><span>© Yaatal · Dakar</span><span><a href="/usage">Consommation</a> · <a href="/v1/models">Modèles</a> · Bêta</span>
+<footer class="wrap"><span>Kairmel, un service de Yaatal · Dakar</span><span><a href="/usage">Consommation</a> · <a href="/v1/models">Modèles</a> · Bêta</span>
 <p class="credits">Photos, Wikimedia Commons : Sanghesenegalafrica (CC BY-SA 4.0), Lucas Takerkart (CC BY-SA 4.0), dimworld (CC BY 2.0), GuillaumeG (CC BY-SA 4.0).</p></footer>`;
 
   const script = THREAD_SCRIPT + PAGE_SCRIPT + (voice ? CALL_SCRIPT : "") + (playground ? `
@@ -718,7 +715,7 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
   setInterval(() => { if (!box.value && document.activeElement !== box) { i = (i + 1) % ideas.length; box.placeholder = ideas[i]; } }, 4000);
 }` : "");
 
-  return page("Yaatal · De l'idée à l'outil qui tourne. Facturé en FCFA.", body, {
+  return page("Kairmel · De l'idée à l'outil qui tourne. Facturé en FCFA.", body, {
     script,
     voiceOrigin: voice ? origin : undefined,
     formAction: playground ? playground : null,
@@ -757,8 +754,8 @@ form.addEventListener("submit", async e => {
 <p class="kicker">Consommation</p>
 <h2>Votre solde en FCFA</h2>
 <p class="sub">Collez votre clé API pour voir votre solde et vos derniers appels. Elle n'est ni enregistrée ni envoyée ailleurs.</p>
-<form id="f" class="row"><input id="k" type="password" autocomplete="off" placeholder="yk_…" required aria-label="Clé API Yaatal"><button class="btn accent" type="submit">Voir</button></form>
+<form id="f" class="row"><input id="k" type="password" autocomplete="off" placeholder="yk_…" required aria-label="Clé API Kairmel"><button class="btn accent" type="submit">Voir</button></form>
 <div id="out" aria-live="polite"></div>
 </main>`;
-  return page("Yaatal · Consommation", body, { script });
+  return page("Kairmel · Consommation", body, { script });
 }
