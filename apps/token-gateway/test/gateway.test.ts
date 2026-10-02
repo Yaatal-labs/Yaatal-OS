@@ -405,6 +405,136 @@ describe("chat completions", () => {
   });
 });
 
+describe("tool calls in a replayed history", () => {
+  /** An agent's next step: its earlier tool call with `args`, and the tool's answer. */
+  const replay = (args: unknown) => chatBody("kairmel/nemotron-3-super", {
+    messages: [
+      { role: "user", content: "Écris index.html et src/main.tsx." },
+      { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "write_file", arguments: args } }] },
+      { role: "tool", tool_call_id: "call_1", content: "invalid tool call" },
+    ],
+  });
+  const sentArguments = async (args: unknown) => {
+    const { api_key } = await newAccount();
+    const { ai, seen } = fakeAi(() => completion(10, 10));
+    const response = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: replay(args) }, { AI: ai });
+    expect(response.status).toBe(200);
+    const messages = seen[0]!.body.messages as { tool_calls?: { function: { arguments: unknown } }[] }[];
+    return messages[1]!.tool_calls![0]!.function.arguments;
+  };
+  const first = '{"path": "index.html", "content": "<p>{ Dalal ak jàmm }</p>"}';
+
+  it("sends only the first object of two calls a model merged into one, which Workers AI would refuse whole", async () => {
+    expect(await sentArguments(`${first}{"path": "src/main.tsx", "content": "export {}"}`)).toBe(first);
+  });
+
+  it("unwraps arguments a client sent back as a JSON string", async () => {
+    expect(await sentArguments(JSON.stringify(first))).toBe(first);
+    expect(await sentArguments(JSON.stringify(`${first}{"path": "b"}`))).toBe(first);
+  });
+
+  it("sends {} for arguments that hold no JSON object", async () => {
+    for (const args of ["", "null", '{"path": "index.ht', 42]) expect(await sentArguments(args)).toBe("{}");
+  });
+
+  it("leaves valid arguments exactly as the client sent them", async () => {
+    const spaced = '{ "path" : "a.ts",\n  "content": "x" }';
+    expect(await sentArguments(spaced)).toBe(spaced);
+    expect(await sentArguments({ path: "a.ts" })).toBe('{"path":"a.ts"}');
+  });
+
+  it("answers 400, uncharged, when the upstream refuses the request as invalid", async () => {
+    const { api_key } = await newAccount(5_000);
+    const { ai } = fakeAi(() => new Response('{"error":"bad tool call"}', { status: 400 }));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
+    }, { AI: ai });
+    expect(response.status).toBe(400);
+    const json = (await response.json()) as { error: { type: string; message: string } };
+    expect(json.error.type).toBe("invalid_request");
+    expect(json.error.message).not.toContain("unavailable");
+    expect((await balanceOf(api_key)).balance_xof).toBe(5_000);
+  });
+});
+
+describe("parallel tool calls", () => {
+  const delta = (toolCall: Record<string, unknown>) => ({ choices: [{ index: 0, delta: { tool_calls: [toolCall] } }] });
+  type StreamedCall = { index: number; id?: string | null; function?: { name?: string | null; arguments?: string } };
+  /** The calls a client assembles from a stream, by index, the way the AI SDK does. */
+  const assembled = (text: string) => {
+    const calls: { id?: string; name: string; args: string }[] = [];
+    for (const line of text.split("\n")) {
+      if (!line.startsWith("data: {")) continue;
+      const event = JSON.parse(line.slice(6)) as { choices?: { delta?: { tool_calls?: StreamedCall[] } }[] };
+      for (const toolCall of event.choices?.[0]?.delta?.tool_calls ?? []) {
+        const slot = (calls[toolCall.index] ??= { name: "", args: "" });
+        if (toolCall.id) slot.id = toolCall.id;
+        slot.name += toolCall.function?.name ?? "";
+        slot.args += toolCall.function?.arguments ?? "";
+      }
+    }
+    return calls;
+  };
+  const streamedText = async (chunks: unknown[]) => {
+    const { api_key } = await newAccount();
+    const { ai } = fakeAi(() => sse(chunks));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { stream: true }),
+    }, { AI: ai });
+    return response.text();
+  };
+
+  it("gives each call its own index when a stream sends them all on index 0, as Gemma 4 on Workers AI does", async () => {
+    const text = await streamedText([
+      delta({ index: 0, id: "call_a", type: "function", function: { name: "write_file", arguments: "" } }),
+      delta({ index: 0, id: null, type: "function", function: { name: null, arguments: '{"path": "a.txt"}' } }),
+      delta({ index: 0, id: "call_b", type: "function", function: { name: "write_file", arguments: "" } }),
+      delta({ index: 0, id: null, type: "function", function: { name: null, arguments: '{"path": "b.txt"}' } }),
+      { choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+    ]);
+    expect(assembled(text)).toEqual([
+      { id: "call_a", name: "write_file", args: '{"path": "a.txt"}' },
+      { id: "call_b", name: "write_file", args: '{"path": "b.txt"}' },
+    ]);
+  });
+
+  it("passes a stream that already numbers its calls through byte for byte", async () => {
+    const chunks = [
+      delta({ index: 0, id: "call_a", function: { name: "write_file", arguments: '{"path": "a.txt"}' } }),
+      delta({ index: 1, id: "call_b", function: { name: "write_file", arguments: '{"path": "b.txt"}' } }),
+      delta({ index: 1, id: "call_b", function: { arguments: "" } }),
+    ];
+    expect(await streamedText(chunks)).toBe(await sse(chunks).text());
+  });
+
+  it("keeps one call whose id only arrives with a later fragment", async () => {
+    const text = await streamedText([
+      delta({ index: 0, function: { name: "write_file", arguments: '{"path":' } }),
+      delta({ index: 0, id: "call_a", function: { arguments: ' "a.txt"}' } }),
+    ]);
+    expect(assembled(text)).toEqual([{ id: "call_a", name: "write_file", args: '{"path": "a.txt"}' }]);
+  });
+
+  it("splits a non-streamed call whose arguments hold several objects into one call each", async () => {
+    const { api_key } = await newAccount();
+    const merged = { id: "call_a", type: "function", function: { name: "write_file", arguments: '{"path": "a.txt"}{"path": "b.txt"}\n{"path": "c.txt"}' } };
+    const { ai } = fakeAi(() => Response.json({
+      id: "c1", object: "chat.completion", model: "upstream-model",
+      choices: [{ index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: null, tool_calls: [merged] } }],
+      usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+    }));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
+    }, { AI: ai });
+    const json = (await response.json()) as { choices: { message: { tool_calls: { id: string; function: { name: string; arguments: string } }[] } }[] };
+    expect(json.choices[0]!.message.tool_calls.map(c => [c.id, c.function.name, c.function.arguments])).toEqual([
+      ["call_a", "write_file", '{"path": "a.txt"}'],
+      ["call_a-2", "write_file", '{"path": "b.txt"}'],
+      ["call_a-3", "write_file", '{"path": "c.txt"}'],
+    ]);
+  });
+});
+
 describe("leaked reasoning", () => {
   /** Joins every streamed delta's `field` for choice 0. */
   const streamed = (text: string, field: string) => text.split("\n")

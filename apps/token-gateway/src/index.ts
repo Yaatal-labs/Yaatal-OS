@@ -35,6 +35,7 @@ import { home, usage, type SiteEnv } from "./site.js";
 import { countStream, requestCharacters, usageFrom, generatedCharacters, estimateTokens } from "./usage.js";
 import { recordEvent, usageReport } from "./report.js";
 import { moveThinking, thinkingOutOfStream } from "./think.js";
+import { repairToolCalls, separateToolCalls, splitToolCalls } from "./tool-calls.js";
 
 export interface Env extends UpstreamEnv, SiteEnv {
   DB: D1Database;
@@ -163,6 +164,11 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
   if (!response.ok) {
     await response.body?.cancel();
     await recordEvent(env.DB, account.id, "upstream_error", offer.id);
+    // A refusal of the request itself is the client's to fix; retrying it, or another upstream, cannot help.
+    if (response.status === 400 || response.status === 422) {
+      return error(400, "invalid_request",
+        `The model refused this request as invalid (upstream status ${response.status}). Check its messages and tools. You were not charged.`);
+    }
     return error(response.status === 429 ? 429 : 502, "upstream_error",
       `Every upstream for ${offer.id} is unavailable (last status ${response.status}). You were not charged.`);
   }
@@ -175,7 +181,7 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
     );
     headers.set("content-type", response.headers.get("content-type") ?? "text/event-stream");
     headers.set("cache-control", "no-cache");
-    const stream = client.pipeThrough(publicModelIds(offer.id));
+    const stream = client.pipeThrough(publicModelIds(offer.id)).pipeThrough(separateToolCalls());
     return new Response(offer.thinksInContent ? stream.pipeThrough(thinkingOutOfStream()) : stream, { status: 200, headers });
   }
 
@@ -185,7 +191,7 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
     ? { ...reported, estimated: false }
     : { inputTokens: estimateTokens(inputCharacters), outputTokens: estimateTokens(generatedCharacters(completion)), estimated: true };
   await charge(env, account.id, offer, counts);
-  return Response.json({ ...moveThinking(completion), model: offer.id }, { headers });
+  return Response.json({ ...splitToolCalls(moveThinking(completion)), model: offer.id }, { headers });
 }
 
 /**
@@ -221,10 +227,14 @@ export function publicModelIds(publicId: string): TransformStream<Uint8Array, Ui
   });
 }
 
-/** The body sent upstream: public id swapped for the upstream's, output capped, usage requested. */
+/**
+ * The body sent upstream: public id swapped for the upstream's, output capped, usage requested,
+ * tool-call arguments in the history made valid JSON.
+ */
 function prepare(body: Record<string, unknown>, offer: ModelOffer): Record<string, unknown> {
   const out: Record<string, unknown> = { ...body };
   for (const field of STRIPPED_FIELDS) delete out[field];
+  if (Array.isArray(out.messages)) out.messages = repairToolCalls(out.messages);
   const requested = out.max_completion_tokens ?? out.max_tokens;
   const cap = typeof requested === "number" && Number.isInteger(requested) && requested > 0
     ? Math.min(requested, offer.maxOutputTokens)
