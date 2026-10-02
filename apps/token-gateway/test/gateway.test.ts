@@ -405,6 +405,58 @@ describe("chat completions", () => {
   });
 });
 
+describe("tool calls in a replayed history", () => {
+  /** An agent's next step: its earlier tool call with `args`, and the tool's answer. */
+  const replay = (args: unknown) => chatBody("kairmel/nemotron-3-super", {
+    messages: [
+      { role: "user", content: "Écris index.html et src/main.tsx." },
+      { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "write_file", arguments: args } }] },
+      { role: "tool", tool_call_id: "call_1", content: "invalid tool call" },
+    ],
+  });
+  const sentArguments = async (args: unknown) => {
+    const { api_key } = await newAccount();
+    const { ai, seen } = fakeAi(() => completion(10, 10));
+    const response = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: replay(args) }, { AI: ai });
+    expect(response.status).toBe(200);
+    const messages = seen[0]!.body.messages as { tool_calls?: { function: { arguments: unknown } }[] }[];
+    return messages[1]!.tool_calls![0]!.function.arguments;
+  };
+  const first = '{"path": "index.html", "content": "<p>{ Dalal ak jàmm }</p>"}';
+
+  it("sends only the first object of two calls a model merged into one, which Workers AI would refuse whole", async () => {
+    expect(await sentArguments(`${first}{"path": "src/main.tsx", "content": "export {}"}`)).toBe(first);
+  });
+
+  it("unwraps arguments a client sent back as a JSON string", async () => {
+    expect(await sentArguments(JSON.stringify(first))).toBe(first);
+    expect(await sentArguments(JSON.stringify(`${first}{"path": "b"}`))).toBe(first);
+  });
+
+  it("sends {} for arguments that hold no JSON object", async () => {
+    for (const args of ["", "null", '{"path": "index.ht', 42]) expect(await sentArguments(args)).toBe("{}");
+  });
+
+  it("leaves valid arguments exactly as the client sent them", async () => {
+    const spaced = '{ "path" : "a.ts",\n  "content": "x" }';
+    expect(await sentArguments(spaced)).toBe(spaced);
+    expect(await sentArguments({ path: "a.ts" })).toBe('{"path":"a.ts"}');
+  });
+
+  it("answers 400, uncharged, when the upstream refuses the request as invalid", async () => {
+    const { api_key } = await newAccount(5_000);
+    const { ai } = fakeAi(() => new Response('{"error":"bad tool call"}', { status: 400 }));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
+    }, { AI: ai });
+    expect(response.status).toBe(400);
+    const json = (await response.json()) as { error: { type: string; message: string } };
+    expect(json.error.type).toBe("invalid_request");
+    expect(json.error.message).not.toContain("unavailable");
+    expect((await balanceOf(api_key)).balance_xof).toBe(5_000);
+  });
+});
+
 describe("leaked reasoning", () => {
   /** Joins every streamed delta's `field` for choice 0. */
   const streamed = (text: string, field: string) => text.split("\n")
