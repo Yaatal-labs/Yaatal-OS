@@ -35,7 +35,7 @@ import { home, usage, type SiteEnv } from "./site.js";
 import { countStream, requestCharacters, usageFrom, generatedCharacters, estimateTokens } from "./usage.js";
 import { recordEvent, usageReport } from "./report.js";
 import { moveThinking, thinkingOutOfStream } from "./think.js";
-import { repairToolCalls } from "./tool-calls.js";
+import { repairToolCalls, separateToolCalls, splitToolCalls } from "./tool-calls.js";
 
 export interface Env extends UpstreamEnv, SiteEnv {
   DB: D1Database;
@@ -181,7 +181,7 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
     );
     headers.set("content-type", response.headers.get("content-type") ?? "text/event-stream");
     headers.set("cache-control", "no-cache");
-    const stream = client.pipeThrough(publicModelIds(offer.id));
+    const stream = client.pipeThrough(publicModelIds(offer.id)).pipeThrough(separateToolCalls());
     return new Response(offer.thinksInContent ? stream.pipeThrough(thinkingOutOfStream()) : stream, { status: 200, headers });
   }
 
@@ -191,7 +191,7 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
     ? { ...reported, estimated: false }
     : { inputTokens: estimateTokens(inputCharacters), outputTokens: estimateTokens(generatedCharacters(completion)), estimated: true };
   await charge(env, account.id, offer, counts);
-  return Response.json({ ...moveThinking(completion), model: offer.id }, { headers });
+  return Response.json({ ...splitToolCalls(moveThinking(completion)), model: offer.id }, { headers });
 }
 
 /**
