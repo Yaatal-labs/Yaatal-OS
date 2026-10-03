@@ -5,8 +5,8 @@
 //! choose.
 
 use crate::kairmel::{
-    join_path, validate_kairmel_url, KairmelUrls, DEFAULT_KAIRMEL_URL, DEFAULT_PATH_CREER,
-    DEFAULT_PATH_DISCUTER, DEFAULT_PATH_MARCHE,
+    join_path, validate_kairmel_url, KairmelUrls, DEFAULT_KAIRMEL_URL, DEFAULT_PATH_APPS,
+    DEFAULT_PATH_CREER, DEFAULT_PATH_DECOUVRIR,
 };
 
 /// Build the configured Kairmel URLs from compile-time environment
@@ -17,21 +17,21 @@ pub fn load() -> KairmelUrls {
         panic!("KAIRMEL_URL={raw_url:?} is not a valid Kairmel URL: {err}");
     });
 
-    let discuter_path = option_env!("KAIRMEL_PATH_DISCUTER").unwrap_or(DEFAULT_PATH_DISCUTER);
     let creer_path = option_env!("KAIRMEL_PATH_CREER").unwrap_or(DEFAULT_PATH_CREER);
-    let marche_path = option_env!("KAIRMEL_PATH_MARCHE").unwrap_or(DEFAULT_PATH_MARCHE);
+    let apps_path = option_env!("KAIRMEL_PATH_APPS").unwrap_or(DEFAULT_PATH_APPS);
+    let decouvrir_path = option_env!("KAIRMEL_PATH_DECOUVRIR").unwrap_or(DEFAULT_PATH_DECOUVRIR);
 
-    let discuter = join_path(&origin, discuter_path)
-        .unwrap_or_else(|err| panic!("KAIRMEL_PATH_DISCUTER={discuter_path:?}: {err}"));
     let creer = join_path(&origin, creer_path)
         .unwrap_or_else(|err| panic!("KAIRMEL_PATH_CREER={creer_path:?}: {err}"));
-    let marche = join_path(&origin, marche_path)
-        .unwrap_or_else(|err| panic!("KAIRMEL_PATH_MARCHE={marche_path:?}: {err}"));
+    let apps = join_path(&origin, apps_path)
+        .unwrap_or_else(|err| panic!("KAIRMEL_PATH_APPS={apps_path:?}: {err}"));
+    let decouvrir = join_path(&origin, decouvrir_path)
+        .unwrap_or_else(|err| panic!("KAIRMEL_PATH_DECOUVRIR={decouvrir_path:?}: {err}"));
 
     KairmelUrls {
         origin,
-        discuter,
         creer,
-        marche,
+        apps,
+        decouvrir,
     }
 }
