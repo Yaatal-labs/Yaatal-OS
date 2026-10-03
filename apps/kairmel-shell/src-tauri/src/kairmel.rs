@@ -7,12 +7,12 @@ use url::Url;
 
 /// Placeholder default. The real address is supplied at build time via the
 /// `KAIRMEL_URL` environment variable (see README).
-pub const DEFAULT_KAIRMEL_URL: &str = "https://kairmel.example";
+pub const DEFAULT_KAIRMEL_URL: &str = "https://kairmel.com";
 
 /// Default workspace paths, relative to the configured Kairmel origin.
-pub const DEFAULT_PATH_DISCUTER: &str = "/";
-pub const DEFAULT_PATH_CREER: &str = "/create";
-pub const DEFAULT_PATH_MARCHE: &str = "/marche";
+pub const DEFAULT_PATH_CREER: &str = "/";
+pub const DEFAULT_PATH_APPS: &str = "/apps";
+pub const DEFAULT_PATH_DECOUVRIR: &str = "/discover";
 
 /// Why a configured Kairmel URL was rejected.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,9 +92,9 @@ pub fn join_path(base: &Url, path: &str) -> Result<Url, UrlValidationError> {
 #[derive(Debug, Clone)]
 pub struct KairmelUrls {
     pub origin: Url,
-    pub discuter: Url,
     pub creer: Url,
-    pub marche: Url,
+    pub apps: Url,
+    pub decouvrir: Url,
 }
 
 fn origin_key(url: &Url) -> (String, String, Option<u16>) {

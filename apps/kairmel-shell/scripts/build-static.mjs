@@ -10,7 +10,7 @@ const root = path.resolve(here, "..");
 const srcDir = path.join(root, "src");
 const distDir = path.join(root, "dist");
 
-const DEFAULT_KAIRMEL_URL = "https://kairmel.example";
+const DEFAULT_KAIRMEL_URL = "https://kairmel.com";
 
 function kairmelUrl() {
   const raw = process.env.KAIRMEL_URL?.trim() || DEFAULT_KAIRMEL_URL;
