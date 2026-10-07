@@ -16,7 +16,7 @@ OpenAI-compatible server such as a self-hosted model. Switching a model's suppli
 | `GET /v1/balance` | Yaatal key | Balance and recent ledger rows |
 | `POST /admin/accounts` | admin token | `{name, credit_xof?}` → account and its first key (shown once) |
 | `POST /admin/accounts/:id/keys` | admin token | `{label}` → another key (shown once) |
-| `POST /admin/accounts/:id/credits` | admin token | `{xof, note}` → new balance |
+| `POST /admin/accounts/:id/credits` | admin token | `{xof, note, payment_ref?}` → new balance and whether it was applied |
 | `POST /admin/keys/revoke` | admin token | `{key}` |
 | `GET /admin/usage?days=30` | admin token | sign-ups, credits, billed usage, refused requests (empty balance, upstream down), per model, per account (top 50) and per day |
 
@@ -31,6 +31,12 @@ OpenAI-compatible server such as a self-hosted model. Switching a model's suppli
 - Failed upstream calls are never charged. Every balance change is one ledger row committed with it.
 - Credits are granted through the admin routes. Taking payment (Wave, Orange Money, PI-SPI) is a
   separate step that ends in a credit call; it is not part of this Worker.
+- A credit may carry `payment_ref`, the settlement's id from the rail that moved the money (or an
+  operator's receipt when cash closes the sale). It is unique per account: crediting one settlement
+  twice credits once and answers `applied: false`, so a replayed webhook or a retried bridge cannot
+  pay it again. The reference is kept on the ledger row and shown in `GET /v1/balance`, so a balance
+  can be reconciled against the payments that funded it. A credit with no reference is never
+  deduplicated.
 
 ## Data
 
