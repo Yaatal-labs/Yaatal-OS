@@ -1,0 +1,235 @@
+<!doctype html>
+<!--
+  The control board's page shell. build-app.mjs inlines the board's own script (app/board.js) plus
+  capnweb into the marked <script> slot below and writes the result to src/generated/app.ts, whose
+  default export src/board-html.ts re-exports and GatekeeperUser.startAppUi() serves as its
+  iframeHtml.
+
+  Nothing here is fetched from the network: no font, no stylesheet, no image. The Workshop hosts this
+  in a sandbox="allow-scripts" iframe with an opaque origin, so the page has to stand alone.
+-->
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Poste de contrôle</title>
+    <style>
+      /* Light is the base palette. The Workshop pushes the resolved mode over RPC and board.js
+         stamps it as <html data-theme>, so the media query below only covers the first paint,
+         before the handshake completes. */
+      :root {
+        --bg: #f7f6f5;
+        --surface: #ffffff;
+        --line: #e3e0dd;
+        --fg: #1c1a19;
+        --muted: #6d6663;
+        --faint: #928b87;
+        --accent: #8a1c3f;
+        --ok: #1f6f43;
+        --warn: #8a5a10;
+        --bad: #a32222;
+        --accent-soft: #f7e9ee;
+      }
+      :root[data-theme="dark"] {
+        --bg: #16151a;
+        --surface: #1e1d23;
+        --line: #322f38;
+        --fg: #eceaef;
+        --muted: #a39da9;
+        --faint: #7c7683;
+        --accent: #e58aa9;
+        --ok: #7ec9a0;
+        --warn: #e0b169;
+        --bad: #f08a8a;
+        --accent-soft: #2b2027;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #16151a;
+          --surface: #1e1d23;
+          --line: #322f38;
+          --fg: #eceaef;
+          --muted: #a39da9;
+          --faint: #7c7683;
+          --accent: #e58aa9;
+          --ok: #7ec9a0;
+          --warn: #e0b169;
+          --bad: #f08a8a;
+          --accent-soft: #2b2027;
+        }
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body { margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        padding: 20px max(16px, env(safe-area-inset-left)) 40px max(16px, env(safe-area-inset-right));
+        -webkit-font-smoothing: antialiased;
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px 14px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--line);
+        margin-bottom: 22px;
+      }
+      h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+      .badge {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .spacer { flex: 1 1 12px; }
+      .stamp { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+      .controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+      button {
+        font: inherit;
+        font-size: 12px;
+        padding: 4px 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--fg);
+        cursor: pointer;
+      }
+      button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+      button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+      button:disabled { opacity: 0.5; cursor: default; }
+
+      section { margin-bottom: 30px; }
+      h2 {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0 0 12px;
+      }
+
+      .panels { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+      .panel { min-width: 0; }
+      .panel > h3 {
+        font-size: 12px;
+        font-weight: 600;
+        margin: 0 0 10px;
+        color: var(--fg);
+      }
+
+      .tiles { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+      .tile {
+        flex: 1 1 128px;
+        min-width: 0;
+        padding: 9px 11px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+      }
+      .tile-v { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+      .tile-k { font-size: 11px; color: var(--muted); }
+      .tile-n { font-size: 11px; color: var(--faint); margin-top: 2px; }
+
+      table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+      th, td { text-align: left; padding: 5px 8px 5px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+      thead th { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+      tbody th { font-weight: 400; }
+      .num { text-align: right; padding-right: 12px; }
+      .hint { color: var(--faint); font-size: 11.5px; }
+
+      .scroller { max-height: 300px; overflow-y: auto; }
+
+      /* Day series: label, proportional bar, value. The bar is decoration for a number that is
+         always printed next to it, so a zero-width bar is still a readable row. */
+      .series { display: grid; gap: 3px; }
+      .series-row { display: grid; grid-template-columns: 46px 1fr auto; gap: 8px; align-items: center; }
+      .series-day { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+      .series-track { height: 9px; background: var(--accent-soft); border-radius: 3px; overflow: hidden; }
+      .series-bar { height: 100%; background: var(--accent); border-radius: 3px; }
+      .series-val { font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+      .status { display: flex; align-items: center; gap: 8px; padding: 7px 0; font-size: 13px; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+      .dot.ok { background: var(--ok); }
+      .dot.bad { background: var(--bad); }
+      .dot.unknown { background: var(--faint); }
+      .status-detail { color: var(--muted); font-size: 12px; }
+
+      .note {
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--warn);
+        border-radius: 6px;
+        background: var(--surface);
+        font-size: 12.5px;
+        margin-bottom: 10px;
+      }
+      .note.error { border-left-color: var(--bad); }
+      .note.quiet { border-left-color: var(--faint); color: var(--muted); }
+
+      .refusal { max-width: 60ch; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+      .refusal h2 { color: var(--fg); text-transform: none; letter-spacing: 0; font-size: 15px; margin-bottom: 8px; }
+      .refusal p { margin: 0 0 8px; color: var(--muted); }
+
+      .empty { color: var(--faint); font-size: 12.5px; padding: 6px 0; }
+      .skeleton { color: var(--faint); font-size: 12.5px; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Poste de contrôle</h1>
+      <span class="badge" id="badge" hidden>opérateur</span>
+      <span class="spacer"></span>
+      <div class="controls">
+        <button id="w7" data-days="7">7 j</button>
+        <button id="w30" data-days="30">30 j</button>
+        <button id="w90" data-days="90">90 j</button>
+        <button id="refresh">Actualiser</button>
+      </div>
+      <span class="stamp" id="stamp"></span>
+    </header>
+
+    <div id="notice"></div>
+    <main id="main" hidden>
+      <section>
+        <h2>Rail jetons — api.kairmel.com</h2>
+        <div id="token"></div>
+      </section>
+      <section>
+        <h2>Rail commerce — moteur Yaatal via PostHog</h2>
+        <div id="commerce"></div>
+      </section>
+      <section>
+        <h2>Services</h2>
+        <div id="health"></div>
+      </section>
+    </main>
+    <div id="refusal" hidden>
+      <div class="refusal">
+        <h2>Page réservée à l'opérateur</h2>
+        <p>
+          Le poste de contrôle affiche les chiffres d'exploitation de ce déploiement. Il n'est ouvert
+          qu'aux administrateurs.
+        </p>
+        <p>Votre compte n'est pas administrateur. Les appels de cette page sont refusés.</p>
+      </div>
+    </div>
+
+    <!-- build-app.mjs replaces this comment with the bundled module. -->
+    <!-- BOARD_SCRIPT -->
+  </body>
+</html>
