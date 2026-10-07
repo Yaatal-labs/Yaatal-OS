@@ -92,7 +92,7 @@ async function balanceOf(key: string) {
   const response = await call("/v1/balance", { auth: `Bearer ${key}` });
   return (await response.json()) as {
     balance_xof: number;
-    recent: { kind: string; amount_xof: number; model: string; input_tokens: number; output_tokens: number; estimated: boolean }[];
+    recent: { kind: string; amount_xof: number; model: string; input_tokens: number; output_tokens: number; estimated: boolean; payment_ref: string | null }[];
   };
 }
 
@@ -303,9 +303,9 @@ describe("keys and admin", () => {
   it("credits an account and rejects bad amounts and unknown accounts", async () => {
     const { account, api_key } = await newAccount(1_000);
     const ok = await call(`/admin/accounts/${account.id}/credits`, {
-      method: "POST", auth: ADMIN, body: JSON.stringify({ xof: 2_500, note: "Wave top-up ref W-1" }),
+      method: "POST", auth: ADMIN, body: JSON.stringify({ xof: 2_500, note: "Top-up", payment_ref: "W-1" }),
     });
-    expect(await ok.json()).toEqual({ balance_xof: 3_500 });
+    expect(await ok.json()).toEqual({ balance_xof: 3_500, applied: true });
     expect((await balanceOf(api_key)).balance_xof).toBe(3_500);
     for (const xof of [0, -5, 1.5, "100"]) {
       const bad = await call(`/admin/accounts/${account.id}/credits`, {
@@ -317,6 +317,65 @@ describe("keys and admin", () => {
       method: "POST", auth: ADMIN, body: JSON.stringify({ xof: 10, note: "x" }),
     });
     expect(unknown.status).toBe(404);
+  });
+});
+
+/** An account with no opening credit, so a test's ledger holds only the credits it makes itself. */
+async function emptyAccount() {
+  const response = await call("/admin/accounts", {
+    method: "POST",
+    auth: ADMIN,
+    body: JSON.stringify({ name: "Agence Test" }),
+  });
+  expect(response.status).toBe(201);
+  return (await response.json()) as { account: { id: string }; api_key: string };
+}
+
+describe("credits against a payment", () => {
+  it("credits once per payment reference: a replayed settlement is a no-op, and the reference stays on the ledger", async () => {
+    const { account, api_key: key } = await emptyAccount();
+    const settle = (body: Record<string, unknown>) =>
+      call(`/admin/accounts/${account.id}/credits`, { method: "POST", auth: ADMIN, body: JSON.stringify(body) });
+
+    const first = await settle({ xof: 1_000, note: "Wave settlement", payment_ref: "wave-tx-8812" });
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ balance_xof: 1_000, applied: true });
+
+    // The same settlement delivered twice -- a retried webhook, a bridge that timed out and retried --
+    // is the same payment, so it credits once and says so.
+    const replay = await settle({ xof: 1_000, note: "Wave settlement", payment_ref: "wave-tx-8812" });
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toEqual({ balance_xof: 1_000, applied: false });
+
+    // A different settlement is a different credit.
+    const later = await settle({ xof: 2_000, note: "Wave settlement", payment_ref: "wave-tx-8813" });
+    expect(await later.json()).toEqual({ balance_xof: 3_000, applied: true });
+
+    const { balance_xof, recent } = await balanceOf(key);
+    expect(balance_xof).toBe(3_000);
+    // Which settlement funded which balance, visible to the account that holds the balance.
+    expect(recent.map(row => row.payment_ref)).toEqual(["wave-tx-8813", "wave-tx-8812"]);
+  });
+
+  it("scopes the reference to the account, and lets an unreferenced credit be given twice", async () => {
+    const { account: one } = await emptyAccount();
+    const { account: two } = await emptyAccount();
+    const settle = (id: string, body: Record<string, unknown>) =>
+      call(`/admin/accounts/${id}/credits`, { method: "POST", auth: ADMIN, body: JSON.stringify(body) });
+
+    // The same Wave reference landing on two accounts is two settlements, not a collision: the
+    // uniqueness is per account, exactly like the balance it funds.
+    expect(await (await settle(one.id, { xof: 500, note: "Wave", payment_ref: "wave-tx-1" })).json())
+      .toEqual({ balance_xof: 500, applied: true });
+    expect(await (await settle(two.id, { xof: 500, note: "Wave", payment_ref: "wave-tx-1" })).json())
+      .toEqual({ balance_xof: 500, applied: true });
+
+    // A goodwill grant or an opening balance cites no settlement. It is never deduplicated, because
+    // there is nothing for it to collide on -- an operator may mean to give it twice.
+    expect(await (await settle(one.id, { xof: 200, note: "goodwill" })).json())
+      .toEqual({ balance_xof: 700, applied: true });
+    expect(await (await settle(one.id, { xof: 200, note: "goodwill" })).json())
+      .toEqual({ balance_xof: 900, applied: true });
   });
 });
 

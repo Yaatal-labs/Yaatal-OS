@@ -111,18 +111,77 @@ export async function keyAccountIssuer(db: D1Database, keyId: string): Promise<s
   return row ? row.issuer : undefined;
 }
 
-export async function credit(db: D1Database, accountId: string, amountUxof: number, note: string): Promise<number> {
+export interface CreditResult {
+  /** The balance after the credit. Unchanged when the credit was a replay of one already applied. */
+  balanceUxof: number;
+  /** False when this payment reference had already been credited: nothing was written. */
+  applied: boolean;
+}
+
+/**
+ * Adds to an account's balance and writes the ledger row, atomically.
+ *
+ * `paymentRef` names the settlement that funded the credit: a Wave or PI-SPI transaction id, or an
+ * operator's receipt when cash closes the sale. The reference is unique per account (the
+ * `ledger_payment_ref` index), so crediting one settlement twice credits it once -- a replayed
+ * webhook, or a bridge that timed out and retried, finds the row already there and reports
+ * `applied: false` rather than paying again. A credit that cites no settlement (an opening balance,
+ * a goodwill grant) passes null and is never deduplicated.
+ */
+export async function credit(
+  db: D1Database,
+  accountId: string,
+  amountUxof: number,
+  note: string,
+  paymentRef: string | null = null,
+): Promise<CreditResult> {
   const exists = await db.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(accountId).first();
   if (!exists) throw new UnknownAccountError();
-  const [, , balance] = await db.batch([
-    db.prepare("INSERT INTO ledger (account_id, kind, amount_uxof, note) VALUES (?, 'credit', ?, ?)")
-      .bind(accountId, amountUxof, note),
-    db.prepare("UPDATE accounts SET balance_uxof = balance_uxof + ? WHERE id = ?").bind(amountUxof, accountId),
-    db.prepare("SELECT balance_uxof FROM accounts WHERE id = ?").bind(accountId),
-  ]);
-  const row = (balance?.results as { balance_uxof: number }[])[0];
-  if (!row) throw new Error("unknown account");
+  if (paymentRef !== null && (await isCredited(db, accountId, paymentRef))) {
+    return { balanceUxof: await balanceUxof(db, accountId), applied: false };
+  }
+  try {
+    const [, , balance] = await db.batch([
+      db.prepare("INSERT INTO ledger (account_id, kind, amount_uxof, note, payment_ref) VALUES (?, 'credit', ?, ?, ?)")
+        .bind(accountId, amountUxof, note, paymentRef),
+      db.prepare("UPDATE accounts SET balance_uxof = balance_uxof + ? WHERE id = ?").bind(amountUxof, accountId),
+      db.prepare("SELECT balance_uxof FROM accounts WHERE id = ?").bind(accountId),
+    ]);
+    const row = (balance?.results as { balance_uxof: number }[])[0];
+    if (!row) throw new Error("unknown account");
+    return { balanceUxof: row.balance_uxof, applied: true };
+  } catch (err) {
+    // The read above happens outside the batch, so two settlements carrying the same reference can
+    // both pass it. The index is what actually decides, and the loser of that race lands here: the
+    // whole batch rolled back (the balance was not touched), so the answer is the same as for the
+    // replay -- already credited. Should D1 ever word that error differently the credit still
+    // cannot double, because it never committed; the call only fails to be recognised as a replay.
+    if (paymentRef !== null && isDuplicatePaymentRef(err)) {
+      return { balanceUxof: await balanceUxof(db, accountId), applied: false };
+    }
+    throw err;
+  }
+}
+
+async function balanceUxof(db: D1Database, accountId: string): Promise<number> {
+  const row = await db.prepare("SELECT balance_uxof FROM accounts WHERE id = ?").bind(accountId).first<{ balance_uxof: number }>();
+  if (!row) throw new UnknownAccountError();
   return row.balance_uxof;
+}
+
+/** Whether this settlement has already funded this account. */
+async function isCredited(db: D1Database, accountId: string, paymentRef: string): Promise<boolean> {
+  const row = await db
+    .prepare("SELECT 1 FROM ledger WHERE account_id = ? AND payment_ref = ?")
+    .bind(accountId, paymentRef)
+    .first();
+  return row !== null;
+}
+
+/** A unique-index violation on the payment reference: the same settlement, arriving a second time. */
+function isDuplicatePaymentRef(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /unique/i.test(message) && message.includes("payment_ref");
 }
 
 export async function debitUsage(db: D1Database, accountId: string, usage: UsageRecord): Promise<void> {
@@ -138,7 +197,7 @@ export async function debitUsage(db: D1Database, accountId: string, usage: Usage
 export async function recentLedger(db: D1Database, accountId: string, limit = 20) {
   const { results } = await db
     .prepare(
-      `SELECT kind, amount_uxof, model, input_tokens, output_tokens, estimated, note, created_at
+      `SELECT kind, amount_uxof, model, input_tokens, output_tokens, estimated, note, payment_ref, created_at
        FROM ledger WHERE account_id = ? ORDER BY id DESC LIMIT ?`,
     )
     .bind(accountId, limit)

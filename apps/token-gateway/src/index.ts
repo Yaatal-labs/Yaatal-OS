@@ -10,7 +10,7 @@
 //   GET  /v1/balance                    the key's balance and recent ledger rows
 //   POST /admin/accounts                {name, credit_xof?, issuer?}  -> account + first key (shown once)
 //   POST /admin/accounts/:id/keys       {label}               -> another key on the account (shown once)
-//   POST /admin/accounts/:id/credits    {xof, note}          -> new balance
+//   POST /admin/accounts/:id/credits    {xof, note, payment_ref?}  -> new balance, and whether it was applied
 //   POST /admin/accounts/:id/issuer     {issuer|null}        assign/clear which issuer may mint or revoke its keys
 //   POST /admin/keys/revoke             {key}                revoke by raw key
 //   DELETE /admin/keys/:id                                   revoke by key id (no raw key needed)
@@ -24,7 +24,9 @@
 // revocable on its own, without touching the others or the account's balance.
 //
 // Credits are granted by an administrator here. Taking payment (Wave, Orange Money, PI-SPI) is a
-// separate, explicitly approved step that ends in one of these credit calls.
+// separate, explicitly approved step that ends in one of these credit calls. That step should send
+// the settlement's own id as payment_ref: a credit citing a reference is applied once per account, so
+// a replayed webhook or a bridge that retried after a timeout cannot pay the same settlement twice.
 import { availableModels, costOf, findModel, type ModelOffer } from "./models.js";
 import {
   UnknownAccountError, accountForKey, accountIssuer, createAccount, createKey, credit, debitUsage,
@@ -271,6 +273,7 @@ async function balance(request: Request, env: Env): Promise<Response> {
       output_tokens: row.output_tokens,
       estimated: row.estimated === 1,
       note: row.note,
+      payment_ref: row.payment_ref,
       at: row.created_at,
     })),
   });
@@ -301,7 +304,7 @@ async function admin(request: Request, env: Env, path: string): Promise<Response
     const account = await createAccount(env.DB, name, issuer);
     const { id: keyId, key } = await createKey(env.DB, account.id, "default");
     const creditXof = body.credit_xof === undefined ? 0 : xof(body.credit_xof);
-    const balanceUxof = creditXof ? await credit(env.DB, account.id, creditXof * UXOF, "opening credit") : 0;
+    const balanceUxof = creditXof ? (await credit(env.DB, account.id, creditXof * UXOF, "opening credit")).balanceUxof : 0;
     return Response.json(
       { account: { id: account.id, name, issuer }, api_key: key, key_id: keyId, balance_xof: balanceUxof / UXOF },
       { status: 201 },
@@ -324,8 +327,12 @@ async function admin(request: Request, env: Env, path: string): Promise<Response
     }
     if (action === "credits") {
       const amount = xof(body.xof);
-      const balanceUxof = await credit(env.DB, accountId, amount * UXOF, text(body.note, "note"));
-      return Response.json({ balance_xof: balanceUxof / UXOF });
+      // The settlement this credit pays for, when there is one. Admin-only route, so the reference
+      // is the operator's or the payment bridge's to supply; a credit without one is never deduped.
+      const paymentRef =
+        body.payment_ref === undefined || body.payment_ref === null ? null : text(body.payment_ref, "payment_ref");
+      const { balanceUxof, applied } = await credit(env.DB, accountId, amount * UXOF, text(body.note, "note"), paymentRef);
+      return Response.json({ balance_xof: balanceUxof / UXOF, applied });
     }
     // action === "issuer": not on the keys route, so this always required the admin token.
     if (!("issuer" in body)) throw new HttpError(400, "invalid_request", "issuer must be a string or null.");
