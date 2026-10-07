@@ -1,0 +1,42 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // Matches deployment.jsonc's workers.customGatekeeper.name, so a stray manual `wrangler deploy`
+  // from this directory cannot conjure a second worker called custom-gatekeeper beside the real one.
+  "name": "yaatal-os-custom",
+  "main": ".wrangler/validate/src/index.ts",
+  "build": {
+    "command": "pnpm exec capnweb-validate build --out .wrangler/validate",
+    "watch_dir": "src"
+  },
+  // Left exactly as upstream ships them. scripts/deploy.ts:756 reads this file as the deploy base
+  // config, so changing the date or the flags would change the runtime of the worker that is already
+  // deployed, which is not what adapting the package is for.
+  "compatibility_date": "2026-08-04",
+  "compatibility_flags": ["allow_irrevocable_stub_storage", "nodejs_compat"],
+  // No new class: the board is a stub returned from startAppUi(), not a Durable Object, so the
+  // migration list is untouched.
+  "migrations": [
+    {
+      "tag": "v0",
+      "new_sqlite_classes": ["CustomGatekeeper"]
+    }
+  ],
+  // These two are vars, not the account display name. describeCustomAccount() holds the name.
+  //
+  // scripts/deploy.ts:579 assigns `customGatekeeper.vars = { CUSTOM_NAME, CUSTOM_MESSAGE }` wholesale
+  // from deployment.jsonc at deploy time, so the values here are discarded and these lines exist only
+  // to keep local dev and production saying the same thing. Any other var added here would be
+  // discarded the same way, which is why the board's upstream URLs are source constants in
+  // src/board.ts and its three credentials are secrets.
+  //
+  // Values mirror deployment.jsonc.
+  "vars": {
+    "CUSTOM_NAME": "Yaatal",
+    "CUSTOM_MESSAGE": "Yaatal construit pour des commerçants de la zone UEMOA. Prix en FCFA. Ne jamais inventer de prix, de stock ni de données client."
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": { "invocation_logs": false }
+  }
+}
