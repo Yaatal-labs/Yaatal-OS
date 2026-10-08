@@ -11,6 +11,7 @@ declare global {
       ADMIN_TOKEN: string;
       KEY_ISSUER_TOKEN: string;
       KEY_ISSUER_NAME: string;
+      CREDIT_TOKEN: string;
     }
   }
 }
@@ -18,6 +19,7 @@ declare global {
 const ADMIN = `Bearer ${env.ADMIN_TOKEN}`;
 const ISSUER = `Bearer ${env.KEY_ISSUER_TOKEN}`;
 const ISSUER_NAME = env.KEY_ISSUER_NAME;
+const CREDIT = `Bearer ${env.CREDIT_TOKEN}`;
 const WHOLESALE_URL = "https://wholesale.example.test/v1";
 
 beforeAll(() => applyD1Migrations(env.DB, env.TEST_MIGRATIONS));
@@ -380,6 +382,83 @@ describe("accounts keyed by Engine identity", () => {
     expect((await call(`/admin/accounts/by-pid/${PID}`, { method: "PUT" })).status).toBe(401);
     const noName = await call(`/admin/accounts/by-pid/${PID}`, { method: "PUT", auth: ISSUER }, { KEY_ISSUER_NAME: "" });
     expect(noName.status).toBe(401);
+  });
+});
+
+describe("the narrow credit token", () => {
+  const PID = "c2c2c2c2-0000-4000-8000-000000000001";
+  const credit = (id: string, auth: string, body: Record<string, unknown>) =>
+    call(`/admin/accounts/${id}/credits`, { method: "POST", auth, body: JSON.stringify(body) });
+  const accountForPid = async () => {
+    const made = await call(`/admin/accounts/by-pid/${PID}`, { method: "PUT", auth: ADMIN });
+    return (await made.json()) as { id: string };
+  };
+
+  it("credits with a payment_ref, and a replay is applied:false", async () => {
+    const { id } = await accountForPid();
+    const first = await credit(id, CREDIT, { xof: 1_500, note: "Wave", payment_ref: "wave-c2-1" });
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ balance_xof: 1_500, applied: true });
+    const replay = await credit(id, CREDIT, { xof: 1_500, note: "Wave", payment_ref: "wave-c2-1" });
+    expect(await replay.json()).toEqual({ balance_xof: 1_500, applied: false });
+  });
+
+  it("requires payment_ref: 400 payment_ref_required without it, and nothing is credited", async () => {
+    const { id } = await accountForPid();
+    for (const body of [{ xof: 100, note: "x" }, { xof: 100, note: "x", payment_ref: null }]) {
+      const response = await credit(id, CREDIT, body);
+      expect(response.status).toBe(400);
+      expect(((await response.json()) as { error: { code: string } }).error.code).toBe("payment_ref_required");
+    }
+    expect((await credit(id, ADMIN, { xof: 100, note: "x" })).status).toBe(200); // admin still may omit it
+  });
+
+  it("still 404s an unknown account and rejects bad amounts", async () => {
+    expect((await credit("00000000-0000-4000-8000-000000000000", CREDIT, { xof: 10, note: "x", payment_ref: "r" })).status).toBe(404);
+    const { id } = await accountForPid();
+    expect((await credit(id, CREDIT, { xof: 0, note: "x", payment_ref: "r0" })).status).toBe(400);
+  });
+
+  it("can call nothing else: every other admin route answers 401", async () => {
+    const { id } = await accountForPid();
+    const attempts: [string, string, unknown?][] = [
+      ["POST", "/admin/accounts", { name: "x" }],
+      ["POST", `/admin/accounts/${id}/keys`, { label: "x" }],
+      ["POST", `/admin/accounts/${id}/issuer`, { issuer: null }],
+      ["POST", "/admin/keys/revoke", { key: "yk_x" }],
+      ["DELETE", "/admin/keys/00000000-0000-4000-8000-000000000000"],
+      ["PUT", `/admin/accounts/by-pid/${PID}`, {}],
+      ["GET", "/admin/usage"],
+    ];
+    for (const [method, path, body] of attempts) {
+      const response = await call(path, { method, auth: CREDIT, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+      expect([method, path, response.status]).toEqual([method, path, 401]);
+    }
+  });
+
+  it("is refused entirely when CREDIT_TOKEN is unset or too short", async () => {
+    const { id } = await accountForPid();
+    for (const token of [undefined, "short"]) {
+      const response = await call(`/admin/accounts/${id}/credits`, {
+        method: "POST", auth: CREDIT, body: JSON.stringify({ xof: 10, note: "x", payment_ref: "r-unset" }),
+      }, { CREDIT_TOKEN: token });
+      expect(response.status).toBe(401);
+    }
+  });
+
+  it("resolves a pid to its account with GET /admin/accounts/by-pid/:pid, for admin and credit token only", async () => {
+    const pid = "c2c2c2c2-0000-4000-8000-000000000002";
+    const { id } = (await (await call(`/admin/accounts/by-pid/${pid}`, { method: "PUT", auth: ADMIN })).json()) as { id: string };
+    await credit(id, CREDIT, { xof: 700, note: "Wave", payment_ref: "wave-c2-get" });
+    for (const auth of [CREDIT, ADMIN]) {
+      const response = await call(`/admin/accounts/by-pid/${pid}`, { auth });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ id, engine_pid: pid, balance_xof: 700 });
+    }
+    expect((await call("/admin/accounts/by-pid/c2c2c2c2-0000-4000-8000-0000000000ff", { auth: CREDIT })).status).toBe(404);
+    expect((await call("/admin/accounts/by-pid/nope", { auth: CREDIT })).status).toBe(400);
+    expect((await call(`/admin/accounts/by-pid/${PID}`, { auth: ISSUER })).status).toBe(401);
+    expect((await call(`/admin/accounts/by-pid/${PID}`)).status).toBe(401);
   });
 });
 

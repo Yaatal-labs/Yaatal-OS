@@ -18,6 +18,7 @@ export default defineConfig(async () => ({
           ADMIN_TOKEN: "test-admin-token-0123456789abcdef0123",
           KEY_ISSUER_TOKEN: "test-issuer-token-0123456789abcdef012",
           KEY_ISSUER_NAME: "test-issuer",
+          CREDIT_TOKEN: "test-credit-token-0123456789abcdef01",
           AI_GATEWAY_ID: "default",
         },
       },

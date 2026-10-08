@@ -51,6 +51,11 @@ export interface Env extends UpstreamEnv, SiteEnv {
   KEY_ISSUER_TOKEN?: string;
   /** Which accounts.issuer value KEY_ISSUER_TOKEN may act on. Unset refuses the token entirely. */
   KEY_ISSUER_NAME?: string;
+  /**
+   * The settlement bridge's credential: it may credit an account (with a payment_ref, always) and look
+   * up an account by Engine pid, and call nothing else. Unset refuses the token entirely.
+   */
+  CREDIT_TOKEN?: string;
 }
 
 const MAX_BODY_BYTES = 2_000_000;
@@ -71,6 +76,9 @@ export default {
       if (url.pathname === "/v1/chat/completions" && request.method === "POST") return await chat(request, env, ctx);
       if (url.pathname === "/v1/balance" && request.method === "GET") return await balance(request, env);
       if (url.pathname === "/admin/usage" && request.method === "GET") return await usageAdmin(request, env, url);
+      if (url.pathname.startsWith("/admin/accounts/by-pid/") && request.method === "GET") {
+        return await adminGetByPid(request, env, url.pathname);
+      }
       if (url.pathname.startsWith("/admin/") && request.method === "POST") return await admin(request, env, url.pathname);
       if (url.pathname.startsWith("/admin/accounts/by-pid/") && request.method === "PUT") {
         return await adminUpsertByPid(request, env, url.pathname);
@@ -298,7 +306,10 @@ async function admin(request: Request, env: Env, path: string): Promise<Response
   const isAdminToken = await isAdmin(request, env);
   // Only the mint-a-key route accepts the issuer token at all (the route-shape restriction).
   const asIssuer = !isAdminToken && keysPath ? await keyIssuerName(request, env) : null;
-  if (!isAdminToken && !asIssuer) throw new HttpError(401, "unauthorized", "Admin token required.");
+  // CREDIT_TOKEN reaches the credit route and nothing else.
+  const asCredit =
+    !isAdminToken && !asIssuer && /^\/admin\/accounts\/[^/]+\/credits$/.test(path) && (await bearerMatches(request, env.CREDIT_TOKEN));
+  if (!isAdminToken && !asIssuer && !asCredit) throw new HttpError(401, "unauthorized", "Admin token required.");
   const body = await readJson(request);
 
   if (path === "/admin/accounts") {
@@ -334,6 +345,9 @@ async function admin(request: Request, env: Env, path: string): Promise<Response
       // is the operator's or the payment bridge's to supply; a credit without one is never deduped.
       const paymentRef =
         body.payment_ref === undefined || body.payment_ref === null ? null : text(body.payment_ref, "payment_ref");
+      if (asCredit && paymentRef === null) {
+        throw new HttpError(400, "payment_ref_required", "payment_ref is required with this token.");
+      }
       const { balanceUxof, applied } = await credit(env.DB, accountId, amount * UXOF, text(body.note, "note"), paymentRef);
       return Response.json({ balance_xof: balanceUxof / UXOF, applied });
     }
@@ -360,6 +374,17 @@ async function adminUpsertByPid(request: Request, env: Env, path: string): Promi
     throw new HttpError(403, "forbidden", "This account belongs to another issuer.");
   }
   return Response.json({ id: account.id, engine_pid: pid, created, balance_xof: account.balanceUxof / UXOF });
+}
+
+/** GET /admin/accounts/by-pid/:pid -- lets the settlement bridge find a buyer's account from their pid. */
+async function adminGetByPid(request: Request, env: Env, path: string): Promise<Response> {
+  if (!(await isAdmin(request, env)) && !(await bearerMatches(request, env.CREDIT_TOKEN))) {
+    throw new HttpError(401, "unauthorized", "Admin token required.");
+  }
+  const pid = enginePid(path.slice("/admin/accounts/by-pid/".length));
+  const account = await accountByPid(env.DB, pid);
+  if (!account) throw new HttpError(404, "not_found", "No such account.");
+  return Response.json({ id: account.id, engine_pid: pid, balance_xof: account.balanceUxof / UXOF });
 }
 
 async function adminDelete(request: Request, env: Env, path: string): Promise<Response> {
