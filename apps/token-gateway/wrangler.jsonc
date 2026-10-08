@@ -29,6 +29,9 @@
   //                      and only on accounts an admin assigned to it (see KEY_ISSUER_NAME)
   //   KEY_ISSUER_NAME    required alongside KEY_ISSUER_TOKEN: the accounts.issuer value that
   //                      token may act on; left unset, the token is refused entirely
+  //   CREDIT_TOKEN       optional: the settlement bridge's narrow credential (32+ characters). It may
+  //                      only POST /admin/accounts/:id/credits (payment_ref required) and
+  //                      GET /admin/accounts/by-pid/:pid; every other admin route answers 401
   //   UPSTREAM_API_KEY   key for "openai"-kind upstreams, when a model uses one
   "observability": { "enabled": true }
 }

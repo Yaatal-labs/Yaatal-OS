@@ -11,12 +11,14 @@ OpenAI-compatible server such as a self-hosted model. Switching a model's suppli
 | `GET /` | none | Branded landing page (French). Its prompt box and example ideas open the Playground (the Yaatal OS) at `PLAYGROUND_URL/?prompt=…`; also the offer, FCFA prices from the catalog, the API quickstart, data handling, a featured Blueprint (`FEATURED_BLUEPRINT_ID`) and a WhatsApp button (`CONTACT_WHATSAPP`) |
 | `GET /usage` | none | Usage page: paste a key to see balance and recent calls (the key stays in the tab) |
 | `/voix/*`, `/agents/yaatal-voice/*` | none | The voice call, forwarded to the `yaatal-voice` Worker over the `VOICE` service binding. The hero's **Parler à Yaatal** button opens it in a sheet on this page (`/voix/embed.js`, loaded on first tap). Without the binding the page shows the prompt box instead |
-| `GET /v1/models` | none | Models, tier and FCFA price per million tokens |
-| `POST /v1/chat/completions` | Yaatal key | OpenAI chat completions, streaming or not |
+| `GET /v1/models` | none | Models, tier, residency (`controlled` or `any`) and FCFA price per million tokens |
+| `POST /v1/chat/completions` | Yaatal key | OpenAI chat completions, streaming or not. Optional `x-yaatal-data-class: sovereign\|operational\|public` (absent = `operational`; unknown → 400 `invalid_data_class`): `sovereign` is refused 403 `data_class_not_allowed`, before any upstream call, unless every upstream of the model is `controlled`. Optional `x-yaatal-no-failover: 1` tries only the first configured upstream |
 | `GET /v1/balance` | Yaatal key | Balance and recent ledger rows |
 | `POST /admin/accounts` | admin token | `{name, credit_xof?}` → account and its first key (shown once) |
 | `POST /admin/accounts/:id/keys` | admin token | `{label}` → another key (shown once) |
-| `POST /admin/accounts/:id/credits` | admin token | `{xof, note, payment_ref?}` → new balance and whether it was applied |
+| `PUT /admin/accounts/by-pid/:pid` | admin or issuer token | `{name?}` (≤ 80 chars) → idempotent upsert of the account for an Engine user pid (a UUID, else 400 `invalid_pid`): `{id, engine_pid, created, balance_xof}`. An issuer token creates it under its own issuer and gets 403 `forbidden` on another issuer's or an admin-only account |
+| `GET /admin/accounts/by-pid/:pid` | admin or `CREDIT_TOKEN` | `{id, engine_pid, balance_xof}`, or 404 |
+| `POST /admin/accounts/:id/credits` | admin token, or `CREDIT_TOKEN` | `{xof, note, payment_ref?}` → new balance and whether it was applied. With `CREDIT_TOKEN`, `payment_ref` is required (400 `payment_ref_required`) and this is, with the pid lookup above, the only route the token reaches (all others 401) |
 | `POST /admin/keys/revoke` | admin token | `{key}` |
 | `GET /admin/usage?days=30` | admin token | sign-ups, credits, billed usage, refused requests (empty balance, upstream down), per model, per account (top 50) and per day |
 
