@@ -320,6 +320,69 @@ describe("keys and admin", () => {
   });
 });
 
+describe("accounts keyed by Engine identity", () => {
+  const PID = "7b1c9a52-4d3e-4f6a-9c0b-1a2b3c4d5e6f";
+  const upsert = (pid: string, auth: string, body?: unknown) =>
+    call(`/admin/accounts/by-pid/${pid}`, { method: "PUT", auth, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+
+  it("creates the account on first call and returns the same one, created:false, on the second", async () => {
+    const first = await upsert(PID, ISSUER, { name: "Awa Diop" });
+    expect(first.status).toBe(200);
+    const created = (await first.json()) as { id: string; engine_pid: string; created: boolean; balance_xof: number };
+    expect(created).toEqual({ id: created.id, engine_pid: PID, created: true, balance_xof: 0 });
+    expect(created.id).toMatch(/^[0-9a-f-]{36}$/);
+
+    const second = await upsert(PID, ISSUER, { name: "Another name" });
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual({ id: created.id, engine_pid: PID, created: false, balance_xof: 0 });
+
+    // The issuer token owns it, so it can mint a key on it; an admin sees the same account.
+    const minted = await call(`/admin/accounts/${created.id}/keys`, { method: "POST", auth: ISSUER, body: JSON.stringify({ label: "x" }) });
+    expect(minted.status).toBe(201);
+    expect(((await (await upsert(PID, ADMIN)).json()) as { id: string }).id).toBe(created.id);
+  });
+
+  it("accepts an upsert with no body", async () => {
+    const response = await upsert("0f0e0d0c-0b0a-4908-8706-050403020100", ISSUER);
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as { created: boolean }).created).toBe(true);
+  });
+
+  it("rejects a pid that is not a UUID with 400 invalid_pid", async () => {
+    for (const pid of ["not-a-uuid", "123", "7b1c9a52-4d3e-4f6a-9c0b-1a2b3c4d5e6fz"]) {
+      const response = await upsert(pid, ISSUER, { name: "x" });
+      expect(response.status).toBe(400);
+      const { error } = (await response.json()) as { error: { code: string } };
+      expect(error.code).toBe("invalid_pid");
+    }
+  });
+
+  it("rejects a name over 80 characters", async () => {
+    const response = await upsert("11111111-2222-4333-8444-555555555555", ISSUER, { name: "x".repeat(81) });
+    expect(response.status).toBe(400);
+  });
+
+  it("creates for an admin with no issuer, and refuses another issuer's account with 403", async () => {
+    const adminPid = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const made = await upsert(adminPid, ADMIN, { name: "Admin made" });
+    expect(((await made.json()) as { created: boolean }).created).toBe(true);
+    const row = await env.DB.prepare("SELECT issuer FROM accounts WHERE engine_pid = ?").bind(adminPid).first<{ issuer: string | null }>();
+    expect(row!.issuer).toBeNull();
+
+    // An issuer token cannot take over an account that is admin-only (a different issuer: null).
+    const taken = await upsert(adminPid, ISSUER, { name: "x" });
+    expect(taken.status).toBe(403);
+    expect(((await taken.json()) as { error: { code: string } }).error.code).toBe("forbidden");
+  });
+
+  it("refuses callers without the admin or issuer token, and an unconfigured issuer name", async () => {
+    expect((await upsert(PID, "Bearer nope")).status).toBe(401);
+    expect((await call(`/admin/accounts/by-pid/${PID}`, { method: "PUT" })).status).toBe(401);
+    const noName = await call(`/admin/accounts/by-pid/${PID}`, { method: "PUT", auth: ISSUER }, { KEY_ISSUER_NAME: "" });
+    expect(noName.status).toBe(401);
+  });
+});
+
 /** An account with no opening credit, so a test's ledger holds only the credits it makes itself. */
 async function emptyAccount() {
   const response = await call("/admin/accounts", {

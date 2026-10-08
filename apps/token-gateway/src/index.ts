@@ -29,8 +29,8 @@
 // a replayed webhook or a bridge that retried after a timeout cannot pay the same settlement twice.
 import { availableModels, costOf, findModel, type ModelOffer } from "./models.js";
 import {
-  UnknownAccountError, accountForKey, accountIssuer, createAccount, createKey, credit, debitUsage,
-  keyAccountIssuer, recentLedger, revokeKey, revokeKeyById, setAccountIssuer,
+  UnknownAccountError, accountByPid, accountForKey, accountIssuer, createAccount, createKey, credit, debitUsage,
+  keyAccountIssuer, recentLedger, revokeKey, revokeKeyById, setAccountIssuer, upsertAccountByPid,
 } from "./ledger.js";
 import { callUpstreams, type UpstreamEnv } from "./upstream.js";
 import { home, usage, type SiteEnv } from "./site.js";
@@ -72,6 +72,9 @@ export default {
       if (url.pathname === "/v1/balance" && request.method === "GET") return await balance(request, env);
       if (url.pathname === "/admin/usage" && request.method === "GET") return await usageAdmin(request, env, url);
       if (url.pathname.startsWith("/admin/") && request.method === "POST") return await admin(request, env, url.pathname);
+      if (url.pathname.startsWith("/admin/accounts/by-pid/") && request.method === "PUT") {
+        return await adminUpsertByPid(request, env, url.pathname);
+      }
       if (url.pathname.startsWith("/admin/") && request.method === "DELETE") return await adminDelete(request, env, url.pathname);
       return error(404, "not_found", "No such route.");
     } catch (err) {
@@ -90,7 +93,7 @@ class HttpError extends Error {
 }
 
 function error(status: number, type: string, message: string): Response {
-  return Response.json({ error: { type, message } }, { status });
+  return Response.json({ error: { type, code: type, message } }, { status });
 }
 
 function models(env: Env): Response {
@@ -343,6 +346,22 @@ async function admin(request: Request, env: Env, path: string): Promise<Response
   throw new HttpError(404, "not_found", "No such admin route.");
 }
 
+/** PUT /admin/accounts/by-pid/:pid -- idempotent: the gateway account for one Engine user. */
+async function adminUpsertByPid(request: Request, env: Env, path: string): Promise<Response> {
+  const isAdminToken = await isAdmin(request, env);
+  const asIssuer = isAdminToken ? null : await keyIssuerName(request, env);
+  if (!isAdminToken && !asIssuer) throw new HttpError(401, "unauthorized", "Admin token required.");
+  const pid = enginePid(path.slice("/admin/accounts/by-pid/".length));
+  const body = (await hasBody(request)) ? await readJson(request) : {};
+  const name = body.name === undefined ? "Engine user" : displayName(body.name);
+  const { account, created } = await upsertAccountByPid(env.DB, pid, name, asIssuer);
+  // An issuer token only reaches its own accounts; an admin-only or another issuer's account is not its to read.
+  if (asIssuer && account.issuer !== asIssuer) {
+    throw new HttpError(403, "forbidden", "This account belongs to another issuer.");
+  }
+  return Response.json({ id: account.id, engine_pid: pid, created, balance_xof: account.balanceUxof / UXOF });
+}
+
 async function adminDelete(request: Request, env: Env, path: string): Promise<Response> {
   const isAdminToken = await isAdmin(request, env);
   const asIssuer = isAdminToken ? null : await keyIssuerName(request, env);
@@ -401,6 +420,26 @@ function text(value: unknown, field: string): string {
     throw new HttpError(400, "invalid_request", `${field} must be 1 to 200 characters.`);
   }
   return value.trim();
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** An Engine user pid: a UUID, normalised to lowercase. */
+function enginePid(value: string): string {
+  if (!UUID.test(value)) throw new HttpError(400, "invalid_pid", "pid must be a UUID.");
+  return value.toLowerCase();
+}
+
+function displayName(value: unknown): string {
+  if (typeof value !== "string" || !value.trim() || value.length > 80) {
+    throw new HttpError(400, "invalid_request", "name must be 1 to 80 characters.");
+  }
+  return value.trim();
+}
+
+/** Whether the request carries any body (the by-pid upsert's body is optional). */
+async function hasBody(request: Request): Promise<boolean> {
+  return request.body !== null && (await request.clone().text()).trim() !== "";
 }
 
 function xof(value: unknown): number {

@@ -54,6 +54,44 @@ export async function createAccount(db: D1Database, name: string, issuer: string
   return { id, name, balanceUxof: 0 };
 }
 
+export interface PidAccount {
+  id: string;
+  issuer: string | null;
+  balanceUxof: number;
+}
+
+/** The account keyed by this Engine pid, or null. */
+export async function accountByPid(db: D1Database, enginePid: string): Promise<PidAccount | null> {
+  const row = await db
+    .prepare("SELECT id, issuer, balance_uxof FROM accounts WHERE engine_pid = ?")
+    .bind(enginePid)
+    .first<{ id: string; issuer: string | null; balance_uxof: number }>();
+  return row ? { id: row.id, issuer: row.issuer, balanceUxof: row.balance_uxof } : null;
+}
+
+/**
+ * Creates the account for an Engine pid, or returns the one that already holds it. Safe under a race:
+ * the unique index refuses the second insert, and the loser reads the winner's row.
+ */
+export async function upsertAccountByPid(
+  db: D1Database, enginePid: string, name: string, issuer: string | null,
+): Promise<{ account: PidAccount; created: boolean }> {
+  const existing = await accountByPid(db, enginePid);
+  if (existing) return { account: existing, created: false };
+  const id = crypto.randomUUID();
+  try {
+    await db
+      .prepare("INSERT INTO accounts (id, name, issuer, engine_pid) VALUES (?, ?, ?, ?)")
+      .bind(id, name, issuer, enginePid)
+      .run();
+  } catch (err) {
+    const raced = await accountByPid(db, enginePid);
+    if (raced) return { account: raced, created: false };
+    throw err;
+  }
+  return { account: { id, issuer, balanceUxof: 0 }, created: true };
+}
+
 /** The account's issuer (null = admin-only), or undefined when no such account exists. */
 export async function accountIssuer(db: D1Database, accountId: string): Promise<string | null | undefined> {
   const row = await db.prepare("SELECT issuer FROM accounts WHERE id = ?").bind(accountId).first<{ issuer: string | null }>();
