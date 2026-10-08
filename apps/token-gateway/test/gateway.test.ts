@@ -1,7 +1,7 @@
 import { applyD1Migrations, createExecutionContext, env, waitOnExecutionContext, type D1Migration } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import worker from "../src/index.js";
-import { MODELS, retailXof, USD_TO_XOF } from "../src/models.js";
+import { allowsDataClass, MODELS, retailXof, USD_TO_XOF, type ModelOffer } from "../src/models.js";
 import { callUpstreams } from "../src/upstream.js";
 
 declare global {
@@ -879,6 +879,91 @@ describe("failover", () => {
   it("finds no upstream when the only one is an unconfigured wholesale server", async () => {
     const offer = { ...MODELS[0]!, upstreams: [{ kind: "openai", baseUrlVar: "WHOLESALE_BASE_URL", apiKeyVar: "WHOLESALE_API_KEY", model: "x" }] } as const;
     expect(await callUpstreams({ ...env, AI: fakeAi(() => completion(1, 1)).ai } as never, offer, { messages: [] })).toBeNull();
+  });
+});
+
+describe("data class and residency", () => {
+  const ask = (headers: Record<string, string>, extraEnv: Record<string, unknown>, key: string, model = "kairmel/glm-4.7-flash") =>
+    call("/v1/chat/completions", { method: "POST", auth: `Bearer ${key}`, headers, body: chatBody(model) }, extraEnv);
+
+  it("serves a request with no data-class header, or operational or public, as before", async () => {
+    const { api_key } = await newAccount(5_000);
+    for (const headers of [{} as Record<string, string>, { "x-yaatal-data-class": "operational" }, { "x-yaatal-data-class": "public" }]) {
+      const { ai, seen } = fakeAi(() => completion(1, 1));
+      expect((await ask(headers, { AI: ai }, api_key)).status).toBe(200);
+      expect(seen).toHaveLength(1);
+    }
+  });
+
+  it("refuses sovereign with 403 data_class_not_allowed before any upstream call, and charges nothing", async () => {
+    const { api_key } = await newAccount(5_000);
+    const wholesale = fakeWholesale(() => completion(1, 1));
+    const { ai, seen } = fakeAi(() => completion(1, 1));
+    const response = await ask({ "x-yaatal-data-class": "sovereign" }, { AI: ai, WHOLESALE_BASE_URL: WHOLESALE_URL }, api_key);
+    expect(response.status).toBe(403);
+    expect(((await response.json()) as { error: { code: string } }).error.code).toBe("data_class_not_allowed");
+    expect(seen).toHaveLength(0);
+    expect(wholesale).toHaveLength(0);
+    const { balance_xof, recent } = await balanceOf(api_key);
+    expect(balance_xof).toBe(5_000);
+    expect(recent.filter(row => row.kind === "usage")).toHaveLength(0);
+  });
+
+  it("rejects an unknown data class with 400 invalid_data_class, before any upstream call", async () => {
+    const { api_key } = await newAccount(5_000);
+    const { ai, seen } = fakeAi(() => completion(1, 1));
+    const response = await ask({ "x-yaatal-data-class": "secret" }, { AI: ai }, api_key);
+    expect(response.status).toBe(400);
+    expect(((await response.json()) as { error: { code: string } }).error.code).toBe("invalid_data_class");
+    expect(seen).toHaveLength(0);
+  });
+
+  it("allows sovereign only for a model whose every upstream is controlled", () => {
+    const remote: ModelOffer = { ...MODELS[0]!, upstreams: [{ kind: "workers-ai", model: "m" }], residency: "any" };
+    const own = { kind: "openai", baseUrlVar: "OWN_BASE_URL", apiKeyVar: "OWN_API_KEY", model: "m", residency: "controlled" } as const;
+    const mixed: ModelOffer = { ...remote, upstreams: [own, { kind: "workers-ai", model: "m" }] };
+    const controlled: ModelOffer = { ...remote, upstreams: [own], residency: "controlled" };
+    expect(allowsDataClass(remote, "sovereign")).toBe(false);
+    expect(allowsDataClass(mixed, "sovereign")).toBe(false);
+    expect(allowsDataClass(controlled, "sovereign")).toBe(true);
+    for (const offer of [remote, mixed, controlled]) {
+      expect(allowsDataClass(offer, "operational")).toBe(true);
+      expect(allowsDataClass(offer, "public")).toBe(true);
+    }
+    expect(MODELS.every(model => model.residency === "any")).toBe(true);
+  });
+
+  it("serves sovereign end to end from a controlled model", async () => {
+    const { api_key } = await newAccount(5_000);
+    const own = { kind: "openai", baseUrlVar: "OWN_BASE_URL", apiKeyVar: "OWN_API_KEY", model: "own-m", residency: "controlled" } as const;
+    (MODELS as ModelOffer[]).push({ ...MODELS[0]!, id: "kairmel/test-controlled", paidPlan: false, upstreams: [own], residency: "controlled" });
+    try {
+      const seen = fakeWholesale(() => completion(10, 10));
+      const response = await ask({ "x-yaatal-data-class": "sovereign" }, { OWN_BASE_URL: "https://own.example.test/v1" }, api_key, "kairmel/test-controlled");
+      expect(response.status).toBe(200);
+      expect(seen).toHaveLength(1);
+    } finally {
+      (MODELS as ModelOffer[]).pop();
+    }
+  });
+
+  it("lists each model's residency", async () => {
+    const { data } = (await (await call("/v1/models")).json()) as { data: { id: string; residency: string }[] };
+    expect(data.every(model => model.residency === "any")).toBe(true);
+  });
+
+  it("with x-yaatal-no-failover: 1 tries only the first upstream", async () => {
+    const { api_key } = await newAccount(5_000);
+    const wholesale = fakeWholesale(() => new Response("slow down", { status: 429 }));
+    const { ai, seen } = fakeAi(() => completion(1, 1));
+    const response = await ask({ "x-yaatal-no-failover": "1" }, { AI: ai, WHOLESALE_BASE_URL: WHOLESALE_URL }, api_key);
+    expect(response.status).toBe(429);
+    expect(wholesale).toHaveLength(1);
+    expect(seen).toHaveLength(0);
+    expect((await balanceOf(api_key)).balance_xof).toBe(5_000);
+    // Without the header the same setup fails over, as before.
+    const fallback = await ask({}, { AI: fakeAi(() => completion(1, 1)).ai, WHOLESALE_BASE_URL: WHOLESALE_URL }, api_key);
+    expect(fallback.status).toBe(200);
   });
 });
 

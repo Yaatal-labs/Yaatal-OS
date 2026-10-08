@@ -36,12 +36,14 @@ export interface UpstreamResult {
 /**
  * Sends an OpenAI chat-completions body to the model's upstreams in order, moving to the next on a
  * network error or a failover status. Returns the first other answer, or the last failure.
+ * With `firstOnly`, stops after the first configured upstream whatever it answers (no failover).
  */
 export async function callUpstreams(
   env: UpstreamEnv,
   offer: ModelOffer,
   body: Record<string, unknown>,
   fetcher: typeof fetch = fetch,
+  options: { firstOnly?: boolean } = {},
 ): Promise<UpstreamResult | null> {
   let last: UpstreamResult | null = null;
   let skipped = 0;
@@ -53,11 +55,12 @@ export async function callUpstreams(
     try {
       response = await request;
     } catch {
+      if (options.firstOnly) return last;
       skipped++;
       continue;
     }
     last = { response, upstream, skipped };
-    if (!FAILOVER.has(response.status)) return last;
+    if (options.firstOnly || !FAILOVER.has(response.status)) return last;
     await response.body?.cancel();
     skipped++;
   }

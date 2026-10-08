@@ -27,7 +27,7 @@
 // separate, explicitly approved step that ends in one of these credit calls. That step should send
 // the settlement's own id as payment_ref: a credit citing a reference is applied once per account, so
 // a replayed webhook or a bridge that retried after a timeout cannot pay the same settlement twice.
-import { availableModels, costOf, findModel, type ModelOffer } from "./models.js";
+import { allowsDataClass, availableModels, costOf, DATA_CLASSES, findModel, type DataClass, type ModelOffer } from "./models.js";
 import {
   UnknownAccountError, accountByPid, accountForKey, accountIssuer, createAccount, createKey, credit, debitUsage,
   keyAccountIssuer, recentLedger, revokeKey, revokeKeyById, setAccountIssuer, upsertAccountByPid,
@@ -118,6 +118,7 @@ function models(env: Env): Response {
         output_per_million: model.outputXofPerMillion,
       },
       max_output_tokens: model.maxOutputTokens,
+      residency: model.residency,
     })),
   }, {
     // Public price list: any page may read it (the Playground's "Add AI Model" lists these).
@@ -131,6 +132,16 @@ async function authenticate(request: Request, env: Env) {
   const account = key ? await accountForKey(env.DB, key) : null;
   if (!account) throw new HttpError(401, "invalid_api_key", "A valid Yaatal API key is required.");
   return account;
+}
+
+/** x-yaatal-data-class: absent means operational; anything but the three classes is a 400. */
+function dataClassOf(request: Request): DataClass {
+  const value = request.headers.get("x-yaatal-data-class");
+  if (value === null) return "operational";
+  const wanted = value.trim().toLowerCase();
+  const found = DATA_CLASSES.find(dataClass => dataClass === wanted);
+  if (!found) throw new HttpError(400, "invalid_data_class", "x-yaatal-data-class must be sovereign, operational or public.");
+  return found;
 }
 
 async function readJson(request: Request): Promise<Record<string, unknown>> {
@@ -152,11 +163,17 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
 
 async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const account = await authenticate(request, env);
+  const dataClass = dataClassOf(request);
   const body = await readJson(request);
   const offer = findModel(body.model, availableModels(env));
   if (!offer) throw new HttpError(404, "model_not_found", "Unknown model. GET /v1/models lists what is available.");
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     throw new HttpError(400, "invalid_request", "messages must be a non-empty array.");
+  }
+  // Before the balance check and any upstream call: sovereign data never leaves controlled endpoints.
+  if (!allowsDataClass(offer, dataClass)) {
+    throw new HttpError(403, "data_class_not_allowed",
+      `${offer.id} cannot process ${dataClass} data: not every upstream is a controlled endpoint. Nothing was sent.`);
   }
   if (account.balanceUxof <= 0) {
     await recordEvent(env.DB, account.id, "insufficient_balance", offer.id);
@@ -164,7 +181,9 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
   }
 
   const upstreamBody = prepare(body, offer);
-  const result = await callUpstreams(env, offer, upstreamBody);
+  const result = await callUpstreams(env, offer, upstreamBody, fetch, {
+    firstOnly: request.headers.get("x-yaatal-no-failover") === "1",
+  });
   if (!result) {
     await recordEvent(env.DB, account.id, "no_upstream", offer.id);
     throw new HttpError(503, "no_upstream", "No upstream is configured for this model.");
