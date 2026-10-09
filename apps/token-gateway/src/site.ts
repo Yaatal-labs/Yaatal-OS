@@ -87,7 +87,7 @@ const FAQ: readonly [string, string][] = [
   ["Faut-il savoir coder ?",
     "Non. Vous décrivez ce que vous voulez en français, ou en français-wolof comme au quotidien ; l'agent pose ses questions, construit, et vous montre le résultat. Chaque changement attend votre accord avant d'être appliqué. Si vous codez, tout reste modifiable."],
   ["Comment je paie ?",
-    "À la consommation, en FCFA, dans les 8 pays de l'UEMOA, sans carte Visa ni Mastercard. Vous rechargez un solde, comme du crédit ; chaque appel d'IA en déduit le prix affiché dans les tarifs. Pendant la bêta, les recharges se font avec l'équipe."],
+    "À la consommation, en FCFA, dans les 8 pays de l'UEMOA, sans carte Visa ni Mastercard. Vous rechargez un solde, comme du crédit ; chaque appel d'IA en déduit le prix affiché dans les tarifs. Les recharges se font depuis Kairmel (Ventes, puis Recharger), sur la fiche de paiement."],
   ["Et pour les objets, vous fabriquez ?",
     "Kairmel produit le firmware, le schéma de câblage et la liste des pièces, que vous relisez avant tout achat. La fabrication se fait sur commande, avec nos partenaires : impression 3D, fournisseurs de composants, conseil technique."],
   ["Puis-je utiliser l'API dans mon propre code ?",
@@ -140,31 +140,33 @@ const icon = {
   chip: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>`,
 };
 
-// Placeholder Kairmel mark until the visual identity is designed: a "K" on the same deep green
-// tile, and a typed wordmark. Yaatal (the company) keeps its woven-Y mark for its own pages.
+// Kairmel's door, as in the app (kairmel-platform public/favicon.svg, 120 grid scaled to 256).
+// The dot is the voice, so it is bissap. Yaatal (the company) keeps its woven-Y mark for its own pages.
 const MARK_INNER =
-  "<rect width='256' height='256' rx='56' fill='#15302c'/>" +
-  "<path d='M84 56V200M84 136L172 56M118 106L178 200' fill='none' stroke='#f3dcc0' stroke-width='30' stroke-linecap='round' stroke-linejoin='round'/>" +
-  "<path d='M150 214H190' stroke='#e85a25' stroke-width='12' stroke-linecap='round'/>";
+  "<rect width='256' height='256' rx='56' fill='#1a1514'/>" +
+  "<rect x='60' y='85' width='34' height='124' rx='17' fill='#ffffff'/>" +
+  "<rect x='162' y='85' width='34' height='124' rx='17' fill='#ffffff'/>" +
+  "<circle cx='128' cy='154' r='26' fill='#e5476a'/>";
 const MARK = `<svg class="mark" width="30" height="30" viewBox="0 0 256 256" aria-hidden="true">${MARK_INNER}</svg>`;
 const WORDMARK = `<span class="word" style="font-weight:700;font-size:19px;letter-spacing:-.01em">Kairmel</span>`;
 const FAVICON = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'>${MARK_INNER}</svg>`);
 
 const STYLE = `
-:root{--paper:#f7f3ec;--paper-2:#efe8dc;--ink:#1b1813;--muted:#5f584d;--line:#e2d9c9;--card:#fffdf9;--accent:#e85a25;--accent-strong:#c2410c;--deep:#15302c;--deep-ink:#f3ead9;--code:#15171a;--code-ink:#e8e2d6;--shadow:0 1px 2px rgba(27,24,19,.06),0 12px 32px -12px rgba(27,24,19,.18);--talk-bg:#15302c;--talk-ink:#f3ead9;--talk-hover:#0d201d;--glow-warm:rgba(232,90,37,.13);--glow-deep:rgba(21,48,44,.09)}
-@media (prefers-color-scheme:dark){:root{--paper:#121312;--paper-2:#1a1b19;--ink:#f1ece2;--muted:#b3ab9d;--line:#2d2c28;--card:#191a18;--accent:#f06a35;--accent-strong:#e85a25;--deep:#0f2421;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.6);--talk-bg:#f3dcc0;--talk-ink:#15302c;--talk-hover:#fff3e3;--glow-warm:rgba(240,106,53,.16);--glow-deep:rgba(31,122,77,.14)}}
+@font-face{font-family:"Departure Mono";src:url(/fonts/DepartureMono-Regular.woff2) format("woff2");font-display:swap}
+:root{--paper:#f5f4f2;--paper-2:#ecebe8;--ink:#1a1514;--muted:#6e6866;--line:#e7e4e1;--card:#fffdfb;--accent:#1a1514;--accent-strong:#1a1514;--deep:#1a1514;--deep-ink:#f5f4f2;--code:#1a1514;--code-ink:#efebe8;--shadow:0 1px 2px rgba(26,21,20,.06),0 12px 32px -12px rgba(26,21,20,.18);--talk-bg:#a61e3d;--talk-ink:#ffffff;--talk-hover:#8c1833;--glow-warm:rgba(166,30,61,.07);--glow-deep:rgba(26,21,20,.05)}
+@media (prefers-color-scheme:dark){:root{--paper:#1a1514;--paper-2:#221c1b;--ink:#efebe8;--muted:#a8a19e;--line:#3a3433;--card:#211b1a;--accent:#efebe8;--accent-strong:#efebe8;--deep:#262120;--deep-ink:#efebe8;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.6);--talk-bg:#c7294c;--talk-ink:#ffffff;--talk-hover:#b0223f;--glow-warm:rgba(199,41,76,.10);--glow-deep:rgba(0,0,0,.2)}}
 *{box-sizing:border-box}html{scroll-behavior:smooth}
-body{margin:0;background:radial-gradient(900px 620px at 78% -80px,var(--glow-warm),transparent 70%) no-repeat,radial-gradient(760px 560px at 6% 0,var(--glow-deep),transparent 72%) no-repeat,var(--paper);color:var(--ink);font:17px/1.6 "Instrument Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{margin:0;background:radial-gradient(900px 620px at 78% -80px,var(--glow-warm),transparent 70%) no-repeat,radial-gradient(760px 560px at 6% 0,var(--glow-deep),transparent 72%) no-repeat,var(--paper);color:var(--ink);font:17px/1.6 "Hanken Grotesk",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit}.wrap{max-width:1140px;margin:0 auto;padding-left:16px;padding-right:16px}
-h1,h2,h3,.display{font-family:"Bricolage Grotesque","Instrument Sans",sans-serif;letter-spacing:-.025em;font-weight:700}
-code,pre,.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+h1,h2,h3,.display{font-family:"Hanken Grotesk",sans-serif;letter-spacing:-.025em;font-weight:700}
+code,pre,.mono{font-family:"Departure Mono",ui-monospace,monospace}
 :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 .skip{position:absolute;left:-999px}.skip:focus{left:16px;top:12px;z-index:50;background:var(--card);padding:8px 12px}
 header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(10px)}
 nav{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:68px}
 .logo{display:flex;align-items:center;gap:11px;color:var(--ink);text-decoration:none}.logo .mark{display:block;flex:none}.logo .word{display:block;width:auto}
 .links{display:flex;gap:26px;font-size:.95rem;color:var(--muted)}.links a{text-decoration:none;padding:10px 0}.links a:hover{color:var(--ink)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;background:var(--ink);color:var(--paper);border:0;border-radius:12px;padding:10px 18px;font:600 .98rem "Instrument Sans",sans-serif;text-decoration:none;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;background:var(--ink);color:var(--paper);border:0;border-radius:12px;padding:10px 18px;font:600 .98rem "Hanken Grotesk",sans-serif;text-decoration:none;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s}
 .btn:hover{background:var(--accent-strong);color:#fff}.btn.accent{background:var(--accent-strong);color:#fff}.btn.accent:hover{background:var(--ink);color:var(--paper)}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{border-color:var(--ink);background:transparent;color:var(--ink)}
 .hero>*{min-width:0}
@@ -174,14 +176,14 @@ h1 em{font-style:normal;color:var(--accent-strong)}
 .fill{color:var(--accent-strong);white-space:nowrap}
 .lede{font-size:1.15rem;color:var(--muted);max-width:36rem;margin:0}
 .ask{max-width:780px;margin:30px 0 0;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);text-align:left;overflow:hidden}
-.ask textarea{display:block;width:100%;min-height:132px;resize:vertical;border:0;background:transparent;color:var(--ink);font:1.08rem/1.55 "Instrument Sans",sans-serif;padding:20px 22px;outline:none}
+.ask textarea{display:block;width:100%;min-height:132px;resize:vertical;border:0;background:transparent;color:var(--ink);font:1.08rem/1.55 "Hanken Grotesk",sans-serif;padding:20px 22px;outline:none}
 .ask textarea::placeholder{color:color-mix(in srgb,var(--muted) 75%,transparent)}
 .ask .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding:12px 12px 12px 22px;background:var(--paper-2)}
 .ask small{color:var(--muted);font-size:.88rem}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 0;max-width:820px}
-.chip{min-height:40px;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:8px 14px;font:500 .9rem "Instrument Sans",sans-serif;cursor:pointer;transition:border-color .2s,background-color .2s}
+.chip{min-height:40px;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:8px 14px;font:500 .9rem "Hanken Grotesk",sans-serif;cursor:pointer;transition:border-color .2s,background-color .2s}
 .chip:hover{border-color:var(--accent);background:var(--card)}
-.eyebrow{display:inline-block;font:600 .8rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-strong);margin-bottom:18px}
+.eyebrow{display:inline-block;font:600 .8rem "Departure Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-strong);margin-bottom:18px}
 .people{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:18px;align-items:end;margin-top:8px}
 .people figure{margin:0;position:relative}
 .people img{display:block;width:100%;height:100%;object-fit:cover;border-radius:18px;box-shadow:var(--shadow)}
@@ -199,22 +201,23 @@ h1 em{font-style:normal;color:var(--accent-strong)}
 .call-sheet::backdrop{background:rgba(10,12,11,.55);backdrop-filter:blur(4px)}
 .call-wait{padding:48px;text-align:center;color:var(--muted)}
 section{padding-top:88px;padding-bottom:88px}
-.kicker{font:600 .78rem "JetBrains Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-strong);margin:0 0 12px}
+.kicker{font:600 .78rem "Departure Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-strong);margin:0 0 12px}
 h2{font-size:clamp(1.9rem,4vw,3rem);line-height:1.05;margin:0 0 14px;max-width:18ch}
 .sub{color:var(--muted);max-width:40rem;margin:0 0 40px;font-size:1.05rem}
 .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .tile{display:flex;flex-direction:column;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;text-decoration:none;transition:border-color .2s,box-shadow .2s;min-height:190px}
 .tile:hover{border-color:var(--accent);box-shadow:var(--shadow)}
-.tile .tag{font:600 .72rem "JetBrains Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tile .tag{font:600 .72rem "Departure Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .tile h3{font-size:1.25rem;margin:4px 0 0;line-height:1.2}.tile p{margin:0;color:var(--muted);font-size:.97rem}
 .tile .go{margin-top:auto;display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--accent-strong)}
 .split{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
-.boards{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}.boards span{border:1px solid var(--line);border-radius:10px;padding:6px 10px;font:500 .85rem "JetBrains Mono",monospace;background:var(--card)}
+.boards{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}.boards span{border:1px solid var(--line);border-radius:10px;padding:6px 10px;font:500 .85rem "Departure Mono",monospace;background:var(--card)}
 .partners{display:grid;gap:10px}.partner{display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:start;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
 .partner .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--paper-2);color:var(--accent-strong)}
 .partner h3{margin:0 0 2px;font-size:1.05rem}.partner p{margin:0;color:var(--muted);font-size:.95rem}
-.band{background:var(--deep);color:var(--deep-ink);border-radius:28px;padding:48px}
-.band h2{color:var(--deep-ink)}.band .sub{color:color-mix(in srgb,var(--deep-ink) 75%,transparent)}.band .kicker{color:#ff9a6a}
+.band{background:var(--deep);color:var(--deep-ink);border-radius:28px;padding:48px;--af-paper:var(--deep);--af-muted:color-mix(in srgb,var(--deep-ink) 70%,transparent)}
+.flowfig{margin:28px 0 32px;padding:20px;border:1px solid color-mix(in srgb,var(--deep-ink) 18%,transparent);border-radius:20px}
+.band h2{color:var(--deep-ink)}.band .sub{color:color-mix(in srgb,var(--deep-ink) 75%,transparent)}.band .kicker{color:color-mix(in srgb,var(--deep-ink) 70%,transparent)}
 .tabs input{position:absolute;opacity:0;pointer-events:none}
 .tabs label{display:inline-flex;align-items:center;min-height:40px;padding:8px 14px;border-radius:10px 10px 0 0;cursor:pointer;color:color-mix(in srgb,var(--deep-ink) 70%,transparent);font-size:.9rem}
 .tabs input:checked+label{color:var(--code-ink);background:var(--code)}
@@ -225,13 +228,13 @@ h2{font-size:clamp(1.9rem,4vw,3rem);line-height:1.05;margin:0 0 14px;max-width:1
 table{width:100%;border-collapse:collapse;min-width:560px}
 th,td{text-align:left;padding:15px 18px;border-bottom:1px solid var(--line)}tr:last-child td{border-bottom:0}
 th{color:var(--muted);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
-.soon{font:600 .68rem "JetBrains Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-left:6px;white-space:nowrap}
+.soon{font:600 .68rem "Departure Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-left:6px;white-space:nowrap}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}td code{color:var(--accent-strong);font-size:.9rem}
 .qa{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.qa .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
-.qa h3{font-family:"Instrument Sans",sans-serif;font-size:1.02rem;margin:0 0 6px;letter-spacing:0}.qa p{margin:0;color:var(--muted)}
+.qa h3{font-family:"Hanken Grotesk",sans-serif;font-size:1.02rem;margin:0 0 6px;letter-spacing:0}.qa p{margin:0;color:var(--muted)}
 details{border-bottom:1px solid var(--line)}details:first-of-type{border-top:1px solid var(--line)}
 summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:16px;padding:20px 4px;font-weight:600;font-size:1.05rem;min-height:44px}
-summary::-webkit-details-marker{display:none}summary::after{content:"+";font-family:"JetBrains Mono",monospace;color:var(--accent-strong)}
+summary::-webkit-details-marker{display:none}summary::after{content:"+";font-family:"Departure Mono",monospace;color:var(--accent-strong)}
 details[open] summary::after{content:"−"}details p{margin:0 4px 20px;color:var(--muted);max-width:46rem}
 .final{text-align:center}.final h2{margin-left:auto;margin-right:auto}.final .row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:26px}
 footer{border-top:1px solid var(--line);padding-top:28px;padding-bottom:44px;color:var(--muted);font-size:.9rem;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -242,8 +245,8 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .pop{animation:pop .55s cubic-bezier(.2,.8,.2,1.15) both;animation-delay:calc(var(--d,0) * 1s)}
 @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
 .mini{border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.mini-h{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#15302c;color:#f3ead9;font:700 .88rem "Bricolage Grotesque",sans-serif}
-.mini-h small{font:500 .68rem "JetBrains Mono",monospace;opacity:.75}
+.mini-h{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#1a1514;color:#f5f4f2;font:700 .88rem "Hanken Grotesk",sans-serif}
+.mini-h small{font:500 .68rem "Departure Mono",monospace;opacity:.75}
 .prods{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px}
 .prod{font-size:.72rem;line-height:1.35}.prod em{font-style:normal;font-weight:600;display:block;color:var(--accent-strong)}
 .prod b{display:block;aspect-ratio:1;border-radius:8px;margin-bottom:6px;background:url(/img/wax.webp) var(--x) 50%/420% auto}
@@ -255,7 +258,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .w>*{display:inline-block;animation:up .95s cubic-bezier(.2,.7,.1,1) both;animation-delay:calc(.07s * var(--i,0))}
 @keyframes up{from{transform:translateY(108%)}}
 .wf{padding-inline:.06em}
-.st-top{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--paper-2);font:500 .74rem "JetBrains Mono",monospace;color:var(--muted)}
+.st-top{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--paper-2);font:500 .74rem "Departure Mono",monospace;color:var(--muted)}
 .st-top>i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
 .meter{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
 .meter b{width:7px;height:7px;border-radius:50%;background:#1f7a4d;animation:blink 1.2s ease-in-out infinite}
@@ -265,9 +268,9 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .hero .eyebrow{margin-bottom:22px}
 .waxtext{color:var(--accent-strong);background:url(/img/wax.webp) 30% 48%/cover;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:1.5px var(--accent-strong)}
 .actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;margin-top:40px}
-.talk{display:inline-flex;align-items:center;gap:14px;min-height:64px;padding:0 30px 0 10px;border:0;border-radius:999px;background:var(--talk-bg);color:var(--talk-ink);font:600 1.15rem "Instrument Sans",sans-serif;cursor:pointer;transition:transform .2s cubic-bezier(.2,.8,.2,1.2),background-color .2s}
+.talk{display:inline-flex;align-items:center;gap:14px;min-height:64px;padding:0 30px 0 10px;border:0;border-radius:999px;background:var(--talk-bg);color:var(--talk-ink);font:600 1.15rem "Hanken Grotesk",sans-serif;cursor:pointer;transition:transform .2s cubic-bezier(.2,.8,.2,1.2),background-color .2s}
 .talk:hover{background:var(--talk-hover)}.talk:active{transform:scale(.98)}
-.talk .ic{position:relative;flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff}
+.talk .ic{position:relative;flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--paper)}
 .talk .ic::before{content:"";position:absolute;inset:-7px;border-radius:50%;background:repeating-conic-gradient(var(--accent) 0 5deg,transparent 5deg 15deg);-webkit-mask:radial-gradient(circle,transparent 62%,#000 64%);mask:radial-gradient(circle,transparent 62%,#000 64%);animation:turn 14s linear infinite;opacity:.8}
 @keyframes turn{to{transform:rotate(1turn)}}
 .alt{color:var(--muted);font-size:.95rem}.alt a{color:var(--ink);font-weight:600}
@@ -283,12 +286,12 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .thread.run .wave i{animation:heard .1s linear both;animation-delay:calc(.05s * var(--k))}
 @keyframes heard{from{background:#8fb89c}}
 .dur{font-size:.8rem;font-variant-numeric:tabular-nums}
-.reply{align-self:flex-start;max-width:400px;background:#f3ead9;color:#1b1813;border-radius:18px 18px 18px 4px;padding:11px 15px;font-size:.95rem;line-height:1.45}
+.reply{align-self:flex-start;max-width:400px;background:#f5f4f2;color:#1a1514;border-radius:18px 18px 18px 4px;padding:11px 15px;font-size:.95rem;line-height:1.45}
 .shop{align-self:flex-start;width:100%;background:#fffdf9;color:#1b1813;border-radius:18px;overflow:hidden}
 .shop-img{height:150px;background:url(/img/wax.webp) center 45%/cover}
 .shop .wa-btn{margin:12px 14px 14px}
 .shop-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:14px 14px 0}
-.shop-h strong{font:700 1.1rem "Bricolage Grotesque",sans-serif}.shop-h span{font-size:.72rem;color:#5f584d}
+.shop-h strong{font:700 1.1rem "Hanken Grotesk",sans-serif}.shop-h span{font-size:.72rem;color:#5f584d}
 .thread .pop{animation:none}.thread.run .pop{animation:pop .55s cubic-bezier(.2,.8,.2,1.15) both;animation-delay:calc(var(--d,0) * 1s)}
 @media (max-width:900px){.said-row{grid-template-columns:1fr;gap:16px}.hero{gap:44px;padding-top:56px;padding-bottom:56px}.thread{justify-self:stretch;max-width:none}}
 .tile{background:radial-gradient(260px circle at var(--mx,-400px) var(--my,-400px),color-mix(in srgb,var(--accent) 16%,transparent),transparent 70%) var(--card)}
@@ -296,14 +299,14 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 @keyframes grow{from{transform:scaleX(0)}}
 .marquee{overflow:hidden;border-block:1px solid var(--line);padding-block:10px}
 .track{display:flex;width:max-content;align-items:center;gap:30px;animation:mq 42s linear infinite}
-.track span{font:800 clamp(2.4rem,6.5vw,5.2rem)/1.1 "Bricolage Grotesque",sans-serif;letter-spacing:-.04em;white-space:nowrap}
+.track span{font:800 clamp(2.4rem,6.5vw,5.2rem)/1.1 "Hanken Grotesk",sans-serif;letter-spacing:-.04em;white-space:nowrap}
 .track span.o{color:transparent;-webkit-text-stroke:1.5px var(--ink)}
 .track i{width:44px;height:14px;border-radius:7px;background:var(--accent);flex:none}.track i:nth-of-type(2n){background:var(--deep)}
 @keyframes mq{to{transform:translateX(-50%)}}
 .pin-box{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:56px;align-items:center}
 .beats{list-style:none;margin:28px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;position:relative}
 .beat{display:grid;grid-template-columns:52px 1fr;gap:12px;padding:14px 0;transition:opacity .45s}
-.beat .num{font:700 .9rem "JetBrains Mono",monospace;color:var(--accent-strong);padding-top:5px}
+.beat .num{font:700 .9rem "Departure Mono",monospace;color:var(--accent-strong);padding-top:5px}
 .beat h3{margin:0 0 4px;font-size:1.3rem}.beat p{margin:0;color:var(--muted);font-size:.98rem;max-width:30rem}
 .panels{display:flex;flex-direction:column;gap:18px}
 .panel{background:var(--deep);border-radius:24px;padding:14px}
@@ -312,14 +315,14 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .cx{align-self:flex-start;max-width:84%;padding:9px 13px;border-radius:14px 14px 14px 4px;background:color-mix(in srgb,var(--line) 75%,var(--card))}
 .cx.me{align-self:flex-end;background:var(--ink);color:var(--paper);border-radius:14px 14px 4px 14px}
 .cx.typing{display:flex;gap:5px;padding:12px 14px}.cx.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}.cx.typing i:nth-child(2){animation-delay:.2s}.cx.typing i:nth-child(3){animation-delay:.4s}
-.files{display:flex;gap:2px;padding:8px 10px 0;font:500 .74rem "JetBrains Mono",monospace;color:var(--muted);border-bottom:1px solid var(--line)}
+.files{display:flex;gap:2px;padding:8px 10px 0;font:500 .74rem "Departure Mono",monospace;color:var(--muted);border-bottom:1px solid var(--line)}
 .files span{padding:6px 10px;border-radius:8px 8px 0 0}.files span.on{background:var(--code);color:var(--code-ink)}
 .code.big{border-radius:0;font-size:.76rem;flex:1}
-.checks{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;font:500 .74rem "JetBrains Mono",monospace;border-top:1px solid var(--line)}
+.checks{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;font:500 .74rem "Departure Mono",monospace;border-top:1px solid var(--line)}
 .checks span{border:1px solid var(--line);border-radius:999px;padding:3px 9px}.checks span.ok{color:#1f7a4d;border-color:color-mix(in srgb,#1f7a4d 45%,var(--line))}
 .pw .mini{margin:12px}
-.ship{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 12px 12px;font:500 .78rem "JetBrains Mono",monospace;color:var(--muted)}
-.ship b{background:var(--accent-strong);color:#fff;border-radius:8px;padding:7px 14px;font:600 .8rem "Instrument Sans",sans-serif}
+.ship{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 12px 12px;font:500 .78rem "Departure Mono",monospace;color:var(--muted)}
+.ship b{background:var(--accent-strong);color:#fff;border-radius:8px;padding:7px 14px;font:600 .8rem "Hanken Grotesk",sans-serif}
 html.pin .story{height:340vh}
 html.pin .pin-box{position:sticky;top:calc(env(safe-area-inset-top,0px) + 84px);min-height:calc(100vh - 110px)}
 html.pin .panels{position:relative;height:440px;perspective:1400px}
@@ -342,7 +345,7 @@ input[type=password]{width:100%;min-height:44px;padding:10px 14px;border:1px sol
 `;
 
 const FONTS =
-  "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap";
+  "https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap";
 
 function page(title: string, body: string, options: { script?: string; formAction?: string | null; voiceOrigin?: string } = {}): Response {
   const scriptNonce = options.script ? nonce() : null;
@@ -365,7 +368,7 @@ function page(title: string, body: string, options: { script?: string; formActio
   const csp = [
     "default-src 'none'",
     "style-src 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src https://fonts.gstatic.com",
+    "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data:",
     options.voiceOrigin ? `connect-src 'self' ${options.voiceOrigin.replace(/^http/, "ws")}` : "connect-src 'self'",
     scriptNonce ? `script-src 'nonce-${scriptNonce}'${options.voiceOrigin ? " 'self' blob:" : ""}` : "",
@@ -633,7 +636,65 @@ ${story()}
 <section id="api"><div class="wrap"><div class="band">
   <p class="kicker">API</p>
   <h2>Une API pour toute votre IA.</h2>
-  <p class="sub">Kairmel, les sites qu'il construit, vos objets et votre propre code passent par la même API. Un solde en FCFA, une facture, et si un modèle ne répond pas, un autre prend le relais.</p>
+  <p class="sub">Kairmel, les sites qu'il construit, vos objets et votre propre code passent par la même API. Une clé, un solde en FCFA, une facture. Si un modèle ne répond pas, un autre prend le relais, sauf si vous l'interdisez (<code>x-yaatal-no-failover</code>).</p>
+  <figure class="flowfig"><svg class="api-flow" viewBox="0 0 720 360" role="img" aria-labelledby="af-title af-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="af-title">Comment fonctionne l'API Kairmel</title>
+<desc id="af-desc">Votre app, un site Kairmel ou le constructeur appellent api.kairmel.com avec une seule clé. Chaque appel est payé sur un solde en FCFA, puis servi par un modèle du catalogue. Le solde se recharge depuis Kairmel, sur la fiche de paiement.</desc>
+<style>
+.api-flow{width:100%;height:auto;display:block;font-family:'Hanken Grotesk',ui-sans-serif,system-ui,sans-serif;color:inherit}
+.api-flow .ln{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.api-flow .box{fill:none;stroke:currentColor;stroke-width:2}
+.api-flow .box.card{fill:var(--af-paper,#f5f4f2)}
+.api-flow .dash{stroke-dasharray:2 7}
+.api-flow .flow{stroke-dasharray:7 9;animation:af-flow 2.4s linear infinite}
+.api-flow .ink{fill:currentColor}
+.api-flow .on-ink{fill:var(--af-paper,#f5f4f2)}
+.api-flow .lbl{fill:currentColor;font-size:15px;font-weight:600}
+.api-flow .sub{fill:var(--af-muted,#6e6866);font-size:12.5px}
+.api-flow .mono{font-family:'Departure Mono',ui-monospace,monospace;font-size:12px;letter-spacing:.02em}
+@keyframes af-flow{to{stroke-dashoffset:-32}}
+@media (prefers-reduced-motion:reduce){.api-flow .flow{animation:none}}
+</style>
+<g>
+  <rect class="box" x="20" y="30" width="190" height="56" rx="14"/>
+  <rect class="box" x="36" y="47" width="18" height="22" rx="5"/><path class="ln" d="M42 52v12M48 52v12"/>
+  <text class="lbl" x="66" y="56">Votre app</text><text class="sub" x="66" y="74">ou votre serveur</text>
+  <rect class="box" x="20" y="104" width="190" height="56" rx="14"/>
+  <rect class="box" x="36" y="121" width="18" height="22" rx="5"/><path class="ln" d="M42 126v12M48 126v12"/>
+  <text class="lbl" x="66" y="130">Un site Kairmel</text><text class="sub" x="66" y="148">construit avec vous</text>
+  <rect class="box" x="20" y="178" width="190" height="56" rx="14"/>
+  <rect class="box" x="36" y="195" width="18" height="22" rx="5"/><path class="ln" d="M42 200v12M48 200v12"/>
+  <text class="lbl" x="66" y="204">Le constructeur</text><text class="sub" x="66" y="222">Kairmel lui-même</text>
+</g>
+<path class="ln flow" d="M210 58C252 58 254 110 290 124"/>
+<path class="ln flow" d="M210 132H290"/>
+<path class="ln flow" d="M210 206C252 206 254 154 290 140"/>
+<g>
+  <rect class="ink" x="290" y="46" width="150" height="160" rx="36"/>
+  <rect class="on-ink" x="324" y="86" width="20" height="80" rx="10"/>
+  <rect class="on-ink" x="386" y="86" width="20" height="80" rx="10"/>
+  <text class="lbl mono" x="365" y="230" text-anchor="middle">api.kairmel.com</text>
+  <text class="sub" x="365" y="248" text-anchor="middle">une clé, compatible OpenAI</text>
+  <rect class="ink" x="290" y="268" width="150" height="34" rx="17"/>
+  <text class="on-ink mono" x="365" y="290" text-anchor="middle">Solde · FCFA</text>
+</g>
+<path class="ln flow" d="M440 126H520"/>
+<g>
+  <rect class="box" x="548" y="42" width="152" height="150" rx="16" opacity=".35"/>
+  <rect class="box" x="534" y="56" width="152" height="150" rx="16" opacity=".6"/>
+  <rect class="box card" x="520" y="70" width="152" height="150" rx="16"/>
+  <text class="lbl" x="538" y="102">Catalogue</text>
+  <text class="sub" x="538" y="120">de modèles</text>
+  <path class="ln" d="M538 140h96M538 156h76M538 172h86" opacity=".45"/>
+  <text class="sub mono" x="538" y="200">/v1/models</text>
+</g>
+<g>
+  <rect class="box dash" x="20" y="268" width="190" height="56" rx="14"/>
+  <text class="lbl" x="38" y="292">Recharger</text><text class="sub" x="38" y="310">sur la fiche de paiement</text>
+</g>
+<path class="ln dash" d="M210 290H282"/><path class="ln" d="M276 284l8 6-8 6"/>
+<text class="sub" x="474" y="290">Un appel qui échoue</text><text class="sub" x="474" y="306">n'est pas facturé.</text>
+</svg></figure>
   <div class="tabs">
     <input type="radio" name="t" id="t1" checked><label for="t1">curl</label>
     <input type="radio" name="t" id="t2"><label for="t2">JavaScript</label>
@@ -665,7 +726,7 @@ reply = kairmel.chat.completions.create(
   <div class="pay">
     <div>
       <h2>Vous payez ce que vous consommez, en FCFA.</h2>
-      <p class="sub" style="margin-bottom:0">Recharger Kairmel, c'est comme acheter du crédit au coin de la rue. Le prix se compte en tokens (les bouts de texte que le modèle lit et écrit), et un appel qui échoue n'est pas facturé. Pendant la bêta, les recharges se font avec l'équipe.</p>
+      <p class="sub" style="margin-bottom:0">Recharger Kairmel, c'est comme acheter du crédit au coin de la rue. Le prix se compte en tokens (les bouts de texte que le modèle lit et écrit), et un appel qui échoue n'est pas facturé. Les recharges se font depuis Kairmel (Ventes, puis Recharger), sur la fiche de paiement.</p>
     </div>
     <figure><img src="/img/ngor.webp" alt="Deux jeunes vendeurs de recharges téléphoniques au bord d'une route." loading="lazy" width="1200" height="800"><figcaption>Vendeurs de recharges téléphoniques, Ngor, Dakar</figcaption></figure>
   </div>
