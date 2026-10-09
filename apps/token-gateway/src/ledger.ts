@@ -205,8 +205,10 @@ export async function credit(
     // replay -- already credited. Should D1 ever word that error differently the credit still
     // cannot double, because it never committed; the call only fails to be recognised as a replay.
     if (paymentRef !== null && isDuplicatePaymentRef(err)) {
-      if ((await creditedAccount(db, paymentRef)) !== accountId) throw new PaymentRefConflictError();
-      return { balanceUxof: await balanceUxof(db, accountId), applied: false };
+      const owner = await creditedAccount(db, paymentRef);
+      if (owner === accountId) return { balanceUxof: await balanceUxof(db, accountId), applied: false };
+      // Only a reference another account visibly holds is a conflict; anything else is the error it is.
+      if (owner !== null) throw new PaymentRefConflictError();
     }
     throw err;
   }
@@ -218,7 +220,6 @@ async function balanceUxof(db: D1Database, accountId: string): Promise<number> {
   return row.balance_uxof;
 }
 
-/** Whether this settlement has already funded this account. */
 /** The account a payment reference already credited, if any. */
 async function creditedAccount(db: D1Database, paymentRef: string): Promise<string | null> {
   const row = await db

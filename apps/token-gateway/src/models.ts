@@ -146,15 +146,15 @@ export type DataClass = "sovereign" | "operational" | "public";
 
 export const DATA_CLASSES: readonly DataClass[] = ["sovereign", "operational", "public"];
 
-/**
- * Whether a model may process data of this class. Sovereign data only goes to a model whose every
- * upstream, failover ones included, is controlled; the check reads the chain, not the field alone.
- */
 /** Every upstream is one we control, and there is at least one: the single rule for Sovereign data. */
 function controlledResidency(upstreams: readonly { residency?: Residency }[]): boolean {
   return upstreams.length > 0 && upstreams.every(upstream => upstream.residency === "controlled");
 }
 
+/**
+ * Whether a model may process data of this class. Sovereign data only goes to a model whose every
+ * upstream, failover ones included, is controlled; the check reads the chain, not the field alone.
+ */
 export function allowsDataClass(offer: Pick<ModelOffer, "upstreams">, dataClass: DataClass): boolean {
   return dataClass !== "sovereign" || controlledResidency(offer.upstreams);
 }

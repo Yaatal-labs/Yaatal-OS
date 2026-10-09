@@ -46,18 +46,18 @@ export async function callUpstreams(
   options: { firstOnly?: boolean } = {},
 ): Promise<UpstreamResult | null> {
   let last: UpstreamResult | null = null;
+  let tried: Upstream | null = null;
   let skipped = 0;
   for (const upstream of offer.upstreams) {
     // Nothing identifying a Yaatal customer is sent upstream: only the request body.
     const request = requestFor(env, upstream, { ...body, model: upstream.model }, fetcher);
     if (!request) continue; // Not configured in this deployment.
+    tried = upstream;
     let response: Response;
     try {
       response = await request;
     } catch {
-      // Failover forbidden: the one upstream allowed is down. That is an upstream failure (502),
-      // not a missing configuration, so the caller and the metrics see it as one.
-      if (options.firstOnly) return { response: new Response(null, { status: 502 }), upstream, skipped };
+      if (options.firstOnly) break;
       skipped++;
       continue;
     }
@@ -66,6 +66,9 @@ export async function callUpstreams(
     await response.body?.cancel();
     skipped++;
   }
+  // Configured upstreams were tried and none answered (network errors): an upstream failure (502),
+  // not a missing configuration, so the caller and the metrics see it as one.
+  if (!last && tried) return { response: new Response(null, { status: 502 }), upstream: tried, skipped };
   return last;
 }
 

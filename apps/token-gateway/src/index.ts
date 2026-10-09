@@ -395,8 +395,9 @@ async function adminUpsertByPid(request: Request, env: Env, path: string): Promi
   const body = await readJson(request, { emptyAsObject: true });
   const name = body.name === undefined ? "Engine user" : displayName(body.name);
   const { account, created } = await upsertAccountByPid(env.DB, pid, name, asIssuer);
-  // An issuer token only reaches its own accounts. Another owner's account answers exactly like a
-  // missing one (as on the keys route), so a leaked issuer token cannot learn which pids exist.
+  // An issuer token only reaches its own accounts; another owner's answers 404, as on the keys route.
+  // A free pid is created (200), so the upsert itself tells "taken" from "free": what keeps that from
+  // being an oracle is that Engine pids are random UUIDv4s -- there is nothing to enumerate by guessing.
   if (asIssuer && account.issuer !== asIssuer) {
     throw new HttpError(404, "not_found", "No such account.");
   }
@@ -489,7 +490,6 @@ function displayName(value: unknown): string {
   return value.trim();
 }
 
-/** Whether the request carries any body (the by-pid upsert's body is optional). */
 function xof(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value <= 0 || value > 1_000_000_000) {
     throw new HttpError(400, "invalid_request", "xof must be a whole number of XOF (FCFA), 1 to 1,000,000,000.");

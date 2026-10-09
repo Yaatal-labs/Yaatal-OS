@@ -167,7 +167,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:16px;min-h
 .logo{display:flex;align-items:center;gap:11px;color:var(--ink);text-decoration:none}.logo .mark{display:block;flex:none}.logo .word{display:block;width:auto}
 .links{display:flex;gap:26px;font-size:.95rem;color:var(--muted)}.links a{text-decoration:none;padding:10px 0}.links a:hover{color:var(--ink)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;background:var(--ink);color:var(--paper);border:0;border-radius:12px;padding:10px 18px;font:600 .98rem "Hanken Grotesk",sans-serif;text-decoration:none;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s}
-.btn:hover{background:var(--accent-strong);color:var(--paper)}.btn.accent{background:var(--accent-strong);color:var(--paper)}.btn.accent:hover{background:var(--ink);color:var(--paper)}
+.btn:hover{background:color-mix(in srgb,var(--accent-strong) 82%,var(--paper));color:var(--paper)}.btn.accent{background:var(--accent-strong);color:var(--paper)}.btn.accent:hover{background:color-mix(in srgb,var(--ink) 82%,var(--paper));color:var(--paper)}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{border-color:var(--ink);background:transparent;color:var(--ink)}
 .hero>*{min-width:0}
 .hero{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);gap:48px;align-items:center;padding-top:64px;padding-bottom:40px}
