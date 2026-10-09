@@ -23,6 +23,13 @@ export class UnknownAccountError extends Error {
   }
 }
 
+/** A payment reference already funded a credit on another account: one settlement, one balance. */
+export class PaymentRefConflictError extends Error {
+  constructor() {
+    super("payment_ref already credited to another account");
+  }
+}
+
 export async function sha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
@@ -160,10 +167,11 @@ export interface CreditResult {
  * Adds to an account's balance and writes the ledger row, atomically.
  *
  * `paymentRef` names the settlement that funded the credit: a Wave or PI-SPI transaction id, or an
- * operator's receipt when cash closes the sale. The reference is unique per account (the
- * `ledger_payment_ref` index), so crediting one settlement twice credits it once -- a replayed
+ * operator's receipt when cash closes the sale. The reference is unique across the ledger (the
+ * `ledger_payment_ref_global` index), so crediting one settlement twice credits it once -- a replayed
  * webhook, or a bridge that timed out and retried, finds the row already there and reports
- * `applied: false` rather than paying again. A credit that cites no settlement (an opening balance,
+ * `applied: false` rather than paying again; the same reference on a different account is refused
+ * with `PaymentRefConflictError`. A credit that cites no settlement (an opening balance,
  * a goodwill grant) passes null and is never deduplicated.
  */
 export async function credit(
@@ -175,8 +183,10 @@ export async function credit(
 ): Promise<CreditResult> {
   const exists = await db.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(accountId).first();
   if (!exists) throw new UnknownAccountError();
-  if (paymentRef !== null && (await isCredited(db, accountId, paymentRef))) {
-    return { balanceUxof: await balanceUxof(db, accountId), applied: false };
+  if (paymentRef !== null) {
+    const owner = await creditedAccount(db, paymentRef);
+    if (owner === accountId) return { balanceUxof: await balanceUxof(db, accountId), applied: false };
+    if (owner !== null) throw new PaymentRefConflictError();
   }
   try {
     const [, , balance] = await db.batch([
@@ -195,6 +205,7 @@ export async function credit(
     // replay -- already credited. Should D1 ever word that error differently the credit still
     // cannot double, because it never committed; the call only fails to be recognised as a replay.
     if (paymentRef !== null && isDuplicatePaymentRef(err)) {
+      if ((await creditedAccount(db, paymentRef)) !== accountId) throw new PaymentRefConflictError();
       return { balanceUxof: await balanceUxof(db, accountId), applied: false };
     }
     throw err;
@@ -208,12 +219,13 @@ async function balanceUxof(db: D1Database, accountId: string): Promise<number> {
 }
 
 /** Whether this settlement has already funded this account. */
-async function isCredited(db: D1Database, accountId: string, paymentRef: string): Promise<boolean> {
+/** The account a payment reference already credited, if any. */
+async function creditedAccount(db: D1Database, paymentRef: string): Promise<string | null> {
   const row = await db
-    .prepare("SELECT 1 FROM ledger WHERE account_id = ? AND payment_ref = ?")
-    .bind(accountId, paymentRef)
-    .first();
-  return row !== null;
+    .prepare("SELECT account_id FROM ledger WHERE payment_ref = ? LIMIT 1")
+    .bind(paymentRef)
+    .first<{ account_id: string }>();
+  return row?.account_id ?? null;
 }
 
 /** A unique-index violation on the payment reference: the same settlement, arriving a second time. */

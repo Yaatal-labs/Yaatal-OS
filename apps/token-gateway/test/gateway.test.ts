@@ -364,7 +364,7 @@ describe("accounts keyed by Engine identity", () => {
     expect(response.status).toBe(400);
   });
 
-  it("creates for an admin with no issuer, and refuses another issuer's account with 403", async () => {
+  it("creates for an admin with no issuer, and answers another issuer's account like a missing one", async () => {
     const adminPid = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
     const made = await upsert(adminPid, ADMIN, { name: "Admin made" });
     expect(((await made.json()) as { created: boolean }).created).toBe(true);
@@ -373,8 +373,8 @@ describe("accounts keyed by Engine identity", () => {
 
     // An issuer token cannot take over an account that is admin-only (a different issuer: null).
     const taken = await upsert(adminPid, ISSUER, { name: "x" });
-    expect(taken.status).toBe(403);
-    expect(((await taken.json()) as { error: { code: string } }).error.code).toBe("forbidden");
+    expect(taken.status).toBe(404);
+    expect(((await taken.json()) as { error: { code: string } }).error.code).toBe("not_found");
   });
 
   it("refuses callers without the admin or issuer token, and an unconfigured issuer name", async () => {
@@ -401,6 +401,17 @@ describe("the narrow credit token", () => {
     expect(await first.json()).toEqual({ balance_xof: 1_500, applied: true });
     const replay = await credit(id, CREDIT, { xof: 1_500, note: "Wave", payment_ref: "wave-c2-1" });
     expect(await replay.json()).toEqual({ balance_xof: 1_500, applied: false });
+  });
+
+  it("one settlement funds one account: the same payment_ref on another account is a 409", async () => {
+    const { id } = await accountForPid();
+    const other = (await (
+      await call(`/admin/accounts/by-pid/c2c2c2c2-0000-4000-8000-000000000002`, { method: "PUT", auth: ADMIN })
+    ).json()) as { id: string };
+    expect((await credit(id, CREDIT, { xof: 700, note: "Wave", payment_ref: "wave-c2-shared" })).status).toBe(200);
+    const elsewhere = await credit(other.id, CREDIT, { xof: 700, note: "Wave", payment_ref: "wave-c2-shared" });
+    expect(elsewhere.status).toBe(409);
+    expect(((await elsewhere.json()) as { error: { code: string } }).error.code).toBe("payment_ref_conflict");
   });
 
   it("requires payment_ref: 400 payment_ref_required without it, and nothing is credited", async () => {
@@ -499,18 +510,19 @@ describe("credits against a payment", () => {
     expect(recent.map(row => row.payment_ref)).toEqual(["wave-tx-8813", "wave-tx-8812"]);
   });
 
-  it("scopes the reference to the account, and lets an unreferenced credit be given twice", async () => {
+  it("one reference funds one account, and an unreferenced credit can be given twice", async () => {
     const { account: one } = await emptyAccount();
     const { account: two } = await emptyAccount();
     const settle = (id: string, body: Record<string, unknown>) =>
       call(`/admin/accounts/${id}/credits`, { method: "POST", auth: ADMIN, body: JSON.stringify(body) });
 
-    // The same Wave reference landing on two accounts is two settlements, not a collision: the
-    // uniqueness is per account, exactly like the balance it funds.
+    // A Wave reference names one settlement, so it funds one balance: citing it on a second
+    // account is refused (409), whoever asks -- the admin token included.
     expect(await (await settle(one.id, { xof: 500, note: "Wave", payment_ref: "wave-tx-1" })).json())
       .toEqual({ balance_xof: 500, applied: true });
-    expect(await (await settle(two.id, { xof: 500, note: "Wave", payment_ref: "wave-tx-1" })).json())
-      .toEqual({ balance_xof: 500, applied: true });
+    const second = await settle(two.id, { xof: 500, note: "Wave", payment_ref: "wave-tx-1" });
+    expect(second.status).toBe(409);
+    expect(((await second.json()) as { error: { code: string } }).error.code).toBe("payment_ref_conflict");
 
     // A goodwill grant or an opening balance cites no settlement. It is never deduplicated, because
     // there is nothing for it to collide on -- an operator may mean to give it twice.

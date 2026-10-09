@@ -167,7 +167,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:16px;min-h
 .logo{display:flex;align-items:center;gap:11px;color:var(--ink);text-decoration:none}.logo .mark{display:block;flex:none}.logo .word{display:block;width:auto}
 .links{display:flex;gap:26px;font-size:.95rem;color:var(--muted)}.links a{text-decoration:none;padding:10px 0}.links a:hover{color:var(--ink)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;background:var(--ink);color:var(--paper);border:0;border-radius:12px;padding:10px 18px;font:600 .98rem "Hanken Grotesk",sans-serif;text-decoration:none;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s}
-.btn:hover{background:var(--accent-strong);color:#fff}.btn.accent{background:var(--accent-strong);color:#fff}.btn.accent:hover{background:var(--ink);color:var(--paper)}
+.btn:hover{background:var(--accent-strong);color:var(--paper)}.btn.accent{background:var(--accent-strong);color:var(--paper)}.btn.accent:hover{background:var(--ink);color:var(--paper)}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{border-color:var(--ink);background:transparent;color:var(--ink)}
 .hero>*{min-width:0}
 .hero{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);gap:48px;align-items:center;padding-top:64px;padding-bottom:40px}
@@ -322,7 +322,7 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .checks span{border:1px solid var(--line);border-radius:999px;padding:3px 9px}.checks span.ok{color:#1f7a4d;border-color:color-mix(in srgb,#1f7a4d 45%,var(--line))}
 .pw .mini{margin:12px}
 .ship{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 12px 12px;font:500 .78rem "Departure Mono",monospace;color:var(--muted)}
-.ship b{background:var(--accent-strong);color:#fff;border-radius:8px;padding:7px 14px;font:600 .8rem "Hanken Grotesk",sans-serif}
+.ship b{background:var(--accent-strong);color:var(--paper);border-radius:8px;padding:7px 14px;font:600 .8rem "Hanken Grotesk",sans-serif}
 html.pin .story{height:340vh}
 html.pin .pin-box{position:sticky;top:calc(env(safe-area-inset-top,0px) + 84px);min-height:calc(100vh - 110px)}
 html.pin .panels{position:relative;height:440px;perspective:1400px}
@@ -356,8 +356,8 @@ function page(title: string, body: string, options: { script?: string; formActio
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(title)}</title>
 <meta name="description" content="Décrivez un site, un outil ou un objet connecté : Kairmel le construit avec vous. L'IA se paie en FCFA, partout en zone UEMOA.">
-<meta name="theme-color" content="#f7f3ec" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121312" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f4f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1514" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${FONTS}">
 <link rel="icon" href="${FAVICON}">

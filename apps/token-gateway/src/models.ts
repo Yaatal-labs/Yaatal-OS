@@ -106,7 +106,7 @@ function offer(
     id,
     tier,
     upstreams,
-    residency: upstreams.every(upstream => upstream.residency === "controlled") ? "controlled" : "any",
+    residency: controlledResidency(upstreams) ? "controlled" : "any",
     inputXofPerMillion: retailXof(cost.input),
     outputXofPerMillion: retailXof(cost.output),
     maxOutputTokens: options.maxOutputTokens ?? 8192,
@@ -150,8 +150,13 @@ export const DATA_CLASSES: readonly DataClass[] = ["sovereign", "operational", "
  * Whether a model may process data of this class. Sovereign data only goes to a model whose every
  * upstream, failover ones included, is controlled; the check reads the chain, not the field alone.
  */
+/** Every upstream is one we control, and there is at least one: the single rule for Sovereign data. */
+function controlledResidency(upstreams: readonly { residency?: Residency }[]): boolean {
+  return upstreams.length > 0 && upstreams.every(upstream => upstream.residency === "controlled");
+}
+
 export function allowsDataClass(offer: Pick<ModelOffer, "upstreams">, dataClass: DataClass): boolean {
-  return dataClass !== "sovereign" || (offer.upstreams.length > 0 && offer.upstreams.every(upstream => upstream.residency === "controlled"));
+  return dataClass !== "sovereign" || controlledResidency(offer.upstreams);
 }
 
 /** The models this deployment can serve: Workers Paid models only when WORKERS_PAID is "true". */

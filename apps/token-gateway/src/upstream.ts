@@ -55,7 +55,9 @@ export async function callUpstreams(
     try {
       response = await request;
     } catch {
-      if (options.firstOnly) return last;
+      // Failover forbidden: the one upstream allowed is down. That is an upstream failure (502),
+      // not a missing configuration, so the caller and the metrics see it as one.
+      if (options.firstOnly) return { response: new Response(null, { status: 502 }), upstream, skipped };
       skipped++;
       continue;
     }

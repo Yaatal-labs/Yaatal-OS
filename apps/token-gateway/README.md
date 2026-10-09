@@ -34,9 +34,10 @@ OpenAI-compatible server such as a self-hosted model. Switching a model's suppli
 - Credits are granted through the admin routes. Taking payment (Wave, Orange Money, PI-SPI) is a
   separate step that ends in a credit call; it is not part of this Worker.
 - A credit may carry `payment_ref`, the settlement's id from the rail that moved the money (or an
-  operator's receipt when cash closes the sale). It is unique per account: crediting one settlement
-  twice credits once and answers `applied: false`, so a replayed webhook or a retried bridge cannot
-  pay it again. The reference is kept on the ledger row and shown in `GET /v1/balance`, so a balance
+  operator's receipt when cash closes the sale). It is unique across the ledger (migration 0008): crediting
+  one settlement twice on the same account credits once and answers `applied: false`, so a replayed
+  webhook or a retried bridge cannot pay it again; citing it on another account is refused with
+  409 `payment_ref_conflict`, so one payment never funds two balances. The reference is kept on the ledger row and shown in `GET /v1/balance`, so a balance
   can be reconciled against the payments that funded it. A credit with no reference is never
   deduplicated.
 

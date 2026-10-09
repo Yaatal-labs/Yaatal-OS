@@ -29,7 +29,7 @@
 // a replayed webhook or a bridge that retried after a timeout cannot pay the same settlement twice.
 import { allowsDataClass, availableModels, costOf, DATA_CLASSES, findModel, type DataClass, type ModelOffer } from "./models.js";
 import {
-  UnknownAccountError, accountByPid, accountForKey, accountIssuer, createAccount, createKey, credit, debitUsage,
+  PaymentRefConflictError, UnknownAccountError, accountByPid, accountForKey, accountIssuer, createAccount, createKey, credit, debitUsage,
   keyAccountIssuer, recentLedger, revokeKey, revokeKeyById, setAccountIssuer, upsertAccountByPid,
 } from "./ledger.js";
 import { callUpstreams, type UpstreamEnv } from "./upstream.js";
@@ -88,6 +88,9 @@ export default {
     } catch (err) {
       if (err instanceof HttpError) return error(err.status, err.type, err.message);
       if (err instanceof UnknownAccountError) return error(404, "not_found", "No such account.");
+      if (err instanceof PaymentRefConflictError) {
+        return error(409, "payment_ref_conflict", "This payment already funded another account.");
+      }
       console.error("gateway error", err instanceof Error ? err.message : String(err));
       return error(500, "server_error", "The gateway failed; the request was not charged.");
     }
@@ -144,11 +147,15 @@ function dataClassOf(request: Request): DataClass {
   return found;
 }
 
-async function readJson(request: Request): Promise<Record<string, unknown>> {
+async function readJson(
+  request: Request,
+  options: { emptyAsObject?: boolean } = {},
+): Promise<Record<string, unknown>> {
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (declared > MAX_BODY_BYTES) throw new HttpError(413, "request_too_large", "Request body is too large.");
   const text = await request.text();
   if (text.length > MAX_BODY_BYTES) throw new HttpError(413, "request_too_large", "Request body is too large.");
+  if (options.emptyAsObject && text.trim() === "") return {};
   let body: unknown;
   try {
     body = JSON.parse(text);
@@ -385,12 +392,13 @@ async function adminUpsertByPid(request: Request, env: Env, path: string): Promi
   const asIssuer = isAdminToken ? null : await keyIssuerName(request, env);
   if (!isAdminToken && !asIssuer) throw new HttpError(401, "unauthorized", "Admin token required.");
   const pid = enginePid(path.slice("/admin/accounts/by-pid/".length));
-  const body = (await hasBody(request)) ? await readJson(request) : {};
+  const body = await readJson(request, { emptyAsObject: true });
   const name = body.name === undefined ? "Engine user" : displayName(body.name);
   const { account, created } = await upsertAccountByPid(env.DB, pid, name, asIssuer);
-  // An issuer token only reaches its own accounts; an admin-only or another issuer's account is not its to read.
+  // An issuer token only reaches its own accounts. Another owner's account answers exactly like a
+  // missing one (as on the keys route), so a leaked issuer token cannot learn which pids exist.
   if (asIssuer && account.issuer !== asIssuer) {
-    throw new HttpError(403, "forbidden", "This account belongs to another issuer.");
+    throw new HttpError(404, "not_found", "No such account.");
   }
   return Response.json({ id: account.id, engine_pid: pid, created, balance_xof: account.balanceUxof / UXOF });
 }
@@ -482,10 +490,6 @@ function displayName(value: unknown): string {
 }
 
 /** Whether the request carries any body (the by-pid upsert's body is optional). */
-async function hasBody(request: Request): Promise<boolean> {
-  return request.body !== null && (await request.clone().text()).trim() !== "";
-}
-
 function xof(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value <= 0 || value > 1_000_000_000) {
     throw new HttpError(400, "invalid_request", "xof must be a whole number of XOF (FCFA), 1 to 1,000,000,000.");
