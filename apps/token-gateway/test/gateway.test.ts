@@ -1,7 +1,7 @@
 import { applyD1Migrations, createExecutionContext, env, waitOnExecutionContext, type D1Migration } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import worker from "../src/index.js";
-import { MODELS, retailXof, USD_TO_XOF } from "../src/models.js";
+import { allowsDataClass, MODELS, retailXof, USD_TO_XOF, type ModelOffer } from "../src/models.js";
 import { callUpstreams } from "../src/upstream.js";
 
 declare global {
@@ -11,6 +11,7 @@ declare global {
       ADMIN_TOKEN: string;
       KEY_ISSUER_TOKEN: string;
       KEY_ISSUER_NAME: string;
+      CREDIT_TOKEN: string;
     }
   }
 }
@@ -18,6 +19,7 @@ declare global {
 const ADMIN = `Bearer ${env.ADMIN_TOKEN}`;
 const ISSUER = `Bearer ${env.KEY_ISSUER_TOKEN}`;
 const ISSUER_NAME = env.KEY_ISSUER_NAME;
+const CREDIT = `Bearer ${env.CREDIT_TOKEN}`;
 const WHOLESALE_URL = "https://wholesale.example.test/v1";
 
 beforeAll(() => applyD1Migrations(env.DB, env.TEST_MIGRATIONS));
@@ -320,6 +322,157 @@ describe("keys and admin", () => {
   });
 });
 
+describe("accounts keyed by Engine identity", () => {
+  const PID = "7b1c9a52-4d3e-4f6a-9c0b-1a2b3c4d5e6f";
+  const upsert = (pid: string, auth: string, body?: unknown) =>
+    call(`/admin/accounts/by-pid/${pid}`, { method: "PUT", auth, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+
+  it("creates the account on first call and returns the same one, created:false, on the second", async () => {
+    const first = await upsert(PID, ISSUER, { name: "Awa Diop" });
+    expect(first.status).toBe(200);
+    const created = (await first.json()) as { id: string; engine_pid: string; created: boolean; balance_xof: number };
+    expect(created).toEqual({ id: created.id, engine_pid: PID, created: true, balance_xof: 0 });
+    expect(created.id).toMatch(/^[0-9a-f-]{36}$/);
+
+    const second = await upsert(PID, ISSUER, { name: "Another name" });
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual({ id: created.id, engine_pid: PID, created: false, balance_xof: 0 });
+
+    // The issuer token owns it, so it can mint a key on it; an admin sees the same account.
+    const minted = await call(`/admin/accounts/${created.id}/keys`, { method: "POST", auth: ISSUER, body: JSON.stringify({ label: "x" }) });
+    expect(minted.status).toBe(201);
+    expect(((await (await upsert(PID, ADMIN)).json()) as { id: string }).id).toBe(created.id);
+  });
+
+  it("accepts an upsert with no body", async () => {
+    const response = await upsert("0f0e0d0c-0b0a-4908-8706-050403020100", ISSUER);
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as { created: boolean }).created).toBe(true);
+  });
+
+  it("rejects a pid that is not a UUID with 400 invalid_pid", async () => {
+    for (const pid of ["not-a-uuid", "123", "7b1c9a52-4d3e-4f6a-9c0b-1a2b3c4d5e6fz"]) {
+      const response = await upsert(pid, ISSUER, { name: "x" });
+      expect(response.status).toBe(400);
+      const { error } = (await response.json()) as { error: { code: string } };
+      expect(error.code).toBe("invalid_pid");
+    }
+  });
+
+  it("rejects a name over 80 characters", async () => {
+    const response = await upsert("11111111-2222-4333-8444-555555555555", ISSUER, { name: "x".repeat(81) });
+    expect(response.status).toBe(400);
+  });
+
+  it("creates for an admin with no issuer, and answers another issuer's account like a missing one", async () => {
+    const adminPid = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const made = await upsert(adminPid, ADMIN, { name: "Admin made" });
+    expect(((await made.json()) as { created: boolean }).created).toBe(true);
+    const row = await env.DB.prepare("SELECT issuer FROM accounts WHERE engine_pid = ?").bind(adminPid).first<{ issuer: string | null }>();
+    expect(row!.issuer).toBeNull();
+
+    // An issuer token cannot take over an account that is admin-only (a different issuer: null).
+    const taken = await upsert(adminPid, ISSUER, { name: "x" });
+    expect(taken.status).toBe(404);
+    expect(((await taken.json()) as { error: { code: string } }).error.code).toBe("not_found");
+  });
+
+  it("refuses callers without the admin or issuer token, and an unconfigured issuer name", async () => {
+    expect((await upsert(PID, "Bearer nope")).status).toBe(401);
+    expect((await call(`/admin/accounts/by-pid/${PID}`, { method: "PUT" })).status).toBe(401);
+    const noName = await call(`/admin/accounts/by-pid/${PID}`, { method: "PUT", auth: ISSUER }, { KEY_ISSUER_NAME: "" });
+    expect(noName.status).toBe(401);
+  });
+});
+
+describe("the narrow credit token", () => {
+  const PID = "c2c2c2c2-0000-4000-8000-000000000001";
+  const credit = (id: string, auth: string, body: Record<string, unknown>) =>
+    call(`/admin/accounts/${id}/credits`, { method: "POST", auth, body: JSON.stringify(body) });
+  const accountForPid = async () => {
+    const made = await call(`/admin/accounts/by-pid/${PID}`, { method: "PUT", auth: ADMIN });
+    return (await made.json()) as { id: string };
+  };
+
+  it("credits with a payment_ref, and a replay is applied:false", async () => {
+    const { id } = await accountForPid();
+    const first = await credit(id, CREDIT, { xof: 1_500, note: "Wave", payment_ref: "wave-c2-1" });
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ balance_xof: 1_500, applied: true });
+    const replay = await credit(id, CREDIT, { xof: 1_500, note: "Wave", payment_ref: "wave-c2-1" });
+    expect(await replay.json()).toEqual({ balance_xof: 1_500, applied: false });
+  });
+
+  it("one settlement funds one account: the same payment_ref on another account is a 409", async () => {
+    const { id } = await accountForPid();
+    const other = (await (
+      await call(`/admin/accounts/by-pid/c2c2c2c2-0000-4000-8000-000000000002`, { method: "PUT", auth: ADMIN })
+    ).json()) as { id: string };
+    expect((await credit(id, CREDIT, { xof: 700, note: "Wave", payment_ref: "wave-c2-shared" })).status).toBe(200);
+    const elsewhere = await credit(other.id, CREDIT, { xof: 700, note: "Wave", payment_ref: "wave-c2-shared" });
+    expect(elsewhere.status).toBe(409);
+    expect(((await elsewhere.json()) as { error: { code: string } }).error.code).toBe("payment_ref_conflict");
+  });
+
+  it("requires payment_ref: 400 payment_ref_required without it, and nothing is credited", async () => {
+    const { id } = await accountForPid();
+    for (const body of [{ xof: 100, note: "x" }, { xof: 100, note: "x", payment_ref: null }]) {
+      const response = await credit(id, CREDIT, body);
+      expect(response.status).toBe(400);
+      expect(((await response.json()) as { error: { code: string } }).error.code).toBe("payment_ref_required");
+    }
+    expect((await credit(id, ADMIN, { xof: 100, note: "x" })).status).toBe(200); // admin still may omit it
+  });
+
+  it("still 404s an unknown account and rejects bad amounts", async () => {
+    expect((await credit("00000000-0000-4000-8000-000000000000", CREDIT, { xof: 10, note: "x", payment_ref: "r" })).status).toBe(404);
+    const { id } = await accountForPid();
+    expect((await credit(id, CREDIT, { xof: 0, note: "x", payment_ref: "r0" })).status).toBe(400);
+  });
+
+  it("can call nothing else: every other admin route answers 401", async () => {
+    const { id } = await accountForPid();
+    const attempts: [string, string, unknown?][] = [
+      ["POST", "/admin/accounts", { name: "x" }],
+      ["POST", `/admin/accounts/${id}/keys`, { label: "x" }],
+      ["POST", `/admin/accounts/${id}/issuer`, { issuer: null }],
+      ["POST", "/admin/keys/revoke", { key: "yk_x" }],
+      ["DELETE", "/admin/keys/00000000-0000-4000-8000-000000000000"],
+      ["PUT", `/admin/accounts/by-pid/${PID}`, {}],
+      ["GET", "/admin/usage"],
+    ];
+    for (const [method, path, body] of attempts) {
+      const response = await call(path, { method, auth: CREDIT, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+      expect([method, path, response.status]).toEqual([method, path, 401]);
+    }
+  });
+
+  it("is refused entirely when CREDIT_TOKEN is unset or too short", async () => {
+    const { id } = await accountForPid();
+    for (const token of [undefined, "short"]) {
+      const response = await call(`/admin/accounts/${id}/credits`, {
+        method: "POST", auth: CREDIT, body: JSON.stringify({ xof: 10, note: "x", payment_ref: "r-unset" }),
+      }, { CREDIT_TOKEN: token });
+      expect(response.status).toBe(401);
+    }
+  });
+
+  it("resolves a pid to its account with GET /admin/accounts/by-pid/:pid, for admin and credit token only", async () => {
+    const pid = "c2c2c2c2-0000-4000-8000-000000000002";
+    const { id } = (await (await call(`/admin/accounts/by-pid/${pid}`, { method: "PUT", auth: ADMIN })).json()) as { id: string };
+    await credit(id, CREDIT, { xof: 700, note: "Wave", payment_ref: "wave-c2-get" });
+    for (const auth of [CREDIT, ADMIN]) {
+      const response = await call(`/admin/accounts/by-pid/${pid}`, { auth });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ id, engine_pid: pid, balance_xof: 700 });
+    }
+    expect((await call("/admin/accounts/by-pid/c2c2c2c2-0000-4000-8000-0000000000ff", { auth: CREDIT })).status).toBe(404);
+    expect((await call("/admin/accounts/by-pid/nope", { auth: CREDIT })).status).toBe(400);
+    expect((await call(`/admin/accounts/by-pid/${PID}`, { auth: ISSUER })).status).toBe(401);
+    expect((await call(`/admin/accounts/by-pid/${PID}`)).status).toBe(401);
+  });
+});
+
 /** An account with no opening credit, so a test's ledger holds only the credits it makes itself. */
 async function emptyAccount() {
   const response = await call("/admin/accounts", {
@@ -357,18 +510,19 @@ describe("credits against a payment", () => {
     expect(recent.map(row => row.payment_ref)).toEqual(["wave-tx-8813", "wave-tx-8812"]);
   });
 
-  it("scopes the reference to the account, and lets an unreferenced credit be given twice", async () => {
+  it("one reference funds one account, and an unreferenced credit can be given twice", async () => {
     const { account: one } = await emptyAccount();
     const { account: two } = await emptyAccount();
     const settle = (id: string, body: Record<string, unknown>) =>
       call(`/admin/accounts/${id}/credits`, { method: "POST", auth: ADMIN, body: JSON.stringify(body) });
 
-    // The same Wave reference landing on two accounts is two settlements, not a collision: the
-    // uniqueness is per account, exactly like the balance it funds.
+    // A Wave reference names one settlement, so it funds one balance: citing it on a second
+    // account is refused (409), whoever asks -- the admin token included.
     expect(await (await settle(one.id, { xof: 500, note: "Wave", payment_ref: "wave-tx-1" })).json())
       .toEqual({ balance_xof: 500, applied: true });
-    expect(await (await settle(two.id, { xof: 500, note: "Wave", payment_ref: "wave-tx-1" })).json())
-      .toEqual({ balance_xof: 500, applied: true });
+    const second = await settle(two.id, { xof: 500, note: "Wave", payment_ref: "wave-tx-1" });
+    expect(second.status).toBe(409);
+    expect(((await second.json()) as { error: { code: string } }).error.code).toBe("payment_ref_conflict");
 
     // A goodwill grant or an opening balance cites no settlement. It is never deduplicated, because
     // there is nothing for it to collide on -- an operator may mean to give it twice.
@@ -737,6 +891,91 @@ describe("failover", () => {
   it("finds no upstream when the only one is an unconfigured wholesale server", async () => {
     const offer = { ...MODELS[0]!, upstreams: [{ kind: "openai", baseUrlVar: "WHOLESALE_BASE_URL", apiKeyVar: "WHOLESALE_API_KEY", model: "x" }] } as const;
     expect(await callUpstreams({ ...env, AI: fakeAi(() => completion(1, 1)).ai } as never, offer, { messages: [] })).toBeNull();
+  });
+});
+
+describe("data class and residency", () => {
+  const ask = (headers: Record<string, string>, extraEnv: Record<string, unknown>, key: string, model = "kairmel/glm-4.7-flash") =>
+    call("/v1/chat/completions", { method: "POST", auth: `Bearer ${key}`, headers, body: chatBody(model) }, extraEnv);
+
+  it("serves a request with no data-class header, or operational or public, as before", async () => {
+    const { api_key } = await newAccount(5_000);
+    for (const headers of [{} as Record<string, string>, { "x-yaatal-data-class": "operational" }, { "x-yaatal-data-class": "public" }]) {
+      const { ai, seen } = fakeAi(() => completion(1, 1));
+      expect((await ask(headers, { AI: ai }, api_key)).status).toBe(200);
+      expect(seen).toHaveLength(1);
+    }
+  });
+
+  it("refuses sovereign with 403 data_class_not_allowed before any upstream call, and charges nothing", async () => {
+    const { api_key } = await newAccount(5_000);
+    const wholesale = fakeWholesale(() => completion(1, 1));
+    const { ai, seen } = fakeAi(() => completion(1, 1));
+    const response = await ask({ "x-yaatal-data-class": "sovereign" }, { AI: ai, WHOLESALE_BASE_URL: WHOLESALE_URL }, api_key);
+    expect(response.status).toBe(403);
+    expect(((await response.json()) as { error: { code: string } }).error.code).toBe("data_class_not_allowed");
+    expect(seen).toHaveLength(0);
+    expect(wholesale).toHaveLength(0);
+    const { balance_xof, recent } = await balanceOf(api_key);
+    expect(balance_xof).toBe(5_000);
+    expect(recent.filter(row => row.kind === "usage")).toHaveLength(0);
+  });
+
+  it("rejects an unknown data class with 400 invalid_data_class, before any upstream call", async () => {
+    const { api_key } = await newAccount(5_000);
+    const { ai, seen } = fakeAi(() => completion(1, 1));
+    const response = await ask({ "x-yaatal-data-class": "secret" }, { AI: ai }, api_key);
+    expect(response.status).toBe(400);
+    expect(((await response.json()) as { error: { code: string } }).error.code).toBe("invalid_data_class");
+    expect(seen).toHaveLength(0);
+  });
+
+  it("allows sovereign only for a model whose every upstream is controlled", () => {
+    const remote: ModelOffer = { ...MODELS[0]!, upstreams: [{ kind: "workers-ai", model: "m" }], residency: "any" };
+    const own = { kind: "openai", baseUrlVar: "OWN_BASE_URL", apiKeyVar: "OWN_API_KEY", model: "m", residency: "controlled" } as const;
+    const mixed: ModelOffer = { ...remote, upstreams: [own, { kind: "workers-ai", model: "m" }] };
+    const controlled: ModelOffer = { ...remote, upstreams: [own], residency: "controlled" };
+    expect(allowsDataClass(remote, "sovereign")).toBe(false);
+    expect(allowsDataClass(mixed, "sovereign")).toBe(false);
+    expect(allowsDataClass(controlled, "sovereign")).toBe(true);
+    for (const offer of [remote, mixed, controlled]) {
+      expect(allowsDataClass(offer, "operational")).toBe(true);
+      expect(allowsDataClass(offer, "public")).toBe(true);
+    }
+    expect(MODELS.every(model => model.residency === "any")).toBe(true);
+  });
+
+  it("serves sovereign end to end from a controlled model", async () => {
+    const { api_key } = await newAccount(5_000);
+    const own = { kind: "openai", baseUrlVar: "OWN_BASE_URL", apiKeyVar: "OWN_API_KEY", model: "own-m", residency: "controlled" } as const;
+    (MODELS as ModelOffer[]).push({ ...MODELS[0]!, id: "kairmel/test-controlled", paidPlan: false, upstreams: [own], residency: "controlled" });
+    try {
+      const seen = fakeWholesale(() => completion(10, 10));
+      const response = await ask({ "x-yaatal-data-class": "sovereign" }, { OWN_BASE_URL: "https://own.example.test/v1" }, api_key, "kairmel/test-controlled");
+      expect(response.status).toBe(200);
+      expect(seen).toHaveLength(1);
+    } finally {
+      (MODELS as ModelOffer[]).pop();
+    }
+  });
+
+  it("lists each model's residency", async () => {
+    const { data } = (await (await call("/v1/models")).json()) as { data: { id: string; residency: string }[] };
+    expect(data.every(model => model.residency === "any")).toBe(true);
+  });
+
+  it("with x-yaatal-no-failover: 1 tries only the first upstream", async () => {
+    const { api_key } = await newAccount(5_000);
+    const wholesale = fakeWholesale(() => new Response("slow down", { status: 429 }));
+    const { ai, seen } = fakeAi(() => completion(1, 1));
+    const response = await ask({ "x-yaatal-no-failover": "1" }, { AI: ai, WHOLESALE_BASE_URL: WHOLESALE_URL }, api_key);
+    expect(response.status).toBe(429);
+    expect(wholesale).toHaveLength(1);
+    expect(seen).toHaveLength(0);
+    expect((await balanceOf(api_key)).balance_xof).toBe(5_000);
+    // Without the header the same setup fails over, as before.
+    const fallback = await ask({}, { AI: fakeAi(() => completion(1, 1)).ai, WHOLESALE_BASE_URL: WHOLESALE_URL }, api_key);
+    expect(fallback.status).toBe(200);
   });
 });
 

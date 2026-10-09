@@ -7,9 +7,15 @@
 // catalog), the exchange rate and our markup, so no model is ever sold below cost. Update
 // USD_TO_XOF and MARKUP here; update a model's cost when its upstream changes.
 
+/**
+ * Where a model's tokens are processed. "controlled" is an endpoint Yaatal operates or contractually
+ * controls (a self-hosted model); "any" is every shared supplier. Sovereign data goes only to the former.
+ */
+export type Residency = "controlled" | "any";
+
 export type Upstream =
   /** Workers AI's OpenAI-compatible endpoint, through AI Gateway over the AI binding (no key). */
-  | { kind: "workers-ai"; model: string }
+  | { kind: "workers-ai"; model: string; residency?: Residency }
   /**
    * An OpenAI-compatible server: the wholesale gateway, a self-hosted model, OpenRouter... `baseUrlVar`
    * and `apiKeyVar` name the environment entries holding its base URL and key, so no endpoint or
@@ -20,6 +26,8 @@ export type Upstream =
       baseUrlVar: string;
       apiKeyVar: string;
       model: string;
+      /** Defaults to "any". Set "controlled" only for a server Yaatal controls. */
+      residency?: Residency;
       /** The most this upstream can charge, USD per million tokens. The model's cost must cover it. */
       maxCostUsd?: { input: number; output: number };
       /** Fields sent on every request to this upstream (routing, data policy). They override the client's. */
@@ -33,6 +41,8 @@ export interface ModelOffer {
   id: string;
   tier: Tier;
   upstreams: readonly Upstream[];
+  /** "controlled" only when every upstream in the failover chain is. */
+  residency: Residency;
   inputXofPerMillion: number;
   outputXofPerMillion: number;
   /** Hard cap on max_tokens, which also bounds how far one request can overdraw a balance. */
@@ -96,6 +106,7 @@ function offer(
     id,
     tier,
     upstreams,
+    residency: controlledResidency(upstreams) ? "controlled" : "any",
     inputXofPerMillion: retailXof(cost.input),
     outputXofPerMillion: retailXof(cost.output),
     maxOutputTokens: options.maxOutputTokens ?? 8192,
@@ -130,6 +141,23 @@ export const MODELS: readonly ModelOffer[] = [
   offer("kairmel/llama-3.3-70b", "standard", [WORKERS_AI("@cf/meta/llama-3.3-70b-instruct-fp8-fast")], { input: 0.293, output: 2.253 }),
   offer("kairmel/granite-4.0-micro", "micro", [WORKERS_AI("@cf/ibm-granite/granite-4.0-h-micro")], { input: 0.017, output: 0.112 }),
 ];
+
+export type DataClass = "sovereign" | "operational" | "public";
+
+export const DATA_CLASSES: readonly DataClass[] = ["sovereign", "operational", "public"];
+
+/** Every upstream is one we control, and there is at least one: the single rule for Sovereign data. */
+function controlledResidency(upstreams: readonly { residency?: Residency }[]): boolean {
+  return upstreams.length > 0 && upstreams.every(upstream => upstream.residency === "controlled");
+}
+
+/**
+ * Whether a model may process data of this class. Sovereign data only goes to a model whose every
+ * upstream, failover ones included, is controlled; the check reads the chain, not the field alone.
+ */
+export function allowsDataClass(offer: Pick<ModelOffer, "upstreams">, dataClass: DataClass): boolean {
+  return dataClass !== "sovereign" || controlledResidency(offer.upstreams);
+}
 
 /** The models this deployment can serve: Workers Paid models only when WORKERS_PAID is "true". */
 export function availableModels(env: { WORKERS_PAID?: string }): readonly ModelOffer[] {

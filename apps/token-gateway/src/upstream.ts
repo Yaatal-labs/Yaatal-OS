@@ -36,31 +36,39 @@ export interface UpstreamResult {
 /**
  * Sends an OpenAI chat-completions body to the model's upstreams in order, moving to the next on a
  * network error or a failover status. Returns the first other answer, or the last failure.
+ * With `firstOnly`, stops after the first configured upstream whatever it answers (no failover).
  */
 export async function callUpstreams(
   env: UpstreamEnv,
   offer: ModelOffer,
   body: Record<string, unknown>,
   fetcher: typeof fetch = fetch,
+  options: { firstOnly?: boolean } = {},
 ): Promise<UpstreamResult | null> {
   let last: UpstreamResult | null = null;
+  let tried: Upstream | null = null;
   let skipped = 0;
   for (const upstream of offer.upstreams) {
     // Nothing identifying a Yaatal customer is sent upstream: only the request body.
     const request = requestFor(env, upstream, { ...body, model: upstream.model }, fetcher);
     if (!request) continue; // Not configured in this deployment.
+    tried = upstream;
     let response: Response;
     try {
       response = await request;
     } catch {
+      if (options.firstOnly) break;
       skipped++;
       continue;
     }
     last = { response, upstream, skipped };
-    if (!FAILOVER.has(response.status)) return last;
+    if (options.firstOnly || !FAILOVER.has(response.status)) return last;
     await response.body?.cancel();
     skipped++;
   }
+  // Configured upstreams were tried and none answered (network errors): an upstream failure (502),
+  // not a missing configuration, so the caller and the metrics see it as one.
+  if (!last && tried) return { response: new Response(null, { status: 502 }), upstream: tried, skipped };
   return last;
 }
 

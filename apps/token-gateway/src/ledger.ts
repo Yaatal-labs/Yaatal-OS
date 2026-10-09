@@ -23,6 +23,13 @@ export class UnknownAccountError extends Error {
   }
 }
 
+/** A payment reference already funded a credit on another account: one settlement, one balance. */
+export class PaymentRefConflictError extends Error {
+  constructor() {
+    super("payment_ref already credited to another account");
+  }
+}
+
 export async function sha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
@@ -52,6 +59,44 @@ export async function createAccount(db: D1Database, name: string, issuer: string
   const id = crypto.randomUUID();
   await db.prepare("INSERT INTO accounts (id, name, issuer) VALUES (?, ?, ?)").bind(id, name, issuer).run();
   return { id, name, balanceUxof: 0 };
+}
+
+export interface PidAccount {
+  id: string;
+  issuer: string | null;
+  balanceUxof: number;
+}
+
+/** The account keyed by this Engine pid, or null. */
+export async function accountByPid(db: D1Database, enginePid: string): Promise<PidAccount | null> {
+  const row = await db
+    .prepare("SELECT id, issuer, balance_uxof FROM accounts WHERE engine_pid = ?")
+    .bind(enginePid)
+    .first<{ id: string; issuer: string | null; balance_uxof: number }>();
+  return row ? { id: row.id, issuer: row.issuer, balanceUxof: row.balance_uxof } : null;
+}
+
+/**
+ * Creates the account for an Engine pid, or returns the one that already holds it. Safe under a race:
+ * the unique index refuses the second insert, and the loser reads the winner's row.
+ */
+export async function upsertAccountByPid(
+  db: D1Database, enginePid: string, name: string, issuer: string | null,
+): Promise<{ account: PidAccount; created: boolean }> {
+  const existing = await accountByPid(db, enginePid);
+  if (existing) return { account: existing, created: false };
+  const id = crypto.randomUUID();
+  try {
+    await db
+      .prepare("INSERT INTO accounts (id, name, issuer, engine_pid) VALUES (?, ?, ?, ?)")
+      .bind(id, name, issuer, enginePid)
+      .run();
+  } catch (err) {
+    const raced = await accountByPid(db, enginePid);
+    if (raced) return { account: raced, created: false };
+    throw err;
+  }
+  return { account: { id, issuer, balanceUxof: 0 }, created: true };
 }
 
 /** The account's issuer (null = admin-only), or undefined when no such account exists. */
@@ -122,10 +167,11 @@ export interface CreditResult {
  * Adds to an account's balance and writes the ledger row, atomically.
  *
  * `paymentRef` names the settlement that funded the credit: a Wave or PI-SPI transaction id, or an
- * operator's receipt when cash closes the sale. The reference is unique per account (the
- * `ledger_payment_ref` index), so crediting one settlement twice credits it once -- a replayed
+ * operator's receipt when cash closes the sale. The reference is unique across the ledger (the
+ * `ledger_payment_ref_global` index), so crediting one settlement twice credits it once -- a replayed
  * webhook, or a bridge that timed out and retried, finds the row already there and reports
- * `applied: false` rather than paying again. A credit that cites no settlement (an opening balance,
+ * `applied: false` rather than paying again; the same reference on a different account is refused
+ * with `PaymentRefConflictError`. A credit that cites no settlement (an opening balance,
  * a goodwill grant) passes null and is never deduplicated.
  */
 export async function credit(
@@ -137,8 +183,10 @@ export async function credit(
 ): Promise<CreditResult> {
   const exists = await db.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(accountId).first();
   if (!exists) throw new UnknownAccountError();
-  if (paymentRef !== null && (await isCredited(db, accountId, paymentRef))) {
-    return { balanceUxof: await balanceUxof(db, accountId), applied: false };
+  if (paymentRef !== null) {
+    const owner = await creditedAccount(db, paymentRef);
+    if (owner === accountId) return { balanceUxof: await balanceUxof(db, accountId), applied: false };
+    if (owner !== null) throw new PaymentRefConflictError();
   }
   try {
     const [, , balance] = await db.batch([
@@ -157,7 +205,10 @@ export async function credit(
     // replay -- already credited. Should D1 ever word that error differently the credit still
     // cannot double, because it never committed; the call only fails to be recognised as a replay.
     if (paymentRef !== null && isDuplicatePaymentRef(err)) {
-      return { balanceUxof: await balanceUxof(db, accountId), applied: false };
+      const owner = await creditedAccount(db, paymentRef);
+      if (owner === accountId) return { balanceUxof: await balanceUxof(db, accountId), applied: false };
+      // Only a reference another account visibly holds is a conflict; anything else is the error it is.
+      if (owner !== null) throw new PaymentRefConflictError();
     }
     throw err;
   }
@@ -169,13 +220,13 @@ async function balanceUxof(db: D1Database, accountId: string): Promise<number> {
   return row.balance_uxof;
 }
 
-/** Whether this settlement has already funded this account. */
-async function isCredited(db: D1Database, accountId: string, paymentRef: string): Promise<boolean> {
+/** The account a payment reference already credited, if any. */
+async function creditedAccount(db: D1Database, paymentRef: string): Promise<string | null> {
   const row = await db
-    .prepare("SELECT 1 FROM ledger WHERE account_id = ? AND payment_ref = ?")
-    .bind(accountId, paymentRef)
-    .first();
-  return row !== null;
+    .prepare("SELECT account_id FROM ledger WHERE payment_ref = ? LIMIT 1")
+    .bind(paymentRef)
+    .first<{ account_id: string }>();
+  return row?.account_id ?? null;
 }
 
 /** A unique-index violation on the payment reference: the same settlement, arriving a second time. */
