@@ -255,3 +255,17 @@ export async function recentLedger(db: D1Database, accountId: string, limit = 20
     .all();
   return results;
 }
+
+/** Positive spend and billed calls per model for this account over the last 30 days. */
+export async function usageByModel(db: D1Database, accountId: string) {
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const { results } = await db
+    .prepare(
+      `SELECT model, -SUM(amount_uxof) AS amount_uxof, COUNT(*) AS calls
+       FROM ledger WHERE account_id = ? AND kind = 'usage' AND created_at >= ?
+       GROUP BY model ORDER BY amount_uxof DESC, model`,
+    )
+    .bind(accountId, since)
+    .all<{ model: string; amount_uxof: number; calls: number }>();
+  return results.map(row => ({ model: row.model, amount_xof: row.amount_uxof / 1_000_000, calls: row.calls }));
+}

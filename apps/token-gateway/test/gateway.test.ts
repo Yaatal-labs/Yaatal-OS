@@ -1,6 +1,7 @@
 import { applyD1Migrations, createExecutionContext, env, waitOnExecutionContext, type D1Migration } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import worker from "../src/index.js";
+import { debitUsage } from "../src/ledger.js";
 import { allowsDataClass, MODELS, retailXof, USD_TO_XOF, type ModelOffer } from "../src/models.js";
 import { callUpstreams } from "../src/upstream.js";
 
@@ -385,6 +386,116 @@ describe("accounts keyed by Engine identity", () => {
   });
 });
 
+describe("account activity by Engine identity", () => {
+  type Activity = {
+    id: string;
+    engine_pid: string;
+    balance_xof: number;
+    recent: Awaited<ReturnType<typeof balanceOf>>["recent"];
+    by_model: { model: string; amount_xof: number; calls: number }[];
+  };
+  const accountForActivity = async (issuer?: string) => {
+    const account = await newAccount(5_000, issuer);
+    const pid = crypto.randomUUID();
+    await env.DB.prepare("UPDATE accounts SET engine_pid = ? WHERE id = ?").bind(pid, account.account.id).run();
+    return { ...account, pid };
+  };
+  const activity = (pid: string, auth?: string, query = "", extraEnv = {}) =>
+    call(`/admin/accounts/by-pid/${pid}/activity${query}`, { auth }, extraEnv);
+  const readActivity = async (pid: string, auth = ADMIN, query = "") => {
+    const response = await activity(pid, auth, query);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    return (await response.json()) as Activity;
+  };
+  const spend = (id: string, model: string, costUxof: number, estimated = false) =>
+    debitUsage(env.DB, id, { model, costUxof, inputTokens: 12, outputTokens: 34, estimated });
+
+  it("returns the admin's account balance and the same recent row shape as /v1/balance", async () => {
+    const { account, api_key, pid } = await accountForActivity();
+    await spend(account.id, "kairmel/glm-4.7-flash", 250_000, true);
+    const balance = await balanceOf(api_key);
+    expect(await readActivity(pid.toUpperCase())).toEqual({
+      id: account.id,
+      engine_pid: pid,
+      balance_xof: 4_999.75,
+      recent: balance.recent,
+      by_model: [{ model: "kairmel/glm-4.7-flash", amount_xof: 0.25, calls: 1 }],
+    });
+    expect(balance.recent[0]).toMatchObject({ kind: "usage", amount_xof: -0.25, estimated: true });
+    expect((await activity(crypto.randomUUID(), ADMIN)).status).toBe(404);
+    expect((await activity("not-a-uuid", ADMIN)).status).toBe(400);
+  });
+
+  it("lets an issuer read its own account and gives identical 404s for foreign and missing accounts", async () => {
+    const own = await accountForActivity(ISSUER_NAME);
+    expect(await readActivity(own.pid, ISSUER)).toEqual({
+      id: own.account.id, engine_pid: own.pid, balance_xof: 5_000,
+      recent: (await balanceOf(own.api_key)).recent, by_model: [],
+    });
+    const missing = await activity(crypto.randomUUID(), ISSUER);
+    expect(missing.status).toBe(404);
+    const missingBody = await missing.json();
+    for (const issuer of [undefined, "another-issuer"]) {
+      const foreign = await accountForActivity(issuer);
+      const response = await activity(foreign.pid, ISSUER, "?limit=invalid");
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual(missingBody);
+      expect((await readActivity(foreign.pid)).id).toBe(foreign.account.id);
+    }
+  });
+
+  it("refuses credit tokens, customer keys, unauthenticated callers and unconfigured issuers", async () => {
+    const { pid, api_key } = await accountForActivity(ISSUER_NAME);
+    for (const auth of [CREDIT, undefined, "Bearer wrong", `Bearer ${api_key}`]) {
+      expect((await activity(pid, auth)).status).toBe(401);
+      expect((await activity(crypto.randomUUID(), auth)).status).toBe(401);
+    }
+    for (const name of [undefined, ""]) {
+      expect((await activity(pid, ISSUER, "", { KEY_ISSUER_NAME: name })).status).toBe(401);
+    }
+    for (const token of [undefined, "short"]) {
+      expect((await activity(pid, ISSUER, "", { KEY_ISSUER_TOKEN: token })).status).toBe(401);
+    }
+  });
+
+  it("defaults to 50 recent rows, clamps limits to 1..200 and keeps newest rows first", async () => {
+    const { account, pid } = await accountForActivity();
+    await env.DB.batch(Array.from({ length: 205 }, (_, i) => env.DB
+      .prepare("INSERT INTO ledger (account_id, kind, amount_uxof, note) VALUES (?, 'credit', 1000000, ?)")
+      .bind(account.id, `credit ${i}`)));
+    expect((await readActivity(pid)).recent).toHaveLength(50);
+    for (const [limit, expected] of [[2, 2], [200, 200], [999, 200], [0, 1], [-5, 1]]) {
+      const result = await readActivity(pid, ADMIN, `?limit=${limit}`);
+      expect(result.recent).toHaveLength(expected!);
+      expect(result.recent[0]).toMatchObject({ note: "credit 204" });
+      expect(result.by_model).toEqual([]);
+    }
+    for (const limit of ["abc", "2.5", "Infinity"]) {
+      expect((await activity(pid, ADMIN, `?limit=${limit}`)).status).toBe(400);
+    }
+  });
+
+  it("aggregates 30-day usage per model independently of the recent limit, ordered by positive spend", async () => {
+    const { account, pid } = await accountForActivity();
+    await spend(account.id, "kairmel/glm-4.7-flash", 250_000);
+    await spend(account.id, "kairmel/nemotron-3-super", 1_500_000);
+    await spend(account.id, "kairmel/nemotron-3-super", 1_500_000);
+    await spend(account.id, "old-model", 100_000_000);
+    await env.DB.prepare("UPDATE ledger SET created_at = ? WHERE account_id = ? AND model = 'old-model'")
+      .bind(new Date(Date.now() - 31 * 86_400_000).toISOString(), account.id).run();
+    const foreign = await accountForActivity();
+    await spend(foreign.account.id, "kairmel/glm-4.7-flash", 1_000_000_000);
+    await spend(foreign.account.id, "foreign-model", 1_000_000_000);
+    const result = await readActivity(pid, ADMIN, "?limit=1");
+    expect(result.recent).toHaveLength(1);
+    expect(result.by_model).toEqual([
+      { model: "kairmel/nemotron-3-super", amount_xof: 3, calls: 2 },
+      { model: "kairmel/glm-4.7-flash", amount_xof: 0.25, calls: 1 },
+    ]);
+  });
+});
+
 describe("the narrow credit token", () => {
   const PID = "c2c2c2c2-0000-4000-8000-000000000001";
   const credit = (id: string, auth: string, body: Record<string, unknown>) =>
@@ -440,6 +551,7 @@ describe("the narrow credit token", () => {
       ["DELETE", "/admin/keys/00000000-0000-4000-8000-000000000000"],
       ["PUT", `/admin/accounts/by-pid/${PID}`, {}],
       ["GET", "/admin/usage"],
+      ["GET", `/admin/accounts/by-pid/${PID}/activity`],
     ];
     for (const [method, path, body] of attempts) {
       const response = await call(path, { method, auth: CREDIT, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
