@@ -1,7 +1,7 @@
 # Kairmel desktop shell
 
 A thin Tauri 2 window around the Kairmel web app. Kairmel's product *is* the
-web app (the **Discuter** / **Créer** / **Marché** workspaces); this shell
+web app (**Créer**, **Mes apps** and **Découvrir**, as in its sidebar); this shell
 only installs, launches and hosts it — there is no bundled UI, no sidecar,
 no local server. Windows-first for now, kept cross-platform-clean.
 
@@ -22,7 +22,8 @@ see [Security model](#security-model).
 
 ```bash
 pnpm install
-KAIRMEL_URL=https://app.kairmel.example pnpm tauri build --bundles nsis
+pnpm tauri build --bundles nsis          # targets https://kairmel.com
+KAIRMEL_URL=https://staging.example pnpm tauri build --bundles nsis   # another origin
 ```
 
 `KAIRMEL_URL` (and the workspace paths below) are read with Rust's
@@ -35,13 +36,13 @@ rebuilding. The installer lands in
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `KAIRMEL_URL` | `https://kairmel.example` (placeholder) | The Kairmel origin. Must be `https://`, or `http://` on loopback only. |
-| `KAIRMEL_PATH_DISCUTER` | `/` | Path for the **Discuter** menu entry. |
-| `KAIRMEL_PATH_CREER` | `/create` | Path for the **Créer** menu entry. |
-| `KAIRMEL_PATH_MARCHE` | `/marche` | Path for the **Marché** menu entry. |
+| `KAIRMEL_URL` | `https://kairmel.com` | The Kairmel origin. Must be `https://`, or `http://` on loopback only. |
+| `KAIRMEL_PATH_CREER` | `/` | Path for the **Créer** menu entry (start a site by voice or chat). |
+| `KAIRMEL_PATH_APPS` | `/apps` | Path for the **Mes apps** menu entry. |
+| `KAIRMEL_PATH_DECOUVRIR` | `/discover` | Path for the **Découvrir** menu entry. |
 
 Each path is resolved against `KAIRMEL_URL`'s origin (`src-tauri/src/config.rs`).
-The window opens on **Discuter**; the native menu bar switches between the
+The window opens on **Créer**; the native menu bar switches between the
 three. None of this is business logic baked into the shell — it's all
 configuration, read once at build time.
 
@@ -79,10 +80,10 @@ configuration, read once at build time.
   team.
 - **No sidecar, no local server** — Kairmel is a hosted web app; this shell
   never runs anything besides the webview.
-- **Real icon** — `src-tauri/icons/` is generated (via `tauri icon`) from
-  `src-tauri/icons/source/kairmel-placeholder.svg`, a placeholder "K" mark.
-  Swap the SVG and re-run `pnpm tauri icon src-tauri/icons/source/<file>.svg`
-  before shipping.
+- **Icon** — `src-tauri/icons/` is generated (via `tauri icon`) from
+  `src-tauri/icons/source/kairmel.svg`, the Kairmel mark (same file as kairmel.com's
+  `favicon.svg`). After changing the mark, re-run
+  `pnpm tauri icon src-tauri/icons/source/kairmel.svg` and keep only the files listed here.
 
 ## Tests
 
@@ -105,7 +106,7 @@ apps/kairmel-shell/
     src/kairmel.rs        URL validation + navigation allowlist (unit tested)
     src/reachability.rs   startup TCP reachability probe
     src/config.rs         reads KAIRMEL_URL / workspace paths at build time
-    src/menu.rs           native Discuter/Créer/Marché menu
+    src/menu.rs           native Créer / Mes apps / Découvrir menu
     src/lib.rs            window setup, on_navigation handler, plugins
     capabilities/main.json  empty permission set for the "main" window
 ```

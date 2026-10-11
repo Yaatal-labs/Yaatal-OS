@@ -17,7 +17,7 @@ const REACHABILITY_TIMEOUT: Duration = Duration::from_secs(3);
 pub fn run() {
     let urls = config::load();
     let allowed_origins = vec![urls.origin.clone()];
-    let initial_target = urls.discuter.clone();
+    let initial_target = urls.creer.clone();
     let menu_urls = urls.clone();
 
     tauri::Builder::default()
