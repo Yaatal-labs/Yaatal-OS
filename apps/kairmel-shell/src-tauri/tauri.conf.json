@@ -10,7 +10,9 @@
   },
   "app": {
     "security": {
-      "capabilities": ["main"]
+      "capabilities": [
+        "main"
+      ]
     },
     "windows": []
   },
@@ -24,5 +26,26 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "com.kairmel.app"
+        ]
+      },
+      "mobile": [
+        {
+          "scheme": [
+            "com.kairmel.app"
+          ],
+          "host": "auth",
+          "path": [
+            "/callback"
+          ],
+          "appLink": false
+        }
+      ]
+    }
   }
 }

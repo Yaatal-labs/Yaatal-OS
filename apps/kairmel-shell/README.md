@@ -93,6 +93,40 @@ to override the defaults, and rebuild after changing them. On a physical
 device, loopback refers to that device rather than your development PC;
 use a reachable HTTPS origin when testing remotely.
 
+## Google sign-in
+
+Google refuses OAuth inside embedded WebViews (`403 disallowed_useragent`), so the shell
+runs it in the system browser and hands the session back through a deep link. The full
+contract shared with the Kairmel server is in [`NATIVE-GOOGLE-AUTH.md`](NATIVE-GOOGLE-AUTH.md);
+the shell side lives in `src-tauri/src/native_auth.rs` (pure, unit-tested) and `lib.rs` (wiring).
+
+1. The page navigates to `<origin>/api/auth/oauth/google[?redirect_url=...]`. The navigation
+   handler cancels it, generates a verifier (32 random bytes, base64url, kept in memory only,
+   one pending login, 10 min TTL) and opens the system browser at the same URL plus
+   `native_challenge=base64url(SHA-256(verifier))`.
+2. After Google, the server shows a page that opens `com.kairmel.app://auth/callback?code=<code>`
+   (button "Retourner dans l'application" as fallback).
+3. The shell receives the deep link, takes (and clears) the verifier, and loads
+   `<origin>/api/auth/native/exchange?code=<code>&verifier=<verifier>` in the main WebView; the
+   server sets the session cookies there. Unknown links, bad codes and missing or expired
+   verifiers are ignored.
+
+Constants: scheme `com.kairmel.app`, host `auth`, path `/callback`, params `native_challenge`,
+`code`, `verifier`. **Server dependency:** the Kairmel server must implement the
+`native_challenge` start and `/api/auth/native/exchange`; without it the browser step works
+but the app never receives a session.
+
+The page gets no Tauri permission for this (`capabilities/main.json` stays empty; the
+deep-link JS API is not exposed). Desktop: the single-instance plugin (with its `deep-link`
+feature) forwards a second launch's URL to the running app. Android: the deep-link plugin
+injects the `com.kairmel.app://auth/callback` intent filter into `AndroidManifest.xml` (the
+block marked `DEEP LINK PLUGIN` is generated; keep it).
+
+**Test on desktop:** install the NSIS build (the installer registers the scheme; a bare
+`cargo run` does not), open the app, click "Google" on the sign-in screen, finish in the
+browser, then click "Retourner dans l'application". The app window regains focus and lands
+signed in.
+
 ## Security model
 
 1. **One window, no local UI.** The window loads `KAIRMEL_URL` directly (or
