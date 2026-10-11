@@ -948,6 +948,93 @@ describe("leaked reasoning", () => {
   });
 });
 
+/**
+ * ASSUMPTION (verify live): `@cf/qwen/qwen3.8-27b` on the Workers AI OpenAI-compatible route
+ * (`/workers-ai/v1/chat/completions`, what upstream.ts calls) streams its thinking as
+ * `delta.reasoning` (not `reasoning_content`), then `delta.content`. With a small max_tokens the
+ * thinking uses the whole budget: usage reports tokens but no `content` is ever sent.
+ */
+describe("qwen3.8 reasoning field (Workers AI shape: delta.reasoning)", () => {
+  const field = (text: string, name: string) => text.split(String.fromCharCode(10))
+    .filter(line => line.startsWith("data: {"))
+    .map(line => (JSON.parse(line.slice(6)) as { choices?: { delta?: Record<string, string> }[] }).choices?.[0]?.delta?.[name] ?? "")
+    .join("");
+
+  it("streams delta.reasoning as reasoning_content when thinking eats the whole budget", async () => {
+    const { api_key } = await newAccount();
+    const { ai } = fakeAi(() => sse([
+      { choices: [{ index: 0, delta: { role: "assistant", content: "" } }] },
+      { choices: [{ index: 0, delta: { reasoning: "Le client " } }] },
+      { choices: [{ index: 0, delta: { reasoning: "veut un prix." } }] },
+      { choices: [{ index: 0, delta: {}, finish_reason: "length" }] },
+      { choices: [], usage: { prompt_tokens: 10, completion_tokens: 600 } },
+    ]));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/qwen3.8-27b", { stream: true, max_tokens: 600 }),
+    }, { AI: ai });
+    const text = await response.text();
+    expect(field(text, "reasoning_content")).toBe("Le client veut un prix.");
+    expect(text).not.toContain('"reasoning":');
+    expect(field(text, "content")).toBe("");
+    expect(text).toContain('"completion_tokens":600');
+  });
+
+  it("separates delta.reasoning from the answer that follows", async () => {
+    const { api_key } = await newAccount();
+    const { ai } = fakeAi(() => sse([
+      { choices: [{ index: 0, delta: { reasoning: "Calcul." } }] },
+      { choices: [{ index: 0, delta: { content: "391." } }] },
+      { choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+    ]));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/qwen3.8-27b", { stream: true }),
+    }, { AI: ai });
+    const text = await response.text();
+    expect(field(text, "reasoning_content")).toBe("Calcul.");
+    expect(field(text, "content")).toBe("391.");
+  });
+
+  it("moves a <think>-prefixed streamed answer into reasoning_content, and a truncated one stays reasoning", async () => {
+    const { api_key } = await newAccount();
+    const { ai } = fakeAi(() => sse([
+      { choices: [{ index: 0, delta: { content: "<thi" } }] },
+      { choices: [{ index: 0, delta: { content: "nk>Je réfl" } }] },
+      { choices: [{ index: 0, delta: { content: "échis" }, finish_reason: "length" }] },
+    ]));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/qwen3.8-27b", { stream: true }),
+    }, { AI: ai });
+    const text = await response.text();
+    expect(field(text, "reasoning_content")).toBe("Je réfléchis");
+    expect(field(text, "content")).toBe("");
+  });
+
+  it("renames message.reasoning on a non-streamed completion and keeps the answer", async () => {
+    const { api_key } = await newAccount();
+    const { ai } = fakeAi(() => Response.json({
+      id: "c1", model: "x",
+      choices: [{ index: 0, message: { role: "assistant", content: "391.", reasoning: "Calcul." }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 5, completion_tokens: 20, total_tokens: 25 },
+    }));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/qwen3.8-27b"),
+    }, { AI: ai });
+    const { choices } = (await response.json()) as { choices: { message: Record<string, string> }[] };
+    expect(choices[0]!.message).toEqual({ role: "assistant", content: "391.", reasoning_content: "Calcul." });
+  });
+
+  it("non-streamed: an unclosed <think> (budget exhausted) becomes reasoning_content", async () => {
+    const { api_key } = await newAccount();
+    const { ai } = fakeAi(() => completion(5, 600, "<think>Je réfléchis longtemps"));
+    const response = await call("/v1/chat/completions", {
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/qwen3.8-27b"),
+    }, { AI: ai });
+    const { choices } = (await response.json()) as { choices: { message: Record<string, string> }[] };
+    expect(choices[0]!.message.content).toBe("");
+    expect(choices[0]!.message.reasoning_content).toBe("Je réfléchis longtemps");
+  });
+});
+
 describe("failover", () => {
   it("falls back from a rate-limited wholesale upstream to Workers AI and bills once", async () => {
     const { api_key } = await newAccount(5_000);
