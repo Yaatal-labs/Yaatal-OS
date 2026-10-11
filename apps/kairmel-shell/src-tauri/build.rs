@@ -3,9 +3,10 @@ fn main() {
     // so cargo must know to recompile when any of them changes.
     for var in [
         "KAIRMEL_URL",
-        "KAIRMEL_PATH_DISCUTER",
+        "KAIRMEL_MARCHE_URL",
         "KAIRMEL_PATH_CREER",
-        "KAIRMEL_PATH_MARCHE",
+        "KAIRMEL_PATH_APPS",
+        "KAIRMEL_PATH_DECOUVRIR",
     ] {
         println!("cargo:rerun-if-env-changed={var}");
     }

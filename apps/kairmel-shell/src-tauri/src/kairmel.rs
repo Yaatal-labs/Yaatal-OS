@@ -8,6 +8,7 @@ use url::Url;
 /// Placeholder default. The real address is supplied at build time via the
 /// `KAIRMEL_URL` environment variable (see README).
 pub const DEFAULT_KAIRMEL_URL: &str = "https://kairmel.com";
+pub const DEFAULT_KAIRMEL_MARCHE_URL: &str = "https://marche.kairmel.com";
 
 /// Default workspace paths, relative to the configured Kairmel origin.
 pub const DEFAULT_PATH_CREER: &str = "/";
@@ -88,12 +89,16 @@ pub fn join_path(base: &Url, path: &str) -> Result<Url, UrlValidationError> {
     base.join(path).map_err(|_| UrlValidationError::Malformed)
 }
 
-/// The three configured Kairmel workspace destinations.
+/// Configured origins and the three Kairmel workspace destinations.
 #[derive(Debug, Clone)]
 pub struct KairmelUrls {
     pub origin: Url,
+    pub marche: Url,
     pub creer: Url,
+    // These URLs are still validated on mobile; only the desktop menu reads them.
+    #[cfg_attr(mobile, allow(dead_code))]
     pub apps: Url,
+    #[cfg_attr(mobile, allow(dead_code))]
     pub decouvrir: Url,
 }
 
@@ -106,10 +111,9 @@ fn origin_key(url: &Url) -> (String, String, Option<u16>) {
 }
 
 /// True when `target` is on one of the configured Kairmel origins (same
-/// scheme, host and port). This is the whole of the navigation allowlist:
-/// anything else - a different site, `mailto:`, `tel:`, a WhatsApp deep
-/// link - is external and must be handed to the system browser/handler
-/// instead of loading in the app window.
+/// scheme, host and port), or on GitHub's HTTPS sign-in endpoints.
+/// Google OAuth must use the system browser: embedded WebViews get
+/// `403 disallowed_useragent` from accounts.google.com.
 pub fn is_internal_navigation(target: &Url, allowed_origins: &[Url]) -> bool {
     if target.scheme() != "http" && target.scheme() != "https" {
         return false;
@@ -118,6 +122,36 @@ pub fn is_internal_navigation(target: &Url, allowed_origins: &[Url]) -> bool {
     allowed_origins
         .iter()
         .any(|origin| origin_key(origin) == target_key)
+        || is_github_sign_in(target)
+}
+
+fn is_github_sign_in(url: &Url) -> bool {
+    if url.scheme() != "https"
+        || url.host_str() != Some("github.com")
+        || url.port_or_known_default() != Some(443)
+        || !url.username().is_empty()
+        || url.password().is_some()
+    {
+        return false;
+    }
+
+    let path = url.path();
+    path == "/login"
+        || path == "/login/oauth"
+        || path.starts_with("/login/oauth/")
+        // The login form itself posts to `/session`; 2FA and verification live under `/sessions/`.
+        || path == "/session"
+        || path == "/sessions"
+        || path.starts_with("/sessions/")
+}
+
+/// Only these schemes may be passed to the OS browser or URL handler.
+/// In particular, Android intent URLs are blocked rather than executed.
+pub fn should_open_externally(url: &Url) -> bool {
+    matches!(
+        url.scheme(),
+        "https" | "http" | "mailto" | "tel" | "whatsapp" | "sms"
+    )
 }
 
 /// True for the app's own bundled assets (the offline page), which are
@@ -131,7 +165,7 @@ pub fn is_local_asset(url: &Url) -> bool {
 
 /// The full stay-in-webview decision used by the window's navigation
 /// handler: local assets are always fine, everything else must resolve to
-/// a configured Kairmel origin.
+/// a configured Kairmel / Marché origin or a GitHub sign-in endpoint.
 pub fn should_stay_in_webview(url: &Url, allowed_origins: &[Url]) -> bool {
     is_local_asset(url) || is_internal_navigation(url, allowed_origins)
 }
@@ -266,6 +300,151 @@ mod tests {
     fn subdomain_is_a_different_origin_unless_configured() {
         let target = Url::parse("https://evil.kairmel.example/").unwrap();
         assert!(!is_internal_navigation(&target, &origins()));
+    }
+
+    #[test]
+    fn marche_origin_stays_in_webview() {
+        let allowed = vec![
+            Url::parse(DEFAULT_KAIRMEL_URL).unwrap(),
+            validate_kairmel_url(DEFAULT_KAIRMEL_MARCHE_URL).unwrap(),
+        ];
+        for raw in [
+            "https://marche.kairmel.com",
+            "https://marche.kairmel.com/products/123?from=kairmel",
+            "https://marche.kairmel.com:443/checkout",
+        ] {
+            assert!(
+                should_stay_in_webview(&Url::parse(raw).unwrap(), &allowed),
+                "{raw}"
+            );
+        }
+        for raw in [
+            "https://marche.kairmel.com.evil.example/",
+            "http://marche.kairmel.com/",
+            "https://marche.kairmel.com:8443/",
+            "https://other.marche.kairmel.com/",
+        ] {
+            assert!(
+                !should_stay_in_webview(&Url::parse(raw).unwrap(), &allowed),
+                "{raw}"
+            );
+        }
+    }
+
+    #[test]
+    fn marche_origin_can_be_overridden() {
+        for raw in ["https://market.example:8443/shop", "http://localhost:3001/"] {
+            let marche = validate_kairmel_url(raw).unwrap();
+            let allowed = vec![marche.clone()];
+            assert!(should_stay_in_webview(
+                &marche.join("/checkout").unwrap(),
+                &allowed
+            ));
+            assert!(!should_stay_in_webview(
+                &Url::parse(DEFAULT_KAIRMEL_MARCHE_URL).unwrap(),
+                &allowed
+            ));
+        }
+    }
+
+    #[test]
+    fn marche_configuration_uses_the_same_validation_rules() {
+        for (raw, error) in [
+            ("not a url", UrlValidationError::Malformed),
+            (
+                "http://marche.kairmel.com",
+                UrlValidationError::HttpNotLoopback,
+            ),
+            (
+                "https://user:pass@marche.kairmel.com",
+                UrlValidationError::ContainsCredentials,
+            ),
+            ("whatsapp://send", UrlValidationError::UnsupportedScheme),
+        ] {
+            assert_eq!(validate_kairmel_url(raw), Err(error), "{raw}");
+        }
+    }
+
+    #[test]
+    fn github_sign_in_stays_in_webview() {
+        for raw in [
+            "https://github.com/login",
+            "https://github.com/login?return_to=%2Flogin%2Foauth%2Fauthorize",
+            "https://github.com/login/oauth",
+            "https://github.com/login/oauth/authorize?client_id=123",
+            "https://github.com/login/oauth/authorize/confirm",
+            "https://github.com/sessions",
+            "https://github.com/session",
+            "https://github.com/sessions/two-factor",
+            "https://github.com/sessions/verified-device",
+        ] {
+            assert!(
+                should_stay_in_webview(&Url::parse(raw).unwrap(), &origins()),
+                "{raw}"
+            );
+        }
+    }
+
+    #[test]
+    fn other_github_urls_and_lookalikes_are_external() {
+        for raw in [
+            "https://github.com/",
+            "https://github.com/yaatal/yaatal-os",
+            "https://github.com/login.evil",
+            "https://github.com/login/other",
+            "https://github.com/login/oauth-evil/authorize",
+            "https://github.com/sessions-evil/two-factor",
+            "https://github.com.evil.example/login",
+            "https://evilgithub.com/login/oauth/authorize",
+            "https://www.github.com/login",
+            "http://github.com/login",
+            "https://github.com:8443/login",
+            "https://user:pass@github.com/login",
+        ] {
+            assert!(
+                !should_stay_in_webview(&Url::parse(raw).unwrap(), &origins()),
+                "{raw}"
+            );
+        }
+    }
+
+    #[test]
+    fn google_sign_in_uses_the_system_browser() {
+        let google =
+            Url::parse("https://accounts.google.com/o/oauth2/v2/auth?client_id=123").unwrap();
+        assert!(!should_stay_in_webview(&google, &origins()));
+        assert!(should_open_externally(&google));
+    }
+
+    #[test]
+    fn explicit_external_schemes_use_the_os_handler() {
+        for raw in [
+            "https://wa.me/221000000000",
+            "http://example.com/",
+            "mailto:hello@kairmel.com",
+            "tel:+221000000000",
+            "whatsapp://send?phone=221000000000",
+            "sms:+221000000000?body=Hello",
+        ] {
+            let url = Url::parse(raw).unwrap();
+            assert!(!should_stay_in_webview(&url, &origins()), "{raw}");
+            assert!(should_open_externally(&url), "{raw}");
+        }
+    }
+
+    #[test]
+    fn unsafe_and_unknown_schemes_are_never_opened_externally() {
+        for raw in [
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+            "data:text/html,hello",
+            "intent://send/#Intent;scheme=whatsapp;end",
+            "ftp://example.com/file",
+            "custom://example.com/",
+            "tauri://localhost/offline.html",
+        ] {
+            assert!(!should_open_externally(&Url::parse(raw).unwrap()), "{raw}");
+        }
     }
 
     // --- is_local_asset / should_stay_in_webview -----------------------------
