@@ -1,12 +1,12 @@
-//! Reads the build-time Kairmel configuration (`KAIRMEL_URL` and the three
+//! Reads the build-time Kairmel configuration (Kairmel / Marché URLs and the three
 //! workspace paths) and turns it into validated URLs. Panicking here is
 //! intentional: a shell pointed at a bad or unsafe URL should refuse to
 //! start rather than silently fall back to something the operator did not
 //! choose.
 
 use crate::kairmel::{
-    join_path, validate_kairmel_url, KairmelUrls, DEFAULT_KAIRMEL_URL, DEFAULT_PATH_APPS,
-    DEFAULT_PATH_CREER, DEFAULT_PATH_DECOUVRIR,
+    join_path, validate_kairmel_url, KairmelUrls, DEFAULT_KAIRMEL_MARCHE_URL, DEFAULT_KAIRMEL_URL,
+    DEFAULT_PATH_APPS, DEFAULT_PATH_CREER, DEFAULT_PATH_DECOUVRIR,
 };
 
 /// Build the configured Kairmel URLs from compile-time environment
@@ -15,6 +15,10 @@ pub fn load() -> KairmelUrls {
     let raw_url = option_env!("KAIRMEL_URL").unwrap_or(DEFAULT_KAIRMEL_URL);
     let origin = validate_kairmel_url(raw_url).unwrap_or_else(|err| {
         panic!("KAIRMEL_URL={raw_url:?} is not a valid Kairmel URL: {err}");
+    });
+    let raw_marche_url = option_env!("KAIRMEL_MARCHE_URL").unwrap_or(DEFAULT_KAIRMEL_MARCHE_URL);
+    let marche = validate_kairmel_url(raw_marche_url).unwrap_or_else(|err| {
+        panic!("KAIRMEL_MARCHE_URL={raw_marche_url:?} is not a valid Marché URL: {err}");
     });
 
     let creer_path = option_env!("KAIRMEL_PATH_CREER").unwrap_or(DEFAULT_PATH_CREER);
@@ -30,6 +34,7 @@ pub fn load() -> KairmelUrls {
 
     KairmelUrls {
         origin,
+        marche,
         creer,
         apps,
         decouvrir,

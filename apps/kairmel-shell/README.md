@@ -1,9 +1,9 @@
-# Kairmel desktop shell
+# Kairmel shell
 
 A thin Tauri 2 window around the Kairmel web app. Kairmel's product *is* the
 web app (**Créer**, **Mes apps** and **Découvrir**, as in its sidebar); this shell
 only installs, launches and hosts it — there is no bundled UI, no sidecar,
-no local server. Windows-first for now, kept cross-platform-clean.
+no local server. Windows desktop and Android share the same hosted web app.
 
 ## Run it in dev
 
@@ -26,7 +26,7 @@ pnpm tauri build --bundles nsis          # targets https://kairmel.com
 KAIRMEL_URL=https://staging.example pnpm tauri build --bundles nsis   # another origin
 ```
 
-`KAIRMEL_URL` (and the workspace paths below) are read with Rust's
+`KAIRMEL_URL`, `KAIRMEL_MARCHE_URL` and the workspace paths below are read with Rust's
 `option_env!` — i.e. at **compile time**. They must be set in the
 environment *before* `cargo`/`tauri build` runs; changing them means
 rebuilding. The installer lands in
@@ -37,14 +37,61 @@ rebuilding. The installer lands in
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `KAIRMEL_URL` | `https://kairmel.com` | The Kairmel origin. Must be `https://`, or `http://` on loopback only. |
+| `KAIRMEL_MARCHE_URL` | `https://marche.kairmel.com` | The Marché origin allowed in-app. Uses the same URL validation as `KAIRMEL_URL`. |
 | `KAIRMEL_PATH_CREER` | `/` | Path for the **Créer** menu entry (start a site by voice or chat). |
 | `KAIRMEL_PATH_APPS` | `/apps` | Path for the **Mes apps** menu entry. |
 | `KAIRMEL_PATH_DECOUVRIR` | `/discover` | Path for the **Découvrir** menu entry. |
 
 Each path is resolved against `KAIRMEL_URL`'s origin (`src-tauri/src/config.rs`).
-The window opens on **Créer**; the native menu bar switches between the
+The window opens on **Créer**; on desktop the native menu bar switches between the
 three. None of this is business logic baked into the shell — it's all
 configuration, read once at build time.
+
+## Android
+
+Install JDK 17 and the Android SDK (including platform tools, build tools and
+an SDK platform), plus NDK 27 via Android Studio's SDK Manager. Set these
+Android build environment variables before running the CLI:
+
+| Variable | Meaning |
+| --- | --- |
+| `ANDROID_HOME` | Absolute path to the Android SDK (usually `%LOCALAPPDATA%/Android/Sdk` on Windows). |
+| `NDK_HOME` | Absolute path to the installed NDK 27 directory under the SDK's `ndk/` directory. |
+
+Add the Rust targets, then initialize and build from `apps/kairmel-shell`:
+
+```bash
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+pnpm tauri android init
+pnpm tauri android build --apk --target aarch64 --target armv7
+```
+
+The generated `src-tauri/gen/android/` project is committed; generated schemas
+and build outputs stay ignored. The APK lands in
+`src-tauri/gen/android/app/build/outputs/apk/universal/release/`.
+
+**Signing.** A release APK is signed only when `src-tauri/gen/android/keystore.properties`
+exists (gitignored, never committed) with `storeFile`, `storePassword`, `keyAlias` and
+`keyPassword`; without it Gradle produces an unsigned APK that phones refuse to install.
+Tester builds use a test key (`kairmel-test`) kept outside the repo; a Play Store release
+needs its own upload key, and testers will have to uninstall the test build first (Android
+refuses an update signed by a different key). `--debug` builds need no keystore but bundle
+debug symbols (~125 MB), so don't hand those to testers.
+
+`src-tauri/tauri.android.conf.json` is merged into the base config by Tauri 2.
+It sets the Android package name to `com.kairmel.app` and disables desktop
+bundle targets; the desktop identifier remains `com.kairmel.desktop`.
+Android has no native menu, single-instance plugin or window-state plugin;
+navigation uses kairmel.com's own UI. GitHub sign-in stays inside the app.
+Google sign-in opens the system browser for now because Google blocks OAuth
+in embedded WebViews (`403 disallowed_useragent`); there is no browser-to-app
+authentication handoff yet.
+
+Both URL settings, `KAIRMEL_URL` and the new `KAIRMEL_MARCHE_URL`, are read
+with `option_env!` at compile time on Android too. Set them before building
+to override the defaults, and rebuild after changing them. On a physical
+device, loopback refers to that device rather than your development PC;
+use a reachable HTTPS origin when testing remotely.
 
 ## Security model
 
@@ -56,15 +103,20 @@ configuration, read once at build time.
    `dialog`. The Kairmel web app runs exactly as it would in a plain browser
    tab, and so does the local offline page that shares the same window.
 3. **Navigation allowlist.** `src-tauri/src/kairmel.rs` decides, for every
-   navigation, whether the target is the same origin as `KAIRMEL_URL` (stays
-   in the window) or the app's own bundled asset (also stays). Everything
-   else — a different site, `wa.me`, `mailto:`, `tel:` — is denied in the
-   webview and handed to the system browser/handler via `tauri-plugin-opener`
-   instead (`src-tauri/src/lib.rs`, the `on_navigation` handler).
-4. **URL validation.** Both `KAIRMEL_URL` and the resolved workspace paths
+   navigation, whether the target is the same origin as `KAIRMEL_URL` or
+   `KAIRMEL_MARCHE_URL`, an HTTPS GitHub sign-in endpoint (`github.com/login`,
+   `/login/oauth` and its descendants, `/sessions` and its descendants), or
+   the app's own bundled asset. These stay in the window. Other GitHub pages
+   and Google sign-in stay external. External `https`, `http`, `mailto`,
+   `tel`, `whatsapp` and `sms` URLs (including `https://wa.me/...`) go to the
+   OS browser/handler via `tauri-plugin-opener` on desktop and Android.
+   All other schemes, including `javascript`, `file`, `data` and `intent`,
+   are blocked. The Rust navigation handler uses `OpenerExt`, so it needs
+   no webview opener capability (`src-tauri/src/lib.rs`).
+4. **URL validation.** `KAIRMEL_URL` and `KAIRMEL_MARCHE_URL`
    are validated: `https` anywhere, `http` only on loopback (dev), never
    with embedded credentials (`validate_kairmel_url` in `kairmel.rs`). An
-   invalid `KAIRMEL_URL` fails the build loudly rather than silently falling
+   invalid URL setting refuses to start loudly rather than silently falling
    back to something nobody chose.
 5. **Reachability, not trust.** The one native→network thing the shell does
    on its own is a short TCP reachability probe to decide the *initial*
@@ -89,7 +141,9 @@ configuration, read once at build time.
 
 - `src-tauri/src/kairmel.rs` — Rust unit tests for URL validation
   (`validate_kairmel_url`) and the navigation allowlist decision
-  (`is_internal_navigation`, `is_local_asset`, `should_stay_in_webview`).
+  (`is_internal_navigation`, `is_local_asset`, `should_stay_in_webview`),
+  including Marché, GitHub OAuth, Google exclusion and the external scheme
+  allowlist (`should_open_externally`).
   Run with `cargo test` from `src-tauri/`.
 - `test/offline.test.mjs` — Vitest tests for the local offline page's pure
   JS (the reachability probe and the retry button wiring). Run with
@@ -105,8 +159,9 @@ apps/kairmel-shell/
   src-tauri/
     src/kairmel.rs        URL validation + navigation allowlist (unit tested)
     src/reachability.rs   startup TCP reachability probe
-    src/config.rs         reads KAIRMEL_URL / workspace paths at build time
-    src/menu.rs           native Créer / Mes apps / Découvrir menu
+    src/config.rs         reads Kairmel / Marché URLs and workspace paths at build time
+    src/menu.rs           desktop native Créer / Mes apps / Découvrir menu
     src/lib.rs            window setup, on_navigation handler, plugins
     capabilities/main.json  empty permission set for the "main" window
+    tauri.android.conf.json  Android package identifier and bundle overrides
 ```
