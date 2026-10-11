@@ -776,7 +776,7 @@ describe("leaked reasoning", () => {
     expect(choices[0]!.message).toEqual({ role: "assistant", content: "Waaw, mangi fi." });
   });
 
-  it("holds a flagged model's stream until </think>, even when the tag is split across chunks", async () => {
+  it("streams a flagged model's reasoning live, even when the tag is split across chunks", async () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => sse([
       { choices: [{ index: 0, delta: { role: "assistant", content: "Il faut " } }] },
@@ -796,7 +796,7 @@ describe("leaked reasoning", () => {
     expect(text.trimEnd().endsWith("data: [DONE]")).toBe(true);
   });
 
-  it("sends a flagged model's untagged stream whole, at the latest when the choice finishes", async () => {
+  it("streams an untagged answer as reasoning and repeats it as content when the choice finishes", async () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => sse([
       { choices: [{ index: 0, delta: { content: "Mangi " } }] },
@@ -807,10 +807,10 @@ describe("leaked reasoning", () => {
     }, { AI: ai, WORKERS_PAID: "true" });
     const text = await response.text();
     expect(streamed(text, "content")).toBe("Mangi fi rekk.");
-    expect(streamed(text, "reasoning_content")).toBe("");
+    expect(streamed(text, "reasoning_content")).toBe("Mangi fi rekk.");
   });
 
-  it("stops holding once the upstream sends its own reasoning field", async () => {
+  it("passes through once the upstream sends its own reasoning field", async () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => sse([
       { choices: [{ index: 0, delta: { reasoning_content: "Je calcule." } }] },
