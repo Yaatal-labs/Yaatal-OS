@@ -168,3 +168,142 @@ export function thinkingOutOfStream(): TransformStream<Uint8Array, Uint8Array> {
     },
   });
 }
+
+/**
+ * Workers AI's OpenAI-compatible route returns Qwen3.x reasoning as `reasoning` (some builds use
+ * `reasoning_content`) and never `<think>` in `content`. Clients only read `reasoning_content`, so a
+ * model whose thinking used the whole `max_tokens` looked empty (usage > 0, no text). This renames
+ * the field on a non-streamed completion; it also moves an unclosed leading `<think>` (a truncated
+ * answer) out of `content`. Everything else is left alone.
+ */
+export function normalizeReasoning(completion: Record<string, unknown>): Record<string, unknown> {
+  const choices = completion.choices;
+  if (!Array.isArray(choices)) return completion;
+  for (const choice of choices) {
+    const message = (choice as { message?: Record<string, unknown> }).message;
+    if (!message) continue;
+    if (typeof message.reasoning === "string") {
+      message.reasoning_content = join(message.reasoning_content, message.reasoning);
+      delete message.reasoning;
+    }
+    if (typeof message.content === "string" && message.content.trimStart().startsWith(OPEN) && !message.content.includes(CLOSE)) {
+      message.reasoning_content = join(message.reasoning_content, message.content.trimStart().slice(OPEN.length).trim());
+      message.content = "";
+    }
+  }
+  return completion;
+}
+
+type Mode = { kind: "start" | "think" | "pass"; held: string };
+
+/**
+ * Streamed counterpart of `normalizeReasoning`, applied to every model: `delta.reasoning` becomes
+ * `delta.reasoning_content`, and a `<think>`-prefixed answer streams as reasoning until `</think>`.
+ * Content that does not start with `<think>` passes through untouched (only a possible tag prefix is
+ * held back), so models that already behave are unaffected.
+ */
+export function reasoningFieldInStream(): TransformStream<Uint8Array, Uint8Array> {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  const modes = new Map<number, Mode>();
+  let pending = "";
+  let template: Event | null = null;
+
+  const append = (delta: Delta, key: "content" | "reasoning_content", text: string) => {
+    if (text) delta[key] = (typeof delta[key] === "string" ? delta[key] : "") + text;
+  };
+
+  const handle = (choice: Choice) => {
+    const index = choice.index ?? 0;
+    const delta = choice.delta;
+    if (!delta) return;
+    const mode = modes.get(index) ?? { kind: "start", held: "" };
+    modes.set(index, mode);
+    if (typeof delta.reasoning === "string") {
+      const text = delta.reasoning;
+      delete delta.reasoning;
+      append(delta, "reasoning_content", text);
+      if (mode.kind === "start") mode.kind = "pass"; // the upstream separates reasoning itself
+    }
+    if (typeof delta.content === "string" && mode.kind !== "pass") {
+      let text = mode.held + delta.content;
+      mode.held = "";
+      delete delta.content;
+      if (mode.kind === "start") {
+        if (text.startsWith(OPEN)) {
+          text = text.slice(OPEN.length);
+          mode.kind = "think";
+        } else if (OPEN.startsWith(text)) {
+          mode.held = text;
+          text = "";
+        } else {
+          mode.kind = "pass";
+          append(delta, "content", text);
+          text = "";
+        }
+      }
+      if (mode.kind === "think") {
+        const at = text.indexOf(CLOSE);
+        if (at >= 0) {
+          append(delta, "reasoning_content", text.slice(0, at));
+          append(delta, "content", text.slice(at + CLOSE.length).trimStart());
+          mode.kind = "pass";
+        } else {
+          for (let length = Math.min(text.length, CLOSE.length - 1); length > 0; length--) {
+            if (!text.endsWith(CLOSE.slice(0, length))) continue;
+            mode.held = text.slice(-length);
+            text = text.slice(0, -length);
+            break;
+          }
+          append(delta, "reasoning_content", text);
+        }
+      }
+    }
+    if (choice.finish_reason != null) flushHeld(index, delta);
+  };
+
+  /** Text still held back when a choice ends: it was never a complete tag. */
+  const flushHeld = (index: number, delta: Delta) => {
+    const mode = modes.get(index);
+    modes.delete(index);
+    if (mode?.held) append(delta, mode.kind === "think" ? "reasoning_content" : "content", mode.held);
+  };
+
+  const drain = (): string => {
+    const choices = [...modes.keys()].map(index => {
+      const delta: Delta = {};
+      flushHeld(index, delta);
+      return { index, delta };
+    }).filter(choice => Object.keys(choice.delta).length);
+    return choices.length ? `data: ${JSON.stringify({ ...template, choices })}\n\n` : "";
+  };
+
+  const rewrite = (line: string): string => {
+    if (line.trimEnd() === "data: [DONE]") return drain() + line;
+    if (!line.startsWith("data: {")) return line;
+    try {
+      const event = JSON.parse(line.slice(6)) as Event;
+      if (!Array.isArray(event.choices) || !event.choices.length) return line;
+      const { choices: _, usage: __, ...rest } = event;
+      template = rest;
+      event.choices.forEach(handle);
+      return `data: ${JSON.stringify(event)}`;
+    } catch {
+      return line;
+    }
+  };
+
+  return new TransformStream({
+    transform(chunk, controller) {
+      pending += decoder.decode(chunk, { stream: true });
+      const lines = pending.split("\n");
+      pending = lines.pop()!;
+      if (lines.length) controller.enqueue(encoder.encode(lines.map(rewrite).join("\n") + "\n"));
+    },
+    flush(controller) {
+      pending += decoder.decode();
+      const tail = (pending ? rewrite(pending) + "\n\n" : "") + drain();
+      if (tail) controller.enqueue(encoder.encode(tail));
+    },
+  });
+}
