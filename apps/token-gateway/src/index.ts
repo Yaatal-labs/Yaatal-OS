@@ -8,14 +8,17 @@
 //   GET  /v1/models                     models and their FCFA prices
 //   POST /v1/chat/completions           OpenAI chat completions, streaming or not
 //   GET  /v1/balance                    the key's balance and recent ledger rows
+//   PUT  /admin/accounts/by-pid/:pid    create or return an Engine user's account (admin or issuer)
+//   GET  /admin/accounts/by-pid/:pid    resolve a buyer's account (admin or credit token)
+//   GET  /admin/accounts/by-pid/:pid/activity?limit=50  balance, recent rows, 30-day model spend (max 200 rows)
 //   POST /admin/accounts                {name, credit_xof?, issuer?}  -> account + first key (shown once)
 //   POST /admin/accounts/:id/keys       {label}               -> another key on the account (shown once)
 //   POST /admin/accounts/:id/credits    {xof, note, payment_ref?}  -> new balance, and whether it was applied
 //   POST /admin/accounts/:id/issuer     {issuer|null}        assign/clear which issuer may mint or revoke its keys
 //   POST /admin/keys/revoke             {key}                revoke by raw key
 //   DELETE /admin/keys/:id                                   revoke by key id (no raw key needed)
-//   The two key routes also accept KEY_ISSUER_TOKEN, a narrower token for a platform that mints
-//   per-app keys: it cannot create accounts, add credit, read reports, or touch an account that
+//   Key routes, the pid upsert and account activity also accept KEY_ISSUER_TOKEN, a narrower token
+//   for a platform that mints per-app keys: it cannot add credit, read global reports, or touch an account that
 //   isn't assigned (accounts.issuer) to its own KEY_ISSUER_NAME -- that account 404s, same as one
 //   that doesn't exist. KEY_ISSUER_NAME unset refuses the token entirely.
 //   GET  /admin/usage?days=30           sign-ups, credits, usage, refused requests, per model/account/day
@@ -30,7 +33,7 @@
 import { allowsDataClass, availableModels, costOf, DATA_CLASSES, findModel, type DataClass, type ModelOffer } from "./models.js";
 import {
   PaymentRefConflictError, UnknownAccountError, accountByPid, accountForKey, accountIssuer, createAccount, createKey, credit, debitUsage,
-  keyAccountIssuer, recentLedger, revokeKey, revokeKeyById, setAccountIssuer, upsertAccountByPid,
+  keyAccountIssuer, recentLedger, revokeKey, revokeKeyById, setAccountIssuer, upsertAccountByPid, usageByModel,
 } from "./ledger.js";
 import { callUpstreams, type UpstreamEnv } from "./upstream.js";
 import { home, usage, type SiteEnv } from "./site.js";
@@ -45,8 +48,8 @@ export interface Env extends UpstreamEnv, SiteEnv {
   WORKERS_PAID?: string;
   ADMIN_TOKEN?: string;
   /**
-   * Narrower token for a platform that mints and revokes keys for its users: no credits, no
-   * accounts, and only on accounts an admin has assigned (accounts.issuer) to KEY_ISSUER_NAME.
+   * Narrower token for a platform that mints and revokes keys, upserts Engine accounts and reads
+   * their activity: no credits, and only on accounts whose issuer matches KEY_ISSUER_NAME.
    */
   KEY_ISSUER_TOKEN?: string;
   /** Which accounts.issuer value KEY_ISSUER_TOKEN may act on. Unset refuses the token entirely. */
@@ -76,6 +79,9 @@ export default {
       if (url.pathname === "/v1/chat/completions" && request.method === "POST") return await chat(request, env, ctx);
       if (url.pathname === "/v1/balance" && request.method === "GET") return await balance(request, env);
       if (url.pathname === "/admin/usage" && request.method === "GET") return await usageAdmin(request, env, url);
+      if (/^\/admin\/accounts\/by-pid\/[^/]+\/activity$/.test(url.pathname) && request.method === "GET") {
+        return await adminActivityByPid(request, env, url);
+      }
       if (url.pathname.startsWith("/admin/accounts/by-pid/") && request.method === "GET") {
         return await adminGetByPid(request, env, url.pathname);
       }
@@ -302,18 +308,22 @@ async function balance(request: Request, env: Env): Promise<Response> {
   return Response.json({
     account: { id: account.id, name: account.name },
     balance_xof: account.balanceUxof / UXOF,
-    recent: rows.map(row => ({
-      kind: row.kind,
-      amount_xof: Number(row.amount_uxof) / UXOF,
-      model: row.model,
-      input_tokens: row.input_tokens,
-      output_tokens: row.output_tokens,
-      estimated: row.estimated === 1,
-      note: row.note,
-      payment_ref: row.payment_ref,
-      at: row.created_at,
-    })),
+    recent: ledgerRows(rows),
   });
+}
+
+function ledgerRows(rows: Awaited<ReturnType<typeof recentLedger>>) {
+  return rows.map(row => ({
+    kind: row.kind,
+    amount_xof: Number(row.amount_uxof) / UXOF,
+    model: row.model,
+    input_tokens: row.input_tokens,
+    output_tokens: row.output_tokens,
+    estimated: row.estimated === 1,
+    note: row.note,
+    payment_ref: row.payment_ref,
+    at: row.created_at,
+  }));
 }
 
 /**
@@ -413,6 +423,34 @@ async function adminGetByPid(request: Request, env: Env, path: string): Promise<
   const account = await accountByPid(env.DB, pid);
   if (!account) throw new HttpError(404, "not_found", "No such account.");
   return Response.json({ id: account.id, engine_pid: pid, balance_xof: account.balanceUxof / UXOF });
+}
+
+/** Account activity is visible to the admin or the account's own issuer. */
+async function adminActivityByPid(request: Request, env: Env, url: URL): Promise<Response> {
+  const isAdminToken = await isAdmin(request, env);
+  const asIssuer = isAdminToken ? null : await keyIssuerName(request, env);
+  if (!isAdminToken && !asIssuer) throw new HttpError(401, "unauthorized", "Admin token required.");
+  const pid = enginePid(url.pathname.slice("/admin/accounts/by-pid/".length, -"/activity".length));
+  const account = await accountByPid(env.DB, pid);
+  if (!account || (asIssuer && account.issuer !== asIssuer)) {
+    throw new HttpError(404, "not_found", "No such account.");
+  }
+  const requestedLimit = Number(url.searchParams.get("limit") ?? "50");
+  if (!Number.isInteger(requestedLimit)) {
+    throw new HttpError(400, "invalid_request", "limit must be a whole number.");
+  }
+  const limit = Math.max(1, Math.min(200, requestedLimit));
+  const [recent, byModel] = await Promise.all([
+    recentLedger(env.DB, account.id, limit),
+    usageByModel(env.DB, account.id),
+  ]);
+  return Response.json({
+    id: account.id,
+    engine_pid: pid,
+    balance_xof: account.balanceUxof / UXOF,
+    recent: ledgerRows(recent),
+    by_model: byModel,
+  }, { headers: { "cache-control": "no-store" } });
 }
 
 async function adminDelete(request: Request, env: Env, path: string): Promise<Response> {

@@ -639,7 +639,7 @@ ${story()}
   <p class="sub">Kairmel, les sites qu'il construit, vos objets et votre propre code passent par la même API. Une clé, un solde en FCFA, une facture. Si un modèle ne répond pas, un autre prend le relais, sauf si vous l'interdisez (<code>x-yaatal-no-failover</code>).</p>
   <figure class="flowfig"><svg class="api-flow" viewBox="0 0 720 360" role="img" aria-labelledby="af-title af-desc" xmlns="http://www.w3.org/2000/svg">
 <title id="af-title">Comment fonctionne l'API Kairmel</title>
-<desc id="af-desc">Votre app, un site Kairmel ou le constructeur appellent api.kairmel.com avec une seule clé. Chaque appel est payé sur un solde en FCFA, puis servi par un modèle du catalogue. Le solde se recharge depuis Kairmel, sur la fiche de paiement.</desc>
+<desc id="af-desc">Votre app, un site Kairmel ou l'Artisan appellent api.kairmel.com avec une seule clé. Chaque appel est payé sur un solde en FCFA, puis servi par un modèle du catalogue. Le solde se recharge depuis Kairmel, sur la fiche de paiement.</desc>
 <style>
 .api-flow{width:100%;height:auto;display:block;font-family:'Hanken Grotesk',ui-sans-serif,system-ui,sans-serif;color:inherit}
 .api-flow .ln{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -664,7 +664,7 @@ ${story()}
   <text class="lbl" x="66" y="130">Un site Kairmel</text><text class="sub" x="66" y="148">construit avec vous</text>
   <rect class="box" x="20" y="178" width="190" height="56" rx="14"/>
   <rect class="box" x="36" y="195" width="18" height="22" rx="5"/><path class="ln" d="M42 200v12M48 200v12"/>
-  <text class="lbl" x="66" y="204">Le constructeur</text><text class="sub" x="66" y="222">Kairmel lui-même</text>
+  <text class="lbl" x="66" y="204">L'Artisan</text><text class="sub" x="66" y="222">l'agent IA de Kairmel</text>
 </g>
 <path class="ln flow" d="M210 58C252 58 254 110 290 124"/>
 <path class="ln flow" d="M210 132H290"/>
