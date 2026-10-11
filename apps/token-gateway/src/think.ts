@@ -7,12 +7,6 @@
 const OPEN = "<think>";
 const CLOSE = "</think>";
 
-/**
- * How much streamed content is held back waiting for `</think>`. Past this, the held text is sent
- * as ordinary content: a long answer with no tag should not wait until the end.
- */
-export const HOLD_LIMIT = 8_000;
-
 /** Splits `content` at the first `</think>`; null when there is none. */
 export function splitThinking(content: string): { reasoning: string; content: string } | null {
   const at = content.indexOf(CLOSE);
@@ -44,75 +38,116 @@ function join(existing: unknown, reasoning: string) {
 type Delta = Record<string, unknown>;
 type Choice = { index?: number; delta?: Delta; finish_reason?: unknown };
 type Event = { choices?: Choice[] } & Record<string, unknown>;
+type Thinking = { suffix: string; text: string; opening: boolean };
 
 /**
- * The streaming version: per choice, content is held back until `</think>` arrives (the held text
- * becomes `reasoning_content`), the upstream sends real reasoning fields, the choice finishes, or
- * HOLD_LIMIT is reached; after that the choice streams through untouched.
+ * Streams content as reasoning until `</think>`, holding only a possible tag fragment. A choice
+ * that finishes without the closing tag also gets the full text as content, in case it was an answer.
  */
 export function thinkingOutOfStream(): TransformStream<Uint8Array, Uint8Array> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
-  const held = new Map<number, string>();
+  const thinking = new Map<number, Thinking>();
   const passing = new Set<number>();
+  const trimming = new Set<number>();
   let pending = "";
   let template: Event | null = null;
 
   const release = (index: number, delta: Delta) => {
-    const text = held.get(index) ?? "";
-    held.delete(index);
+    const state = thinking.get(index);
+    thinking.delete(index);
     passing.add(index);
-    if (text) delta.content = text + (typeof delta.content === "string" ? delta.content : "");
+    trimming.delete(index);
+    if (!state) return;
+    if (state.suffix) {
+      delta.reasoning_content = (typeof delta.reasoning_content === "string" ? delta.reasoning_content : "") + state.suffix;
+    }
+    const text = state.text + state.suffix;
+    if (text) delta.content = text;
   };
 
-  const handle = (choice: Choice) => {
+  const handle = (choice: Choice): Choice | undefined => {
     const index = choice.index ?? 0;
-    if (passing.has(index)) return;
+    if (passing.has(index)) {
+      const delta = choice.delta;
+      // Whitespace after the closing tag can span several deltas.
+      if (trimming.has(index) && typeof delta?.content === "string") {
+        delta.content = delta.content.trimStart();
+        if (delta.content) trimming.delete(index);
+      }
+      if (choice.finish_reason != null) trimming.delete(index);
+      return;
+    }
     const delta = (choice.delta ??= {});
     if (typeof delta.reasoning_content === "string" || typeof delta.reasoning === "string") {
-      release(index, delta);   // the upstream separates reasoning itself: nothing to fix
+      const suffix = thinking.get(index)?.suffix;
+      thinking.delete(index);
+      passing.add(index);   // the upstream separates reasoning itself: nothing to fix
+      if (suffix) return { index, delta: { reasoning_content: suffix } };
       return;
     }
     if (typeof delta.content === "string") {
-      const text = (held.get(index) ?? "") + delta.content;
+      const state = thinking.get(index) ?? { suffix: "", text: "", opening: true };
+      thinking.set(index, state);
+      let text = state.suffix + delta.content;
+      state.suffix = "";
       delete delta.content;
-      const split = splitThinking(text);
-      if (split) {
-        held.delete(index);
+      if (state.opening && text) {
+        if (text.startsWith(OPEN)) {
+          text = text.slice(OPEN.length);
+          state.opening = false;
+        } else if (OPEN.startsWith(text)) {
+          state.suffix = text;
+          text = "";
+        } else {
+          state.opening = false;
+        }
+      }
+      const at = text.indexOf(CLOSE);
+      if (at >= 0) {
+        thinking.delete(index);
         passing.add(index);
-        if (split.reasoning) delta.reasoning_content = split.reasoning;
-        if (split.content) delta.content = split.content;
-      } else if (text.length > HOLD_LIMIT) {
-        held.set(index, text);
-        release(index, delta);
+        if (at) delta.reasoning_content = text.slice(0, at);
+        const content = text.slice(at + CLOSE.length).trimStart();
+        if (content) delta.content = content;
+        else trimming.add(index);
       } else {
-        held.set(index, text);
+        for (let length = Math.min(text.length, CLOSE.length - 1); length > 0; length--) {
+          if (!text.endsWith(CLOSE.slice(0, length))) continue;
+          state.suffix = text.slice(-length);
+          text = text.slice(0, -length);
+          break;
+        }
+        if (text) delta.reasoning_content = text;
+        state.text += text;
       }
     }
     if (choice.finish_reason != null) release(index, delta);
   };
 
-  /** An event carrying whatever is still held, as ordinary content; "" when nothing is held. */
+  /** An event carrying unfinished choices' full answers; "" when there is nothing to release. */
   const drain = (): string => {
-    if (!held.size) return "";
-    const choices = [...held.keys()].map(index => {
+    if (!thinking.size) return "";
+    const choices = [...thinking.keys()].map(index => {
       const delta: Delta = {};
       release(index, delta);
       return { index, delta };
-    });
+    }).filter(choice => Object.keys(choice.delta).length);
+    if (!choices.length) return "";
     return `data: ${JSON.stringify({ ...template, choices })}\n\n`;
   };
 
   const rewrite = (line: string): string => {
-    if (line === "data: [DONE]") return drain() + line;
+    if (line.trimEnd() === "data: [DONE]") return drain() + line;
     if (!line.startsWith("data: {")) return line;
     try {
       const event = JSON.parse(line.slice(6)) as Event;
-      if (!Array.isArray(event.choices)) return line;
+      if (!Array.isArray(event.choices) || !event.choices.length) return line;
       const { choices: _, usage: __, ...rest } = event;
       template = rest;
-      event.choices.forEach(handle);
-      return `data: ${JSON.stringify(event)}`;
+      const extra = event.choices.map(handle).filter(choice => choice !== undefined);
+      const prefix = extra.length ? `data: ${JSON.stringify({ ...template, choices: extra })}\n\n` : "";
+      return prefix + `data: ${JSON.stringify(event)}`;
     } catch {
       return line;
     }
@@ -127,8 +162,8 @@ export function thinkingOutOfStream(): TransformStream<Uint8Array, Uint8Array> {
     },
     flush(controller) {
       pending += decoder.decode();
-      // A stream that ends without [DONE] still gets what was held.
-      const tail = (pending ? rewrite(pending) + "\n" : "") + drain();
+      // A stream that ends without [DONE] still gets each unfinished answer.
+      const tail = (pending ? rewrite(pending) + "\n\n" : "") + drain();
       if (tail) controller.enqueue(encoder.encode(tail));
     },
   });
