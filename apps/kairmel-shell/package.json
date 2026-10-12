@@ -1,6 +1,6 @@
 {
   "name": "@yaatal/kairmel-shell",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Thin Tauri 2 desktop shell that hosts the Kairmel web app.",
