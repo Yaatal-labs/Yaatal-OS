@@ -142,6 +142,26 @@ at a running instance of this Worker with `VITE_CATALOGUE_URL=http://localhost:8
 its Vite dev server also proxies `/v1/*` to `http://localhost:8787` by default, so the sign-in
 flow works there too. See `apps/marche/README.md`.
 
+## Production (since 2026-10-11)
+
+Live at `https://marche.kairmel.com` (Worker `yaatal-marche-api`, D1 `yaatal-marche-api` in WEUR).
+The committed `wrangler.jsonc` keeps the placeholder `database_id`; deploys use an untracked
+`wrangler.production.jsonc` with the real id and these routes:
+
+```jsonc
+"routes": [
+  { "pattern": "marche.kairmel.com", "custom_domain": true },
+  { "pattern": "marche.kairmel.com/*", "zone_name": "kairmel.com" }
+]
+```
+
+The second, zone-level route is required: the kairmel.com zone has a `*kairmel.com/*` route to
+Kairmel's own Worker (it serves user apps on subdomains), and that route wins over a bare custom
+domain. Without the specific route, every request returns Kairmel's "This application is not
+currently available." 404. `api.kairmel.com` (the token gateway) uses the same pair.
+
+Build `apps/marche` with `VITE_CATALOGUE_URL=https://marche.kairmel.com` before deploying.
+
 ## What's deliberately not here
 
 - **No payments, no auth beyond the tokens/secrets above.** Créer and the founder's own tooling
