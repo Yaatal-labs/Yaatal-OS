@@ -2,20 +2,73 @@ mod config;
 mod kairmel;
 #[cfg(desktop)]
 mod menu;
+mod native_auth;
 mod reachability;
 
-use std::time::Duration;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
-#[cfg(desktop)]
 use tauri::Manager;
-use tauri::{WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_opener::OpenerExt;
 
 use kairmel::{should_open_externally, should_stay_in_webview};
+use native_auth::PendingLogin;
+use url::Url;
 
 const MAIN_WINDOW: &str = "main";
 const OFFLINE_PAGE: &str = "offline.html";
 const REACHABILITY_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// Start a native Google sign-in: remember a fresh verifier and open the
+/// system browser at the start URL carrying the matching challenge.
+fn start_native_google_login(app: &AppHandle, pending: &PendingLogin, start: &Url) {
+    let verifier = match native_auth::generate_verifier() {
+        Ok(v) => v,
+        Err(err) => {
+            eprintln!("native google sign-in: no secure randomness available: {err}");
+            return;
+        }
+    };
+    let target =
+        native_auth::build_system_browser_url(start, &native_auth::challenge_for(&verifier));
+    pending.begin(verifier, Instant::now());
+    if let Err(err) = app.opener().open_url(target.as_str(), None::<&str>) {
+        eprintln!("native google sign-in: could not open the system browser: {err}");
+    }
+}
+
+/// Handle `com.kairmel.app://auth/callback?code=...`: on a valid link with a
+/// live pending verifier, load the exchange URL in the main WebView. Anything
+/// else is ignored without navigating.
+fn handle_deep_link(app: &AppHandle, origin: &Url, pending: &PendingLogin, link: &Url) {
+    let Some(code) = native_auth::parse_callback(link) else {
+        eprintln!("native google sign-in: ignoring unrecognised deep link");
+        return;
+    };
+    let Some(verifier) = pending.take(Instant::now()) else {
+        eprintln!("native google sign-in: no pending login (missing, used or expired); ignoring");
+        return;
+    };
+    let Some(exchange) = native_auth::build_exchange_url(origin, &code, &verifier) else {
+        eprintln!("native google sign-in: could not build the exchange URL");
+        return;
+    };
+    let Some(window) = app.get_webview_window(MAIN_WINDOW) else {
+        eprintln!("native google sign-in: main window not found");
+        return;
+    };
+    if let Err(err) = window.navigate(exchange) {
+        eprintln!("native google sign-in: navigation failed: {err}");
+        return;
+    }
+    #[cfg(desktop)]
+    {
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -37,6 +90,7 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build());
 
     builder
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .setup(move |app| {
             let reachable = reachability::is_reachable(&urls.origin, REACHABILITY_TIMEOUT);
@@ -48,6 +102,19 @@ pub fn run() {
 
             let nav_origins = allowed_origins.clone();
             let app_handle = app.handle().clone();
+            let pending = Arc::new(PendingLogin::default());
+            let kairmel_origin = urls.origin.clone();
+
+            {
+                let app_handle = app_handle.clone();
+                let pending = pending.clone();
+                let kairmel_origin = kairmel_origin.clone();
+                app.deep_link().on_open_url(move |event| {
+                    for link in event.urls() {
+                        handle_deep_link(&app_handle, &kairmel_origin, &pending, &link);
+                    }
+                });
+            }
             let window = WebviewWindowBuilder::new(app, MAIN_WINDOW, start_url);
             #[cfg(desktop)]
             let window = window
@@ -56,6 +123,10 @@ pub fn run() {
                 .inner_size(1280.0, 800.0);
             window
                 .on_navigation(move |url| {
+                    if native_auth::is_google_start(url, &kairmel_origin) {
+                        start_native_google_login(&app_handle, &pending, url);
+                        return false;
+                    }
                     if should_stay_in_webview(url, &nav_origins) {
                         return true;
                     }

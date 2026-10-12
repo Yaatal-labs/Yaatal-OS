@@ -102,7 +102,7 @@ pub struct KairmelUrls {
     pub decouvrir: Url,
 }
 
-fn origin_key(url: &Url) -> (String, String, Option<u16>) {
+pub(crate) fn origin_key(url: &Url) -> (String, String, Option<u16>) {
     (
         url.scheme().to_ascii_lowercase(),
         url.host_str().unwrap_or_default().to_ascii_lowercase(),
