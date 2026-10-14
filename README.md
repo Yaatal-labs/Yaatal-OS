@@ -1,5 +1,24 @@
 # Yaatal OS
 
+## Kairmel clients and services
+
+The current Kairmel Windows and Android clients share the hosted web app through
+[`apps/kairmel-shell`](apps/kairmel-shell/README.md). Both have 0.1.1 tester releases.
+The shell supplies native navigation, Google sign-in handoff and platform integration;
+the web app owns the merchant interface. Token gateway, Marché and voice services also
+live in this repository.
+
+Current integration evidence is collected in the [headless service supplement](docs/contracts/kairmel-headless-os.md)
+and [native acceptance matrix](docs/contracts/kairmel-native-acceptance.md).
+The [native alignment verification](docs/evidence/2026-10-13-native-alignment.md)
+records the reuse checks and local validation for the current change.
+
+The Sell/Shop desktop implementation below is the earlier proof of concept in
+[`apps/desktop`](apps/desktop/README.md). Its Studio sidecar and native IPC are separate
+from the hosted Kairmel shell. Its acceptance records describe that prototype.
+
+## Earlier desktop proof of concept
+
 Yaatal OS is the lightweight desktop shell for Yaatal's agentic social-commerce proof of concept.
 It brings the seller cockpit (Studio) and buyer marketplace (BOBO Shop) into one Tauri 2 application
 without moving business authority out of Yaatal Engine or policy authority out of Yaatal Harness.
