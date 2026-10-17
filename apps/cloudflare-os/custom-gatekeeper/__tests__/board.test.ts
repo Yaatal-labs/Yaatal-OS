@@ -67,6 +67,22 @@ function hogqlResponse(rows: unknown[][] = [], columns?: string[]) {
   });
 }
 
+/** Evaluate the query's fixed escrow predicates over Engine event fixtures, without PostHog. */
+function escrowCount(query: string, alias: string, events: { event: string; properties: { trigger: string } }[]) {
+  const expression = query.match(new RegExp(`countIf\\((.+)\\) AS ${alias},`))?.[1];
+  expect(expression).toBeDefined();
+  const clauses = expression!.split(" OR ").map((clause) => {
+    const predicate = clause.startsWith("(") && clause.endsWith(")") ? clause.slice(1, -1) : clause;
+    const match = predicate.match(/^event = '([^']+)' AND properties\.trigger = '([^']+)'$/);
+    expect(match, `Unexpected escrow predicate: ${clause}`).not.toBeNull();
+    return { event: match![1], trigger: match![2] };
+  });
+  // OR selects each input event once, even if several predicates could match it.
+  return events.filter((row) => clauses.some((clause) =>
+    row.event === clause.event && row.properties.trigger === clause.trigger,
+  )).length;
+}
+
 beforeEach(() => {
   vi.unstubAllGlobals();
 });
@@ -192,6 +208,38 @@ describe("tokenRail", () => {
 });
 
 describe("commerce", () => {
+  it("counts buyer escrow actions from both Engine paths, without counting automatic or operator releases", async () => {
+    const fetchMock = vi.fn(async () => hogqlResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    await board(true).commerce(7);
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const query = JSON.parse(String(init.body)).query.query as string;
+
+    // Names and triggers come from Engine's bobo_orders.rs and commerce.rs at 3fec6c4e.
+    const events = [
+      { event: "bobo.escrow.transitioned", properties: { trigger: "confirm_delivery" } },
+      { event: "commerce.escrow_moved", properties: { trigger: "confirm" } },
+      { event: "bobo.escrow.transitioned", properties: { trigger: "dispute" } },
+      { event: "commerce.escrow_moved", properties: { trigger: "dispute" } },
+      { event: "commerce.escrow_moved", properties: { trigger: "auto_release" } },
+      { event: "commerce.escrow_moved", properties: { trigger: "resolve_release" } },
+      { event: "commerce.escrow_moved", properties: { trigger: "resolve_refund" } },
+      { event: "bobo.escrow.transitioned", properties: { trigger: "resolve_release" } },
+      // Swapping the two confirmation vocabularies must not manufacture a buyer confirmation.
+      { event: "commerce.escrow_moved", properties: { trigger: "confirm_delivery" } },
+      { event: "bobo.escrow.transitioned", properties: { trigger: "confirm" } },
+      { event: "unrelated.event", properties: { trigger: "confirm" } },
+      { event: "unrelated.event", properties: { trigger: "dispute" } },
+    ];
+    expect(escrowCount(query, "confirm_delivery", events)).toBe(2);
+    expect(escrowCount(query, "dispute", events)).toBe(2);
+    expect(query.match(/AS confirm_delivery/g)).toHaveLength(1);
+    expect(query.match(/AS dispute/g)).toHaveLength(1);
+    // Webhook traffic and settlement outcomes are different facts; never add them together.
+    expect(query).toContain("countIf(event = 'payment.webhook_received' AND properties.provider = 'wave') AS payments");
+    expect(query).not.toContain("commerce.payment_settled");
+  });
+
   it("runs one fixed query and sums its rows rather than asking twice", async () => {
     const fetchMock = vi.fn(async () =>
       hogqlResponse([

@@ -14,6 +14,11 @@ pub const DEFAULT_KAIRMEL_MARCHE_URL: &str = "https://marche.kairmel.com";
 pub const DEFAULT_PATH_CREER: &str = "/";
 pub const DEFAULT_PATH_APPS: &str = "/apps";
 pub const DEFAULT_PATH_DECOUVRIR: &str = "/discover";
+pub const DEFAULT_PATH_BOUTIQUE: &str = "/sales";
+pub const DEFAULT_PATH_COMMANDES: &str = "/sales/orders";
+pub const DEFAULT_PATH_ARGENT: &str = "/sales/money";
+pub const DEFAULT_PATH_DIRECT: &str = "/live";
+pub const DEFAULT_PATH_COMPTE: &str = "/settings";
 
 /// Why a configured Kairmel URL was rejected.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,6 +33,8 @@ pub enum UrlValidationError {
     /// The URL carries a `user:pass@host` component. Credentials must never
     /// ride on a configured URL.
     ContainsCredentials,
+    /// Workspace settings must contain a relative path on the Kairmel origin.
+    InvalidWorkspacePath,
 }
 
 impl std::fmt::Display for UrlValidationError {
@@ -37,6 +44,9 @@ impl std::fmt::Display for UrlValidationError {
             UrlValidationError::UnsupportedScheme => "scheme must be http or https",
             UrlValidationError::HttpNotLoopback => "http is only allowed on loopback (dev)",
             UrlValidationError::ContainsCredentials => "URL must not contain credentials",
+            UrlValidationError::InvalidWorkspacePath => {
+                "workspace path must be a nonempty relative path on the Kairmel origin"
+            }
         };
         f.write_str(message)
     }
@@ -84,12 +94,32 @@ fn is_loopback_host(url: &Url) -> bool {
     }
 }
 
-/// Join a workspace path (e.g. `/create`) onto a validated base URL.
+/// Resolve a relative workspace path against a validated Kairmel URL.
+/// Root paths, relative segments, and path queries/fragments are supported.
+/// Absolute URLs, authority references, backslashes, whitespace, and settings
+/// containing only a query or fragment are rejected.
 pub fn join_path(base: &Url, path: &str) -> Result<Url, UrlValidationError> {
-    base.join(path).map_err(|_| UrlValidationError::Malformed)
+    if path.is_empty()
+        || path.starts_with(['?', '#'])
+        || path.starts_with("//")
+        || path.contains('\\')
+        || path.chars().any(|ch| ch.is_control() || ch.is_whitespace())
+        || Url::parse(path).is_ok()
+    {
+        return Err(UrlValidationError::InvalidWorkspacePath);
+    }
+
+    let target = base.join(path).map_err(|_| UrlValidationError::Malformed)?;
+    validate_kairmel_url(target.as_str())?;
+    // Url::join accepts absolute and authority-changing references. Keep the
+    // origin check even after rejecting their raw forms above.
+    if origin_key(&target) != origin_key(base) {
+        return Err(UrlValidationError::InvalidWorkspacePath);
+    }
+    Ok(target)
 }
 
-/// Configured origins and the three Kairmel workspace destinations.
+/// Configured origins and Kairmel workspace destinations.
 #[derive(Debug, Clone)]
 pub struct KairmelUrls {
     pub origin: Url,
@@ -100,6 +130,16 @@ pub struct KairmelUrls {
     pub apps: Url,
     #[cfg_attr(mobile, allow(dead_code))]
     pub decouvrir: Url,
+    #[cfg_attr(mobile, allow(dead_code))]
+    pub boutique: Url,
+    #[cfg_attr(mobile, allow(dead_code))]
+    pub commandes: Url,
+    #[cfg_attr(mobile, allow(dead_code))]
+    pub argent: Url,
+    #[cfg_attr(mobile, allow(dead_code))]
+    pub direct: Url,
+    #[cfg_attr(mobile, allow(dead_code))]
+    pub compte: Url,
 }
 
 pub(crate) fn origin_key(url: &Url) -> (String, String, Option<u16>) {
@@ -256,6 +296,181 @@ mod tests {
         let create = join_path(&base, "/create").unwrap();
         assert_eq!(create.as_str(), "https://kairmel.example/create");
         assert_eq!(origin_key(&create), origin_key(&base));
+    }
+
+    #[test]
+    fn workspace_defaults_match_hosted_creator_and_merchant_routes() {
+        assert_eq!(
+            [
+                DEFAULT_PATH_CREER,
+                DEFAULT_PATH_APPS,
+                DEFAULT_PATH_DECOUVRIR,
+                DEFAULT_PATH_BOUTIQUE,
+                DEFAULT_PATH_COMMANDES,
+                DEFAULT_PATH_ARGENT,
+                DEFAULT_PATH_DIRECT,
+                DEFAULT_PATH_COMPTE,
+            ],
+            [
+                "/",
+                "/apps",
+                "/discover",
+                "/sales",
+                "/sales/orders",
+                "/sales/money",
+                "/live",
+                "/settings",
+            ]
+        );
+    }
+
+    #[test]
+    fn join_path_preserves_relative_resolution_and_root_paths() {
+        let base = validate_kairmel_url("https://merchant.example:8443/workspace/").unwrap();
+        for (path, expected_path) in [
+            ("sales/orders", "/workspace/sales/orders"),
+            ("./sales/orders", "/workspace/sales/orders"),
+            ("../sales/orders", "/sales/orders"),
+            ("/sales/orders", "/sales/orders"),
+            ("/", "/"),
+        ] {
+            let target = join_path(&base, path).unwrap();
+            assert_eq!(target.path(), expected_path, "{path}");
+            assert_eq!(origin_key(&target), origin_key(&base), "{path}");
+        }
+    }
+
+    #[test]
+    fn join_path_keeps_query_and_fragment_values_on_the_configured_origin() {
+        let base = validate_kairmel_url("https://merchant.example:8443/").unwrap();
+        let target = join_path(
+            &base,
+            "/sales/orders?source=desktop&next=https://other.example/#paid",
+        )
+        .unwrap();
+        assert_eq!(target.path(), "/sales/orders");
+        assert_eq!(
+            target.query(),
+            Some("source=desktop&next=https://other.example/")
+        );
+        assert_eq!(target.fragment(), Some("paid"));
+        assert_eq!(origin_key(&target), origin_key(&base));
+    }
+
+    #[test]
+    fn join_path_rejects_absolute_urls_even_on_the_same_origin() {
+        let base = validate_kairmel_url("https://merchant.example/").unwrap();
+        for path in [
+            "https://other.example/sales",
+            "https://merchant.example/sales",
+            "https://merchant.example:8443/sales",
+            "https://user:pass@merchant.example/sales",
+            "http://localhost:3000/sales",
+            "https:other.example/sales",
+            "https:/other.example/sales",
+            "http:/merchant.example/sales",
+            "javascript:alert(1)",
+            "file:///sales",
+            "data:text/html,hello",
+        ] {
+            assert_eq!(
+                join_path(&base, path),
+                Err(UrlValidationError::InvalidWorkspacePath),
+                "{path}"
+            );
+        }
+    }
+
+    #[test]
+    fn join_path_rejects_authority_and_backslash_tricks() {
+        let base = validate_kairmel_url("https://merchant.example/").unwrap();
+        for path in [
+            "//other.example/sales",
+            "//merchant.example/sales",
+            "///other.example/sales",
+            "//user:pass@merchant.example/sales",
+            r"\\other.example/sales",
+            r"/\other.example/sales",
+            r"\/other.example/sales",
+            r"sales\orders",
+        ] {
+            assert_eq!(
+                join_path(&base, path),
+                Err(UrlValidationError::InvalidWorkspacePath),
+                "{path}"
+            );
+        }
+    }
+
+    #[test]
+    fn join_path_rejects_empty_query_only_and_fragment_only_settings() {
+        let base = validate_kairmel_url("https://merchant.example/").unwrap();
+        for path in ["", "?next=//other.example/sales", "#//other.example/sales"] {
+            assert_eq!(
+                join_path(&base, path),
+                Err(UrlValidationError::InvalidWorkspacePath),
+                "{path}"
+            );
+        }
+    }
+
+    #[test]
+    fn join_path_rejects_whitespace_and_controls_before_url_normalization() {
+        let base = validate_kairmel_url("https://merchant.example/").unwrap();
+        for path in [
+            " //other.example/sales",
+            "\thttps://other.example/sales",
+            "/\n/other.example/sales",
+            "/sales/orders\r",
+            "/sales/with space",
+            "/sales/\0orders",
+        ] {
+            assert_eq!(
+                join_path(&base, path),
+                Err(UrlValidationError::InvalidWorkspacePath),
+                "{path:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn join_path_accepts_encoded_path_segments_without_changing_authority() {
+        let base = validate_kairmel_url("https://merchant.example/").unwrap();
+        for path in [
+            "/%2F%2Fother.example/sales",
+            "/%5Cother.example/sales",
+            "/sales/with%20space",
+        ] {
+            let target = join_path(&base, path).unwrap();
+            assert_eq!(origin_key(&target), origin_key(&base), "{path}");
+            assert_eq!(target.path(), path);
+        }
+    }
+
+    #[test]
+    fn join_path_preserves_loopback_http_and_port() {
+        let base = validate_kairmel_url("http://[::1]:3000/workspace/").unwrap();
+        assert_eq!(
+            join_path(&base, "/sales/money").unwrap().as_str(),
+            "http://[::1]:3000/sales/money"
+        );
+    }
+
+    #[test]
+    fn join_path_revalidates_result_credentials_and_transport() {
+        for (raw, expected_error) in [
+            (
+                "https://user:pass@merchant.example/",
+                UrlValidationError::ContainsCredentials,
+            ),
+            (
+                "http://merchant.example/",
+                UrlValidationError::HttpNotLoopback,
+            ),
+        ] {
+            let base = Url::parse(raw).unwrap();
+            assert_eq!(join_path(&base, "/sales"), Err(expected_error), "{raw}");
+        }
     }
 
     // --- is_internal_navigation ----------------------------------------------

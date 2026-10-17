@@ -52,17 +52,20 @@ const PROBE_TIMEOUT_MS = 8_000;
  * The five counts are one query rather than five, so the totals the board derives are sums of the
  * same rows it displays. Two queries could disagree about a boundary second; one cannot.
  *
- * `properties.trigger` and `properties.provider` are the property names the Engine actually sends:
- * `bobo.escrow.transitioned` carries `trigger: "confirm_delivery" | "dispute"`, and
- * `payment.webhook_received` carries `provider: "wave"`. Wave is the only rail the Engine accepts.
+ * The two Engine paths use different confirmation triggers: BOBO emits
+ * `bobo.escrow.transitioned` / `confirm_delivery`; the Commerce Sheet emits
+ * `commerce.escrow_moved` / `confirm`. Both use `dispute`. Count the buyer actions only, not
+ * automatic releases or operator dispute decisions. Each OR predicate selects an event once.
+ * The payment metric remains Wave webhook events, not successful settlements or unique payments:
+ * adding `commerce.payment_settled` would mix webhook traffic with poll/sandbox outcomes.
  */
 function commerceHogQL(days: number): string {
   return [
     "SELECT",
     "  toDate(timestamp) AS day,",
     "  countIf(event = 'user.registered') AS registrations,",
-    "  countIf(event = 'bobo.escrow.transitioned' AND properties.trigger = 'confirm_delivery') AS confirm_delivery,",
-    "  countIf(event = 'bobo.escrow.transitioned' AND properties.trigger = 'dispute') AS dispute,",
+    "  countIf((event = 'bobo.escrow.transitioned' AND properties.trigger = 'confirm_delivery') OR (event = 'commerce.escrow_moved' AND properties.trigger = 'confirm')) AS confirm_delivery,",
+    "  countIf((event = 'bobo.escrow.transitioned' AND properties.trigger = 'dispute') OR (event = 'commerce.escrow_moved' AND properties.trigger = 'dispute')) AS dispute,",
     "  countIf(event = 'payment.webhook_received' AND properties.provider = 'wave') AS payments",
     "FROM events",
     `WHERE timestamp >= now() - INTERVAL ${days} DAY`,

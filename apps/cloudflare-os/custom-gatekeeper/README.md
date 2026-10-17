@@ -12,7 +12,7 @@ described below is the part to read before changing anything.
 | Leg | Source | Credential |
 |---|---|---|
 | Token rail: credit sold, credit consumed, refusals, per-model and per-day series | `GET https://api.kairmel.com/admin/usage?days=N` | `TOKEN_GATEWAY_ADMIN_TOKEN` |
-| Commerce rail: registrations, escrow transitions, Wave payments, as event counts | `POST https://eu.i.posthog.com/api/projects/<id>/query/` | `POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_ID` |
+| Commerce rail: registrations, buyer escrow actions, Wave webhook events | `POST https://eu.i.posthog.com/api/projects/<id>/query/` | `POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_ID` |
 | Health: Engine and gateway liveness | `https://engine.njooba.com/health`, `https://api.kairmel.com/v1/models` | none, deliberately |
 
 The two PostHog keys are not interchangeable. The Engine ingests with a project key (`phc_...`); this
@@ -23,6 +23,24 @@ Everything is a source constant or a secret. `src/board.ts` holds the three URLs
 bounds, and the commerce query is one fixed HogQL string built from a clamped integer. Nothing a
 caller sends reaches the query text, which keeps a read-only panel from becoming an arbitrary-query
 endpoint.
+
+### Commerce event vocabulary
+
+The query accepts both Engine paths (source baseline `3fec6c4e`):
+
+| Figure | Events counted |
+|---|---|
+| Registrations | `user.registered` |
+| Buyer-confirmed deliveries | `bobo.escrow.transitioned` with `trigger=confirm_delivery`, or `commerce.escrow_moved` with `trigger=confirm` |
+| Buyer disputes | Either escrow event above with `trigger=dispute` |
+| Wave webhook traffic | `payment.webhook_received` with `provider=wave` |
+
+Each escrow predicate counts a matching event once. Automatic releases and operator
+`resolve_release`/`resolve_refund` decisions do not become buyer confirmations or new disputes.
+These remain event counts, not distinct orders or buyers. The Wave figure counts webhook events,
+including redelivery, and is not a count of successful payments or money received. It deliberately
+does not add `commerce.payment_settled`: that event also covers polling and sandbox outcomes, so
+combining the two would mix different facts and could count the same payment more than once.
 
 ## The admin gate
 

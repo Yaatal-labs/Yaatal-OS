@@ -1,7 +1,7 @@
 # Kairmel shell
 
 A thin Tauri 2 window around the Kairmel web app. Kairmel's product *is* the
-web app (**Créer**, **Mes apps** and **Découvrir**, as in its sidebar); this shell
+web app (creator and merchant workspaces); this shell
 only installs, launches and hosts it — there is no bundled UI, no sidecar,
 no local server. Windows desktop and Android share the same hosted web app.
 
@@ -41,11 +41,19 @@ rebuilding. The installer lands in
 | `KAIRMEL_PATH_CREER` | `/` | Path for the **Créer** menu entry (start a site by voice or chat). |
 | `KAIRMEL_PATH_APPS` | `/apps` | Path for the **Mes apps** menu entry. |
 | `KAIRMEL_PATH_DECOUVRIR` | `/discover` | Path for the **Découvrir** menu entry. |
+| `KAIRMEL_PATH_BOUTIQUE` | `/sales` | Path for **Boutique**. |
+| `KAIRMEL_PATH_COMMANDES` | `/sales/orders` | Path for **Commandes**. |
+| `KAIRMEL_PATH_ARGENT` | `/sales/money` | Path for **Argent**. |
+| `KAIRMEL_PATH_DIRECT` | `/live` | Path for **Direct**. |
+| `KAIRMEL_PATH_COMPTE` | `/settings` | Path for **Compte**. |
 
-Each path is resolved against `KAIRMEL_URL`'s origin (`src-tauri/src/config.rs`).
-The window opens on **Créer**; on desktop the native menu bar switches between the
-three. None of this is business logic baked into the shell — it's all
-configuration, read once at build time.
+Each path resolves against `KAIRMEL_URL` and must preserve its scheme, host and
+port (`src-tauri/src/config.rs`). The window opens on **Créer**; the desktop menu
+opens all eight destinations in that same window. Android uses the hosted web
+navigation. These settings are read once at build time.
+
+See [native merchant navigation](NATIVE-MERCHANT-WORKSPACE.md) for path rules and
+the hosted deployment dependency. Merchant business logic remains in Kairmel and Engine.
 
 ## Android
 
@@ -58,11 +66,10 @@ Android build environment variables before running the CLI:
 | `ANDROID_HOME` | Absolute path to the Android SDK (usually `%LOCALAPPDATA%/Android/Sdk` on Windows). |
 | `NDK_HOME` | Absolute path to the installed NDK 27 directory under the SDK's `ndk/` directory. |
 
-Add the Rust targets, then initialize and build from `apps/kairmel-shell`:
+Add the Rust targets, then build the checked-in Android project from `apps/kairmel-shell`:
 
 ```bash
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
-pnpm tauri android init
 pnpm tauri android build --apk --target aarch64 --target armv7
 ```
 
@@ -76,16 +83,16 @@ exists (gitignored, never committed) with `storeFile`, `storePassword`, `keyAlia
 Tester builds use a test key (`kairmel-test`) kept outside the repo; a Play Store release
 needs its own upload key, and testers will have to uninstall the test build first (Android
 refuses an update signed by a different key). `--debug` builds need no keystore but bundle
-debug symbols (~125 MB), so don't hand those to testers.
+large debug symbols, so don't hand those to testers.
 
 `src-tauri/tauri.android.conf.json` is merged into the base config by Tauri 2.
 It sets the Android package name to `com.kairmel.app` and disables desktop
 bundle targets; the desktop identifier remains `com.kairmel.desktop`.
 Android has no native menu, single-instance plugin or window-state plugin;
 navigation uses kairmel.com's own UI. GitHub sign-in stays inside the app.
-Google sign-in opens the system browser for now because Google blocks OAuth
-in embedded WebViews (`403 disallowed_useragent`); there is no browser-to-app
-authentication handoff yet.
+Google sign-in opens the system browser because Google blocks OAuth in
+embedded WebViews (`403 disallowed_useragent`). The session returns through
+the native handoff described in [Google sign-in](#google-sign-in).
 
 Both URL settings, `KAIRMEL_URL` and the new `KAIRMEL_MARCHE_URL`, are read
 with `option_env!` at compile time on Android too. Set them before building
@@ -173,6 +180,10 @@ signed in.
 
 ## Tests
 
+See [Android build verification](ANDROID-VERIFICATION.md) and the
+[installed-client acceptance matrix](../../docs/contracts/kairmel-native-acceptance.md)
+for build evidence and remaining device checks.
+
 - `src-tauri/src/kairmel.rs` — Rust unit tests for URL validation
   (`validate_kairmel_url`) and the navigation allowlist decision
   (`is_internal_navigation`, `is_local_asset`, `should_stay_in_webview`),
@@ -194,7 +205,7 @@ apps/kairmel-shell/
     src/kairmel.rs        URL validation + navigation allowlist (unit tested)
     src/reachability.rs   startup TCP reachability probe
     src/config.rs         reads Kairmel / Marché URLs and workspace paths at build time
-    src/menu.rs           desktop native Créer / Mes apps / Découvrir menu
+    src/menu.rs           desktop creator and merchant menu
     src/lib.rs            window setup, on_navigation handler, plugins
     capabilities/main.json  empty permission set for the "main" window
     tauri.android.conf.json  Android package identifier and bundle overrides
