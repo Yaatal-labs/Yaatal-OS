@@ -5,8 +5,6 @@
 import { availableModels, MODELS } from "./models.js";
 
 export interface SiteEnv {
-  /** The yaatal-voice Worker. When bound, the hero's main action is a voice call. */
-  VOICE?: Fetcher;
   /** "true" on Workers Paid: the page then lists the models that need it. */
   WORKERS_PAID?: string;
   /** Public origin of the builder (kairmel.com). HTTPS, or HTTP on loopback. */
@@ -153,8 +151,8 @@ const FAVICON = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://w
 
 const STYLE = `
 @font-face{font-family:"Departure Mono";src:url(/fonts/DepartureMono-Regular.woff2) format("woff2");font-display:swap}
-:root{--paper:#f5f4f2;--paper-2:#ecebe8;--ink:#1a1514;--muted:#6e6866;--line:#e7e4e1;--card:#fffdfb;--accent:#1a1514;--accent-strong:#1a1514;--deep:#1a1514;--deep-ink:#f5f4f2;--code:#1a1514;--code-ink:#efebe8;--shadow:0 1px 2px rgba(26,21,20,.06),0 12px 32px -12px rgba(26,21,20,.18);--talk-bg:#a61e3d;--talk-ink:#ffffff;--talk-hover:#8c1833;--glow-warm:rgba(166,30,61,.07);--glow-deep:rgba(26,21,20,.05)}
-@media (prefers-color-scheme:dark){:root{--paper:#1a1514;--paper-2:#221c1b;--ink:#efebe8;--muted:#a8a19e;--line:#3a3433;--card:#211b1a;--accent:#efebe8;--accent-strong:#efebe8;--deep:#262120;--deep-ink:#efebe8;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.6);--talk-bg:#c7294c;--talk-ink:#ffffff;--talk-hover:#b0223f;--glow-warm:rgba(199,41,76,.10);--glow-deep:rgba(0,0,0,.2)}}
+:root{--paper:#f5f4f2;--paper-2:#ecebe8;--ink:#1a1514;--muted:#6e6866;--line:#e7e4e1;--card:#fffdfb;--accent:#1a1514;--accent-strong:#1a1514;--deep:#1a1514;--deep-ink:#f5f4f2;--code:#1a1514;--code-ink:#efebe8;--shadow:0 1px 2px rgba(26,21,20,.06),0 12px 32px -12px rgba(26,21,20,.18);--glow-warm:rgba(166,30,61,.07);--glow-deep:rgba(26,21,20,.05)}
+@media (prefers-color-scheme:dark){:root{--paper:#1a1514;--paper-2:#221c1b;--ink:#efebe8;--muted:#a8a19e;--line:#3a3433;--card:#211b1a;--accent:#efebe8;--accent-strong:#efebe8;--deep:#262120;--deep-ink:#efebe8;--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.6);--glow-warm:rgba(199,41,76,.10);--glow-deep:rgba(0,0,0,.2)}}
 *{box-sizing:border-box}html{scroll-behavior:smooth}
 body{margin:0;background:radial-gradient(900px 620px at 78% -80px,var(--glow-warm),transparent 70%) no-repeat,radial-gradient(760px 560px at 6% 0,var(--glow-deep),transparent 72%) no-repeat,var(--paper);color:var(--ink);font:17px/1.6 "Hanken Grotesk",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit}.wrap{max-width:1140px;margin:0 auto;padding-left:16px;padding-right:16px}
@@ -197,9 +195,6 @@ h1 em{font-style:normal;color:var(--accent-strong)}
 .credits{font-size:.78rem;color:var(--muted);max-width:60rem}
 @media (max-width:900px){.people{grid-template-columns:1fr 1fr}.people figure:nth-child(2){grid-column:1/-1;order:-1}.pay{grid-template-columns:1fr}}
 @media (max-width:600px){.people figure{transform:none!important}}
-.call-sheet{width:min(1120px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:0;border:0;border-radius:24px;background:var(--paper);color:var(--ink);box-shadow:0 30px 80px -20px rgba(0,0,0,.5);overflow:auto}
-.call-sheet::backdrop{background:rgba(10,12,11,.55);backdrop-filter:blur(4px)}
-.call-wait{padding:48px;text-align:center;color:var(--muted)}
 section{padding-top:88px;padding-bottom:88px}
 .kicker{font:600 .78rem "Departure Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-strong);margin:0 0 12px}
 h2{font-size:clamp(1.9rem,4vw,3rem);line-height:1.05;margin:0 0 14px;max-width:18ch}
@@ -267,16 +262,8 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 .hero .lede{max-width:30rem;font-size:1.2rem}
 .hero .eyebrow{margin-bottom:22px}
 .waxtext{color:var(--accent-strong);background:url(/img/wax.webp) 30% 48%/cover;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke:1.5px var(--accent-strong)}
-.actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;margin-top:40px}
-.talk{display:inline-flex;align-items:center;gap:14px;min-height:64px;padding:0 30px 0 10px;border:0;border-radius:999px;background:var(--talk-bg);color:var(--talk-ink);font:600 1.15rem "Hanken Grotesk",sans-serif;cursor:pointer;transition:transform .2s cubic-bezier(.2,.8,.2,1.2),background-color .2s}
-.talk:hover{background:var(--talk-hover)}.talk:active{transform:scale(.98)}
-.talk .ic{position:relative;flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--paper)}
-.talk .ic::before{content:"";position:absolute;inset:-7px;border-radius:50%;background:repeating-conic-gradient(var(--accent) 0 5deg,transparent 5deg 15deg);-webkit-mask:radial-gradient(circle,transparent 62%,#000 64%);mask:radial-gradient(circle,transparent 62%,#000 64%);animation:turn 14s linear infinite;opacity:.8}
-@keyframes turn{to{transform:rotate(1turn)}}
-.alt{color:var(--muted);font-size:.95rem}.alt a{color:var(--ink);font-weight:600}
 .said-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px;border-top:1px solid var(--line);padding-top:28px;margin-bottom:24px}
 .said-row>*{display:flex;flex-direction:column;gap:4px;text-align:left;background:none;border:0;padding:0;font:inherit;color:inherit}
-.said-row button{cursor:pointer}.said-row button:hover b{color:var(--accent-strong)}
 .said-row span{color:var(--muted);font-size:.97rem}.said-row b{font-weight:600;transition:color .2s}
 .thread{justify-self:end;width:100%;max-width:470px;background:var(--deep);border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:18px;box-shadow:0 40px 80px -40px rgba(21,48,44,.55)}
 .note{align-self:flex-end;display:flex;align-items:center;gap:12px;width:min(330px,100%);background:#d7f5c8;color:#10251a;border-radius:18px 18px 4px 18px;padding:11px 15px}
@@ -336,7 +323,7 @@ html.pin .beats::after{background:var(--accent);transform-origin:top;transform:s
 @supports (animation-timeline:view()){@media (prefers-reduced-motion:no-preference){
   .tile,html:not(.pin) .beat,.partner,.people figure,.qa .card,.pay figure{animation:inview linear both;animation-timeline:view();animation-range:entry 0% entry 70%}
 }}
-@media (prefers-reduced-motion:reduce){.reveal,.thread *,.talk .ic::before,.w>*,.track,.cx.typing i{animation:none!important}html{scroll-behavior:auto}*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){.reveal,.thread *,.w>*,.track,.cx.typing i{animation:none!important}html{scroll-behavior:auto}*{transition:none!important}}
 @media (max-width:900px){.hero{grid-template-columns:1fr;gap:36px}.pin-box{grid-template-columns:1fr;gap:28px}.gallery{grid-template-columns:1fr 1fr}.flow,.split{grid-template-columns:1fr}.links{display:none}.band{padding:28px}}
 @media (max-width:460px){.st-body{height:auto;min-height:340px}.fw{grid-template-columns:1fr}.box{display:none}.meter span.l{display:none}}
 @media (max-width:600px){.gallery,.qa{grid-template-columns:1fr}.window .body{grid-template-columns:1fr}.window .chat{border-right:0;border-bottom:1px solid var(--line)}.ask .bar{flex-direction:column;align-items:stretch}.hero{padding-top:44px}}
@@ -347,7 +334,7 @@ input[type=password]{width:100%;min-height:44px;padding:10px 14px;border:1px sol
 const FONTS =
   "https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap";
 
-function page(title: string, body: string, options: { script?: string; formAction?: string | null; voiceOrigin?: string } = {}): Response {
+function page(title: string, body: string, options: { script?: string; formAction?: string | null } = {}): Response {
   const scriptNonce = options.script ? nonce() : null;
   const html = `<!doctype html>
 <html lang="fr">
@@ -370,8 +357,8 @@ function page(title: string, body: string, options: { script?: string; formActio
     "style-src 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data:",
-    options.voiceOrigin ? `connect-src 'self' ${options.voiceOrigin.replace(/^http/, "ws")}` : "connect-src 'self'",
-    scriptNonce ? `script-src 'nonce-${scriptNonce}'${options.voiceOrigin ? " 'self' blob:" : ""}` : "",
+    "connect-src 'self'",
+    scriptNonce ? `script-src 'nonce-${scriptNonce}'` : "",
     `form-action ${options.formAction ?? "'none'"}`,
     "base-uri 'none'",
     "frame-ancestors 'none'",
@@ -501,34 +488,11 @@ const PAGE_SCRIPT = `
   }
 }`;
 
-const CALL_SCRIPT = `
-{
-  const talk = document.getElementById("talk"), sheet = document.getElementById("call"), host = document.getElementById("call-host");
-  let close = null;
-  const wait = text => { const p = document.createElement("p"); p.className = "call-wait"; p.textContent = text; host.replaceChildren(p); };
-  const openCall = async idea => {
-    sheet.showModal();
-    if (close) return;
-    if (!host.shadowRoot) wait("Connexion à Kairmel…");
-    try {
-      const call = await import("/voix/embed.js");
-      host.replaceChildren();
-      close = call.open(host, { onClose: () => sheet.close(), firstMessage: idea });
-    } catch {
-      wait("L'appel n'a pas pu démarrer. Réessayez dans un instant.");
-    }
-  };
-  talk.addEventListener("click", () => openCall());
-  for (const el of document.querySelectorAll("[data-idea]")) el.addEventListener("click", () => openCall(el.dataset.idea));
-  sheet.addEventListener("close", () => { if (close) { close(); close = null; } });
-}`;
-
 function buildLink(playground: string, prompt: string): string {
   return `${playground}/?prompt=${encodeURIComponent(prompt)}`;
 }
 
 export function home(request: Request, env: SiteEnv): Response {
-  const origin = new URL(request.url).origin;
   const contact = whatsappLink(env);
   const playground = playgroundOrigin(request, env);
   const featured = env.FEATURED_BLUEPRINT_ID?.trim();
@@ -542,35 +506,23 @@ export function home(request: Request, env: SiteEnv): Response {
   const live = new Set(models.map(model => model.id));
   // Every model is listed; those the current plan cannot serve yet are marked "bientôt" (and the API refuses them).
   const rows = MODELS.map(model => `<tr><td><code>${escape(model.id)}</code>${live.has(model.id) ? "" : ' <span class="soon">bientôt</span>'}</td><td>${TIER_LABEL[model.tier]}</td><td class="num">${num(model.inputXofPerMillion)}</td><td class="num">${num(model.outputXofPerMillion)}</td></tr>`).join("");
-  // The product's voice call lives on kairmel.com now: when the builder origin is configured,
-  // every idea goes there instead of the older call sheet.
-  const voice = Boolean(env.VOICE) && !playground;
   const chips = IDEAS.map(idea =>
     `<button class="chip" type="button" data-prompt="${escape(idea.prompt)}" data-example="${escape(idea.example)}">${escape(idea.title)}</button>`).join("");
   const tiles = IDEAS.map(idea => {
     const inner = `<span class="tag">${escape(idea.tag)}</span><h3>${escape(idea.title)}</h3><p>${escape(idea.line)}</p>`;
-    if (voice) return `<button class="tile" type="button" data-idea="${escape(idea.prompt)}">${inner}<span class="go">En parler ${icon.arrow}</span></button>`;
     return playground
       ? `<a class="tile" href="${escape(buildLink(playground, idea.prompt))}">${inner}<span class="go">Construire ${icon.arrow}</span></a>`
       : `<div class="tile">${inner}</div>`;
   }).join("");
 
-  // With the call available, voice is the only way in: every idea on the page opens the call.
-  const signIn = playground ? `<span class="alt">Déjà client ? <a href="${escape(playground)}/">Se connecter</a></span>`
-    : contact ? `<span class="alt"><a href="${escape(contact)}" rel="noopener">Demander un accès bêta</a></span>`
-    : `<span class="alt">Kairmel ouvre bientôt au public.</span>`;
-  const actions = voice
-    ? `<div class="actions reveal d3"><button class="talk" id="talk" type="button" aria-haspopup="dialog"><span class="ic">${icon.mic}</span>Parler à Kairmel</button>${signIn}</div>`
-    : "";
   const saidLines: [string, string][] = [
     ["Mes commandes arrivent sur WhatsApp, aide-moi à les suivre.", "Bot WhatsApp"],
     ["Je veux vendre mes tissus en ligne, en FCFA.", "Site e-commerce"],
     ["Que ma boutique annonce chaque paiement reçu.", "Firmware Soundbox"],
   ];
-  const said = saidLines.map(([line, what]) => voice
-    ? `<button type="button" data-idea="${escape(line)}"><span>« ${escape(line)} »</span><b>→ ${escape(what)}</b></button>`
-    : `<div><span>« ${escape(line)} »</span><b>→ ${escape(what)}</b></div>`).join("");
-  const ask = voice ? "" : playground
+  const said = saidLines.map(([line, what]) =>
+    `<div><span>« ${escape(line)} »</span><b>→ ${escape(what)}</b></div>`).join("");
+  const ask = playground
     ? `<form class="ask reveal d3" method="get" action="${escape(playground)}/">
 <label class="skip" for="prompt">Décrivez ce que vous voulez construire</label>
 <textarea id="prompt" name="prompt" maxlength="${MAX_PROMPT}" required placeholder="Ex. : ${escape(IDEAS[0]!.example)}…"></textarea>
@@ -588,13 +540,11 @@ ${topNav(playground, contact)}
   <span class="eyebrow reveal">Fait à Dakar · pour toute la zone UEMOA</span>
   <h1><span class="w"><span style="--i:0">De</span></span> <span class="w"><span style="--i:1">l'idée</span></span> <span class="w"><span style="--i:2">à</span></span> <span class="w"><span style="--i:3">l'outil</span></span> <span class="w wf"><span style="--i:4"><em class="waxtext">qui tourne.</em></span></span></h1>
   <p class="lede reveal d2">Parlez de votre idée, en français ou en wolof. Kairmel pose quelques questions, puis construit.</p>
-  ${actions}
   ${ask}
  </div>
  ${thread()}
 </div>
 <div class="wrap"><div class="said-row reveal d4" role="group" aria-label="Ce que vous dites, ce que Kairmel construit">${said}</div></div>
-${voice ? `<dialog class="call-sheet" id="call" aria-label="Appel avec Kairmel"><div id="call-host"></div></dialog>` : ""}
 
 <section id="gens" style="padding-top:56px"><div class="wrap">
   <p class="kicker">Pour qui</p>
@@ -765,7 +715,7 @@ reply = kairmel.chat.completions.create(
 <footer class="wrap"><span>Kairmel, un service de Yaatal · Dakar</span><span><a href="/usage">Consommation</a> · <a href="/v1/models">Modèles</a> · Bêta</span>
 <p class="credits">Photos, Wikimedia Commons : Sanghesenegalafrica (CC BY-SA 4.0), Lucas Takerkart (CC BY-SA 4.0), dimworld (CC BY 2.0), GuillaumeG (CC BY-SA 4.0).</p></footer>`;
 
-  const script = THREAD_SCRIPT + PAGE_SCRIPT + (voice ? CALL_SCRIPT : "") + (playground ? `
+  const script = THREAD_SCRIPT + PAGE_SCRIPT + (playground ? `
 const box = document.getElementById("prompt");
 for (const chip of document.querySelectorAll(".chip")) {
   chip.addEventListener("click", () => { box.value = chip.dataset.prompt; box.focus(); });
@@ -778,7 +728,6 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
 
   return page("Kairmel · De l'idée à l'outil qui tourne. Facturé en FCFA.", body, {
     script,
-    voiceOrigin: voice ? origin : undefined,
     formAction: playground ? playground : null,
   });
 }
