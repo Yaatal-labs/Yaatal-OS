@@ -106,7 +106,9 @@ Keep COD order placement, delivery, cash collection and reconciliation separate 
 
 Cloudflare catalogue Gatekeeper methods `listProducts`/`getProduct` are implemented read-only RPC, require observation approval, and read one deployment-configured merchant's public catalogue. `getAutoApprovableActions` is empty; writes throw. Its verifier does not authenticate a merchant principal. Private orders, inactive stock, cross-merchant switching or a general all-account BFF require a new verified principal scope; current deployment configuration cannot provide that authorization.
 
-The runbook selects the VPS speech-core talker/Kairmel brain voice pipeline. OS `apps/voice` still contains a Workers prototype using a deployment API key; gateway `/voix/*` and `/agents/yaatal-voice/*` proxy through its VOICE binding. These declarations prove code exists, not that a shared merchant voice billing/session contract or retirement is complete. Follow the runbook's caller/traffic/archive checks before removing it. R-24 Assistant Ventes remains proposed and unbuilt: select one runner/runtime in the R-24 spike; Engine must own bindings, proposals, confirmation and execution. Do not implement it independently in Cloudflare OS and another runner.
+The runbook selects the VPS speech-core talker/Kairmel brain voice pipeline. OS `apps/voice` was retired in UNI-61 (code removed; the `yaatal-voice` Worker is deleted separately after the gateway deploy).
+
+R-24 Assistant Ventes remains proposed and unbuilt: select one runner/runtime in the R-24 spike; Engine must own bindings, proposals, confirmation and execution. Do not implement it independently in Cloudflare OS and another runner.
 
 ## Smallest runtime follow-up
 
