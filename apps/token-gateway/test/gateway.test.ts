@@ -1308,25 +1308,6 @@ describe("customer pages", () => {
     expect(html).not.toContain("innerHTML");
   });
 
-  it("puts the voice call first and reaches the voice Worker on this origin", async () => {
-    const home = await call("/");
-    const html = await home.text();
-    expect(html).toContain('id="talk"');
-    expect(html).toContain("Parler à Kairmel");
-    expect(html).toContain('<dialog class="call-sheet" id="call"');
-    const csp = home.headers.get("content-security-policy") ?? "";
-    expect(csp).toMatch(/script-src 'nonce-[^']+' 'self' blob:/); // the call's files, and its audio worklet
-    expect(csp).toContain("connect-src 'self' wss://tokens.yaatal.test");
-    expect(await (await call("/voix/embed.js")).text()).toBe("voice /embed.js");
-    expect(await (await call("/agents/yaatal-voice/s1")).text()).toBe("voice /agents/yaatal-voice/s1");
-    expect((await call("/agents/other/s1")).status).toBe(404);
-    // Without the voice Worker: no call button, a stricter policy, nothing forwarded.
-    const plain = await call("/", {}, { VOICE: undefined });
-    expect(await plain.text()).not.toContain('id="talk"');
-    expect(plain.headers.get("content-security-policy")).not.toContain("blob:");
-    expect((await call("/voix/embed.js", {}, { VOICE: undefined })).status).toBe(404);
-  });
-
   it("shows the WhatsApp button only for a valid configured number", async () => {
     expect(await (await call("/")).text()).not.toContain("wa.me");
     expect(await (await call("/", {}, { CONTACT_WHATSAPP: "221770000000" })).text()).toContain("https://wa.me/221770000000?text=");
@@ -1344,21 +1325,21 @@ describe("model ids", () => {
 });
 
 describe("playground hand-off", () => {
-  it("with the call available but no builder, every idea opens the call and the hero has no form", async () => {
+  it("without a builder, shows the availability message and static ideas", async () => {
     const html = await (await call("/")).text();
     expect(html).not.toContain('name="prompt"');
-    expect(html).toContain('data-idea="Je veux vendre mes tissus en ligne, en FCFA."');
-    expect(html).toMatch(/<button class="tile" type="button" data-idea="/); // templates open the call too
+    expect(html).toContain("Kairmel ouvre bientôt au public.");
+    expect(html).toContain('<div class="tile">');
   });
 
-  it("with the builder configured, ideas go to the builder even when the call is bound", async () => {
+  it("with the builder configured, ideas go to the builder", async () => {
     const html = await (await call("/", {}, { PLAYGROUND_URL: "https://os.yaatal.test" })).text();
     expect(html).toContain('name="prompt"');
     expect(html).not.toContain('id="talk"');
   });
 
-  it("without the call, sends the idea to the Playground's prompt deep link, allowed by the form policy", async () => {
-    const response = await call("/", {}, { VOICE: undefined, PLAYGROUND_URL: "https://os.yaatal.test", FEATURED_BLUEPRINT_ID: "8f3639f6abcdef12" });
+  it("sends the idea to the Playground's prompt deep link, allowed by the form policy", async () => {
+    const response = await call("/", {}, { PLAYGROUND_URL: "https://os.yaatal.test", FEATURED_BLUEPRINT_ID: "8f3639f6abcdef12" });
     const html = await response.text();
     expect(html).toContain('<form class="ask reveal d3" method="get" action="https://os.yaatal.test/">');
     expect(html).toContain('name="prompt" maxlength="4000"');
