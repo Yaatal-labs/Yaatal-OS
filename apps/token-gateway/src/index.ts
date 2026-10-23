@@ -36,13 +36,14 @@ import {
   keyAccountIssuer, recentLedger, revokeKey, revokeKeyById, setAccountIssuer, upsertAccountByPid, usageByModel,
 } from "./ledger.js";
 import { callUpstreams, type UpstreamEnv } from "./upstream.js";
+import { discoverWinsum, WinsumDiscoveryError, type WinsumEnv } from "./winsum.js";
 import { home, usage, type SiteEnv } from "./site.js";
 import { countStream, requestCharacters, usageFrom, generatedCharacters, estimateTokens } from "./usage.js";
 import { recordEvent, usageReport } from "./report.js";
 import { moveThinking, normalizeReasoning, reasoningFieldInStream, thinkingOutOfStream } from "./think.js";
 import { repairToolCalls, separateToolCalls, splitToolCalls } from "./tool-calls.js";
 
-export interface Env extends UpstreamEnv, SiteEnv {
+export interface Env extends UpstreamEnv, SiteEnv, WinsumEnv {
   DB: D1Database;
   /** "true" once the account is on Workers Paid: unlocks the models that need it. */
   WORKERS_PAID?: string;
@@ -78,6 +79,10 @@ export default {
       if (url.pathname === "/v1/models" && request.method === "GET") return models(env);
       if (url.pathname === "/v1/chat/completions" && request.method === "POST") return await chat(request, env, ctx);
       if (url.pathname === "/v1/balance" && request.method === "GET") return await balance(request, env);
+      if (url.pathname === "/admin/suppliers/winsum/models" && request.method === "GET") {
+        if (!(await isAdmin(request, env))) throw new HttpError(401, "unauthorized", "Admin token required.");
+        return Response.json(await discoverWinsum(env), { headers: { "cache-control": "no-store" } });
+      }
       if (url.pathname === "/admin/usage" && request.method === "GET") return await usageAdmin(request, env, url);
       if (/^\/admin\/accounts\/by-pid\/[^/]+\/activity$/.test(url.pathname) && request.method === "GET") {
         return await adminActivityByPid(request, env, url);
@@ -92,6 +97,11 @@ export default {
       if (url.pathname.startsWith("/admin/") && request.method === "DELETE") return await adminDelete(request, env, url.pathname);
       return error(404, "not_found", "No such route.");
     } catch (err) {
+      if (err instanceof WinsumDiscoveryError) {
+        const response = error(err.status, err.code, err.message);
+        response.headers.set("cache-control", "no-store");
+        return response;
+      }
       if (err instanceof HttpError) return error(err.status, err.type, err.message);
       if (err instanceof UnknownAccountError) return error(404, "not_found", "No such account.");
       if (err instanceof PaymentRefConflictError) {
