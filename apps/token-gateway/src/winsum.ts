@@ -64,7 +64,7 @@ export async function discoverWinsum(env: WinsumEnv, fetcher: typeof fetch = fet
     const bytes = new Uint8Array(size);
     let offset = 0;
     for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-    const payload: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    const payload: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
     // Provisional OpenAI envelope assumption, NOT a supplier schema guarantee.
     if (!isRecord(payload) || payload.object !== "list" || !Array.isArray(payload.data) || payload.data.length > 1000) {
       throw new WinsumDiscoveryError("winsum_unsupported_schema");
