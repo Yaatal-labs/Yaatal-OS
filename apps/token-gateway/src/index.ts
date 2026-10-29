@@ -4,7 +4,6 @@
 //
 //   GET  /                              public page: offer, FCFA prices, quickstart, data handling
 //   GET  /usage                         usage page (the key stays in the browser tab)
-//   *    /voix/*, /agents/yaatal-voice/*  the voice call, served by the yaatal-voice Worker (VOICE binding)
 //   GET  /v1/models                     models and their FCFA prices
 //   POST /v1/chat/completions           OpenAI chat completions, streaming or not
 //   POST /v1/boo/chat/completions        bounded, pre-reserved non-stream Boo model call
@@ -78,9 +77,6 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     try {
-      if (env.VOICE && (url.pathname.startsWith("/agents/yaatal-voice/") || url.pathname.startsWith("/voix/"))) {
-        return await voiceRoute(request, env.VOICE, url);
-      }
       if (url.pathname === "/" && request.method === "GET") return home(request, env);
       if (url.pathname === "/usage" && request.method === "GET") return usage(request, env);
       if (url.pathname === "/v1/models" && request.method === "GET") return models(env);
@@ -336,17 +332,6 @@ function ledgerRows(rows: Awaited<ReturnType<typeof recentLedger>>) {
     payment_ref: row.payment_ref,
     at: row.created_at,
   }));
-}
-
-/**
- * The voice call runs in the yaatal-voice Worker. The landing page reaches it on its own origin:
- * the call's files under /voix/ (prefix removed) and its WebSocket under /agents/yaatal-voice/.
- */
-function voiceRoute(request: Request, voice: Fetcher, url: URL): Promise<Response> {
-  if (url.pathname.startsWith("/agents/")) return voice.fetch(request);
-  const target = new URL(url);
-  target.pathname = url.pathname.slice("/voix".length);
-  return voice.fetch(new Request(target, request));
 }
 
 async function admin(request: Request, env: Env, path: string): Promise<Response> {
