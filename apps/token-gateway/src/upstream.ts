@@ -102,6 +102,10 @@ function requestFor(
       const key = env[upstream.apiKeyVar];
       const fields: Record<string, unknown> = {};
       for (const field of OPENAI_FIELDS) if (field in body) fields[field] = body[field];
+      if (upstream.maxCompletionTokens && "max_tokens" in fields) {
+        fields.max_completion_tokens = fields.max_tokens;
+        delete fields.max_tokens;
+      }
       const payload = JSON.stringify({ ...fields, model: body.model, ...upstream.fixedFields });
       return fetcher(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
         method: "POST",

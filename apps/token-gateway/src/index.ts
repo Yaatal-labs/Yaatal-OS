@@ -45,6 +45,8 @@ export interface Env extends UpstreamEnv, SiteEnv {
   DB: D1Database;
   /** "true" once the account is on Workers Paid: unlocks the models that need it. */
   WORKERS_PAID?: string;
+  /** "true" lists and serves the demo (account-pool) models. */
+  DEMO_MODELS?: string;
   ADMIN_TOKEN?: string;
   /**
    * Narrower token for a platform that mints and revokes keys, upserts Engine accounts and reads

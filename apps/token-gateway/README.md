@@ -82,6 +82,15 @@ are set (`wrangler secret put`, or `.dev.vars` locally); an unset supplier is sk
 | Wholesale | `WHOLESALE_BASE_URL`, `WHOLESALE_API_KEY` | from the supplier |
 | SiliconFlow | `SILICONFLOW_BASE_URL`, `SILICONFLOW_API_KEY` | `https://api.siliconflow.com/v1` |
 | OpenRouter | `OPENROUTER_BASE_URL`, `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` |
+| Relay (our new-api, `any` group) | `RELAY_BASE_URL`, `RELAY_API_KEY` | `https://relay.kairmel.com/v1` |
+| Relay, account pool (`pool` group) | `RELAY_POOL_BASE_URL`, `RELAY_POOL_API_KEY` | `https://relay.kairmel.com/v1` |
+
+- The relay is our own new-api on the Engine VPS. It holds the wholesale channels and their weights;
+  each of its groups is a separate token here, so a request never crosses from one supply to another.
+- Models marked `demo` use the account pool and are listed and served only when `DEMO_MODELS` is
+  `"true"`. Leave it unset once real customers are on.
+- OpenAI's newer models (`gpt-6*`) refuse `max_tokens`; their relay entries send the cap as
+  `max_completion_tokens`.
 
 - A supplier receives only standard chat fields (messages, sampling, tools, response format), so a
   client cannot reach supplier features the price does not cover, such as OpenRouter's `models`.
