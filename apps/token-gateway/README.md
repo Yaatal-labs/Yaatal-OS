@@ -104,3 +104,35 @@ are set (`wrangler secret put`, or `.dev.vars` locally); an unset supplier is sk
 - Confirm the tier prices in `src/models.ts` against the signed wholesale price sheet, and the wholesale
   model ids against its catalog.
 - Deploying needs a real D1 database id, `ADMIN_TOKEN` and upstream secrets set with `wrangler secret put`.
+
+### WinsumRouter discovery (disabled until configured)
+
+`GET /admin/suppliers/winsum/models` uses the existing `ADMIN_TOKEN` authentication;
+issuer, credit and customer keys cannot access it. Responses use `Cache-Control: no-store`.
+Set server-only `WINSUM_BASE_URL` to the supplier-confirmed HTTPS **origin**, with no path,
+query, fragment or embedded credentials (do not append `/v1`). Store `WINSUM_API_KEY`
+as a Worker secret. Both are required locally even though the supplied OpenAPI marks
+Authorization optional. No URL or credential is supplied by this change.
+
+Discovery sends GET `/v1/models` with JSON Content-Type, Accept and bearer authentication.
+Redirects are refused; the request has a five-second timeout and a 256 KB body limit.
+Failures return fixed error codes without supplier bodies, URLs, keys or exception text.
+Only validated IDs are returned; pricing and arbitrary supplier fields are discarded.
+
+The supplied OpenAPI has no servers and an unspecified response object. The parser's
+`{object:"list",data:[{object:"model",id:"..."}]}` envelope is an explicit **provisional
+assumption**, covered only by mocks. Other shapes, duplicate/invalid IDs and malformed JSON
+are rejected. Confirm the real response schema before relying on discovery output.
+This route does not modify the public catalog, prices, routing, balances or billing.
+Inference remains disabled: supplier URL/key, live discovery, chat/stream/error/usage
+contracts, model mapping, costs and data handling must be reviewed before activation.
+No live verification or paid inference call was performed.
+
+Mock verification (Node 22.23.4, no install): `node --experimental-transform-types --test test/winsum.node.mjs`.
+Covers configuration, headers, redirects, malformed schemas, size limits, timeout, sanitized errors and gateway admin authorization. Full TypeScript/Worker suite was not run because dependencies are unavailable locally and disk space is constrained.
+
+## Boo inference runs (disabled until configured)
+
+`POST /v1/boo/chat/completions` is a non-streaming, merchant-key-authenticated OpenAI chat-completions call. It requires an account-scoped `Idempotency-Key`. Configure `BOO_MODEL_ID` to one available `micro` catalog model; when unset the route returns `boo_disabled`. Optional `BOO_ALLOWED_TOOLS` is a comma-separated list of host-executed function names. Calls cap at 32 messages, 64 KiB request JSON, 8 tools and 512 output tokens; they accept `stream: false` and reject streaming. Successful settlement requires a bounded, valid OpenAI completion with reported token usage. The host remains responsible for validating tool calls before execution and enforcing the total run/step budget.
+
+The gateway reserves against a byte-based upper estimate of input tokens plus the capped output allowance, then settles reported token usage and returns unused balance. This is a conservative estimate, not a provider-enforced hard spend cap: provider tokenization/framing or billing behavior could report more tokens than the estimate. If reported usage costs more than the hold, the run is marked `uncertain` and no automatic retry is allowed, but the gateway cannot retroactively prevent upstream spend. Known 4xx refusals release the hold. Transport errors, 5xx responses, missing or invalid usage, malformed/oversized completions and settlement ambiguity retain the hold as `uncertain`; the same key never triggers an automatic retry. `GET /v1/boo/runs/:id` exposes account-scoped status. Settled idempotent replays return the original OpenAI completion. Request/completion data is retained in the Boo run record for retry semantics. This route is separate from `/v1/chat/completions`; that general endpoint keeps its existing billing behavior.

@@ -31,6 +31,8 @@ export interface UpstreamResult {
   upstream: Upstream;
   /** Upstreams tried before this one, for the response header and the logs. */
   skipped: number;
+  /** True when every configured upstream failed at the transport layer, so outcome may be ambiguous. */
+  networkError?: boolean;
 }
 
 /**
@@ -68,7 +70,7 @@ export async function callUpstreams(
   }
   // Configured upstreams were tried and none answered (network errors): an upstream failure (502),
   // not a missing configuration, so the caller and the metrics see it as one.
-  if (!last && tried) return { response: new Response(null, { status: 502 }), upstream: tried, skipped };
+  if (!last && tried) return { response: new Response(null, { status: 502 }), upstream: tried, skipped, networkError: true };
   return last;
 }
 
