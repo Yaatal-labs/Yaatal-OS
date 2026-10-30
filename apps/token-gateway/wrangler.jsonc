@@ -31,5 +31,8 @@
   //                      only POST /admin/accounts/:id/credits (payment_ref required) and
   //                      GET /admin/accounts/by-pid/:pid; every other admin route answers 401
   //   UPSTREAM_API_KEY   key for "openai"-kind upstreams, when a model uses one
+  //   RELAY_BASE_URL / RELAY_API_KEY            our new-api relay, `any` group token (official supply)
+  //   RELAY_POOL_BASE_URL / RELAY_POOL_API_KEY  the relay's `pool` group token (account pool, demo only)
+  //   DEMO_MODELS        "true" lists and serves the demo (account-pool) models; unset for real customers
   "observability": { "enabled": true }
 }

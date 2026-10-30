@@ -1415,6 +1415,65 @@ describe("plan-gated models", () => {
     expect(page).toContain('kairmel/glm-5.3</code> <span class="soon">bientôt</span>'); // listed, marked as coming
     expect(await (await call("/", {}, { WORKERS_PAID: "true" })).text()).not.toContain('class="soon"');
   });
+
+  it("hides and refuses demo (account-pool) models unless DEMO_MODELS is on", async () => {
+    const list = async (extra = {}) =>
+      ((await (await call("/v1/models", {}, extra)).json()) as { data: { id: string }[] }).data.map(m => m.id);
+    expect(await list()).not.toContain("kairmel/claude-sonnet-5-demo");
+    expect(await list({ DEMO_MODELS: "true" })).toContain("kairmel/claude-sonnet-5-demo");
+    const { api_key } = await newAccount();
+    const refused = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/claude-sonnet-5-demo") });
+    expect(refused.status).toBe(404);
+  });
+});
+
+describe("the new-api relay", () => {
+  const RELAY_URL = "https://relay.example.test/v1";
+  const POOL_URL = "https://relay-pool.example.test/v1";
+  const relayEnv = { RELAY_BASE_URL: RELAY_URL, RELAY_API_KEY: "rk-any", RELAY_POOL_BASE_URL: POOL_URL, RELAY_POOL_API_KEY: "rk-pool" };
+
+  it("is tried before Workers AI, with the any-group key and the supplier's model id", async () => {
+    const { api_key } = await newAccount();
+    const { ai, seen: viaAi } = fakeAi(() => completion(1, 1));
+    const relay = fakeWholesale(() => completion(10, 5));
+    const response = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/kimi-k2.7-code") },
+      { AI: ai, WORKERS_PAID: "true", ...relayEnv });
+    expect(response.status).toBe(200);
+    expect(relay[0]!.url).toBe(`${RELAY_URL}/chat/completions`);
+    expect(relay[0]!.headers.get("authorization")).toBe("Bearer rk-any");
+    expect(relay[0]!.body.model).toBe("kimi-k2.7-code");
+    expect(viaAi).toHaveLength(0);
+  });
+
+  it("sends the output cap as max_completion_tokens to GPT-6, and as max_tokens elsewhere", async () => {
+    const { api_key } = await newAccount();
+    const relay = fakeWholesale(() => completion(1, 1));
+    for (const model of ["kairmel/gpt-6-luna", "kairmel/qwen3.8-flash"]) {
+      await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody(model, { max_tokens: 100 }) },
+        { AI: fakeAi(() => completion(1, 1)).ai, ...relayEnv });
+    }
+    expect(relay[0]!.body).toMatchObject({ model: "gpt-6-luna", max_completion_tokens: 100 });
+    expect(relay[0]!.body).not.toHaveProperty("max_tokens");
+    expect(relay[1]!.body).toMatchObject({ model: "qwen3.8-flash", max_tokens: 100 });
+    expect(relay[1]!.body).not.toHaveProperty("max_completion_tokens");
+  });
+
+  it("sends demo models only to the pool key", async () => {
+    const { api_key } = await newAccount();
+    const relay = fakeWholesale(() => completion(1, 1));
+    const response = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/claude-sonnet-5-demo") },
+      { AI: fakeAi(() => completion(1, 1)).ai, DEMO_MODELS: "true", ...relayEnv });
+    expect(response.status).toBe(200);
+    expect(relay[0]!.url).toBe(`${POOL_URL}/chat/completions`);
+    expect(relay[0]!.headers.get("authorization")).toBe("Bearer rk-pool");
+    expect(relay[0]!.body.model).toBe("lite/claude-sonnet-5");
+  });
+
+  it("is a shared supplier: no relay model takes Sovereign data", () => {
+    const relayed = MODELS.filter(m => m.upstreams.some(u => u.kind === "openai" && u.baseUrlVar.startsWith("RELAY")));
+    expect(relayed.length).toBeGreaterThan(0);
+    for (const model of relayed) expect(allowsDataClass(model, "sovereign")).toBe(false);
+  });
 });
 
 describe("usage tracking", () => {

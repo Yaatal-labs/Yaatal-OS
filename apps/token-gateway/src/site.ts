@@ -505,7 +505,8 @@ export function home(request: Request, env: SiteEnv): Response {
   const example = models.find(model => model.tier === "standard") ?? models[0]!;
   const live = new Set(models.map(model => model.id));
   // Every model is listed; those the current plan cannot serve yet are marked "bientôt" (and the API refuses them).
-  const rows = MODELS.map(model => `<tr><td><code>${escape(model.id)}</code>${live.has(model.id) ? "" : ' <span class="soon">bientôt</span>'}</td><td>${TIER_LABEL[model.tier]}</td><td class="num">${num(model.inputXofPerMillion)}</td><td class="num">${num(model.outputXofPerMillion)}</td></tr>`).join("");
+  // Demo (account-pool) models are internal, not coming: shown only while DEMO_MODELS serves them.
+  const rows = MODELS.filter(model => !model.demo || live.has(model.id)).map(model => `<tr><td><code>${escape(model.id)}</code>${live.has(model.id) ? "" : ' <span class="soon">bientôt</span>'}</td><td>${TIER_LABEL[model.tier]}</td><td class="num">${num(model.inputXofPerMillion)}</td><td class="num">${num(model.outputXofPerMillion)}</td></tr>`).join("");
   const chips = IDEAS.map(idea =>
     `<button class="chip" type="button" data-prompt="${escape(idea.prompt)}" data-example="${escape(idea.example)}">${escape(idea.title)}</button>`).join("");
   const tiles = IDEAS.map(idea => {
