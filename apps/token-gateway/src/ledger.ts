@@ -15,6 +15,91 @@ export interface UsageRecord {
   estimated: boolean;
 }
 
+export interface BooRun {
+  id: string; accountId: string; idempotencyKey: string; requestHash: string; model: string;
+  status: "reserved" | "settled" | "failed" | "uncertain"; reservedUxof: number;
+  actualUxof: number | null; inputTokens: number | null; outputTokens: number | null;
+  completionJson: string | null; errorCode: string | null;
+}
+
+function asBooRun(row: Record<string, unknown> | null): BooRun | null {
+  if (!row) return null;
+  return {
+    id: String(row.id), accountId: String(row.account_id), idempotencyKey: String(row.idempotency_key),
+    requestHash: String(row.request_sha256), model: String(row.model), status: row.status as BooRun["status"],
+    reservedUxof: Number(row.reserved_uxof), actualUxof: row.actual_uxof === null ? null : Number(row.actual_uxof),
+    inputTokens: row.input_tokens === null ? null : Number(row.input_tokens),
+    outputTokens: row.output_tokens === null ? null : Number(row.output_tokens),
+    completionJson: typeof row.completion_json === "string" ? row.completion_json : null,
+    errorCode: typeof row.error_code === "string" ? row.error_code : null,
+  };
+}
+
+const BOO_RUN_COLUMNS = `id, account_id, idempotency_key, request_sha256, model, status, reserved_uxof,
+  actual_uxof, input_tokens, output_tokens, completion_json, error_code`;
+
+export async function booRunByKey(db: D1Database, accountId: string, key: string): Promise<BooRun | null> {
+  const row = await db.prepare(`SELECT ${BOO_RUN_COLUMNS} FROM boo_runs WHERE account_id = ? AND idempotency_key = ?`)
+    .bind(accountId, key).first<Record<string, unknown>>();
+  return asBooRun(row);
+}
+
+export async function booRunById(db: D1Database, accountId: string, id: string): Promise<BooRun | null> {
+  const row = await db.prepare(`SELECT ${BOO_RUN_COLUMNS} FROM boo_runs WHERE account_id = ? AND id = ?`)
+    .bind(accountId, id).first<Record<string, unknown>>();
+  return asBooRun(row);
+}
+
+/** Reserve balance and create the durable run in one D1 transaction. */
+export async function reserveBooRun(db: D1Database, run: {
+  id: string; accountId: string; idempotencyKey: string; requestHash: string; model: string; amountUxof: number;
+}): Promise<boolean> {
+  const [debit, insert] = await db.batch([
+    db.prepare("UPDATE accounts SET balance_uxof = balance_uxof - ? WHERE id = ? AND balance_uxof >= ?")
+      .bind(run.amountUxof, run.accountId, run.amountUxof),
+    db.prepare(`INSERT INTO boo_runs (id, account_id, idempotency_key, request_sha256, model, status, reserved_uxof)
+      SELECT ?, ?, ?, ?, ?, 'reserved', ? WHERE changes() = 1`)
+      .bind(run.id, run.accountId, run.idempotencyKey, run.requestHash, run.model, run.amountUxof),
+    db.prepare(`INSERT INTO ledger (account_id, kind, amount_uxof, model, note)
+      SELECT account_id, 'reservation', -reserved_uxof, model, 'Boo inference reservation' FROM boo_runs WHERE id = ? AND status = 'reserved'`)
+      .bind(run.id),
+  ]);
+  if (Number(debit?.meta?.changes) === 1 && Number(insert?.meta?.changes) === 1) return true;
+  return false;
+}
+
+export async function settleBooRun(db: D1Database, id: string, settlement: {
+  actualUxof: number; inputTokens: number; outputTokens: number; estimated: boolean; completionJson: string;
+}): Promise<void> {
+  await db.batch([
+    db.prepare(`INSERT INTO ledger (account_id, kind, amount_uxof, model, note)
+      SELECT account_id, 'reservation', reserved_uxof, model, 'Boo inference reservation settled' FROM boo_runs WHERE id = ? AND status = 'reserved'`)
+      .bind(id),
+    db.prepare(`INSERT INTO ledger (account_id, kind, amount_uxof, model, input_tokens, output_tokens, estimated)
+      SELECT account_id, 'usage', ?, model, ?, ?, ? FROM boo_runs WHERE id = ? AND status = 'reserved'`)
+      .bind(-settlement.actualUxof, settlement.inputTokens, settlement.outputTokens, settlement.estimated ? 1 : 0, id),
+    db.prepare(`UPDATE accounts SET balance_uxof = balance_uxof +
+      (SELECT reserved_uxof - ? FROM boo_runs WHERE id = ? AND status = 'reserved')
+      WHERE id = (SELECT account_id FROM boo_runs WHERE id = ? AND status = 'reserved')`)
+      .bind(settlement.actualUxof, id, id),
+    db.prepare(`UPDATE boo_runs SET status = 'settled', actual_uxof = ?, input_tokens = ?, output_tokens = ?,
+      completion_json = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND status = 'reserved'`)
+      .bind(settlement.actualUxof, settlement.inputTokens, settlement.outputTokens, settlement.completionJson, id),
+  ]);
+}
+
+export async function releaseBooRun(db: D1Database, id: string, reason: string): Promise<void> {
+  await db.batch([
+    db.prepare(`INSERT INTO ledger (account_id, kind, amount_uxof, note)
+      SELECT account_id, 'reservation', reserved_uxof, ? FROM boo_runs WHERE id = ? AND status = 'reserved'`).bind(`Boo reservation released: ${reason}`, id),
+    db.prepare(`UPDATE accounts SET balance_uxof = balance_uxof +
+      (SELECT reserved_uxof FROM boo_runs WHERE id = ? AND status = 'reserved')
+      WHERE id = (SELECT account_id FROM boo_runs WHERE id = ? AND status = 'reserved')`).bind(id, id),
+    db.prepare(`UPDATE boo_runs SET status = 'failed', error_code = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      WHERE id = ? AND status = 'reserved'`).bind(reason, id),
+  ]);
+}
+
 const KEY_PREFIX = "yk_";
 
 export class UnknownAccountError extends Error {
