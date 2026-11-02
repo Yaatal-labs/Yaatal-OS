@@ -6,6 +6,7 @@
 //   GET  /usage                         usage page (the key stays in the browser tab)
 //   GET  /v1/models                     models and their FCFA prices
 //   POST /v1/chat/completions           OpenAI chat completions, streaming or not
+//   POST /v1/usage/report               account-scoped on-device turn usage, billed once per report
 //   POST /v1/boo/chat/completions        bounded, pre-reserved non-stream Boo model call
 //   GET  /v1/boo/runs/:id                account-scoped Boo run status / result
 //   GET  /v1/balance                    the key's balance and recent ledger rows
@@ -33,7 +34,7 @@
 // a replayed webhook or a bridge that retried after a timeout cannot pay the same settlement twice.
 import { allowsDataClass, availableModels, costOf, DATA_CLASSES, findModel, type DataClass, type ModelOffer } from "./models.js";
 import {
-  PaymentRefConflictError, UnknownAccountError, accountByPid, accountForKey, accountIssuer, createAccount, createKey, credit, debitUsage,
+  PaymentRefConflictError, UnknownAccountError, accountByPid, accountForKey, accountIssuer, createAccount, createKey, credit, debitDeviceUsage, debitUsage,
   keyAccountIssuer, recentLedger, revokeKey, revokeKeyById, setAccountIssuer, upsertAccountByPid, usageByModel,
 } from "./ledger.js";
 import { callUpstreams, type UpstreamEnv } from "./upstream.js";
@@ -69,6 +70,8 @@ export interface Env extends UpstreamEnv, SiteEnv, WinsumEnv {
   BOO_MODEL_ID?: string;
   /** Comma-separated names the Boo host may execute as function tools. */
   BOO_ALLOWED_TOOLS?: string;
+  /** Micro-XOF per on-device turn; unset means free inside a plan. */
+  DEVICE_TURN_PRICE_UXOF?: string;
 }
 
 const MAX_BODY_BYTES = 2_000_000;
@@ -83,6 +86,7 @@ export default {
       if (url.pathname === "/usage" && request.method === "GET") return usage(request, env);
       if (url.pathname === "/v1/models" && request.method === "GET") return models(env);
       if (url.pathname === "/v1/chat/completions" && request.method === "POST") return await chat(request, env, ctx);
+      if (url.pathname === "/v1/usage/report" && request.method === "POST") return await deviceUsage(request, env);
       if (url.pathname === "/v1/boo/chat/completions" && request.method === "POST") {
         const account = await authenticate(request, env);
         return await handleBooCompletion(request, env, account);
@@ -152,6 +156,7 @@ function models(env: Env): Response {
       },
       max_output_tokens: model.maxOutputTokens,
       residency: model.residency,
+      ...(model.onDevice ? { on_device: true } : {}),
     })),
   }, {
     // Public price list: any page may read it (the Playground's "Add AI Model" lists these).
@@ -198,12 +203,49 @@ async function readJson(
   return body as Record<string, unknown>;
 }
 
+async function deviceUsage(request: Request, env: Env): Promise<Response> {
+  const account = await authenticate(request, env);
+  const body = await readJson(request);
+  const offer = findModel(body.model, availableModels(env));
+  if (!offer) throw new HttpError(404, "model_not_found", "Unknown model. GET /v1/models lists what is available.");
+  if (!offer.onDevice) throw new HttpError(400, "invalid_request", "Usage reports require an on-device model.");
+  if (typeof body.report_id !== "string" || body.report_id.length < 1 || body.report_id.length > 64 ||
+      /[^A-Za-z0-9_-]/.test(body.report_id)) {
+    throw new HttpError(400, "invalid_request", "report_id must be 1 to 64 letters, digits, underscores or hyphens.");
+  }
+  const { turns, input_tokens: input, output_tokens: output } = body;
+  if (typeof turns !== "number" || !Number.isInteger(turns) || turns < 1 ||
+      typeof input !== "number" || !Number.isInteger(input) || input < 0 ||
+      typeof output !== "number" || !Number.isInteger(output) || output < 0) {
+    throw new HttpError(400, "invalid_request", "turns must be a positive integer and token counts must be non-negative integers.");
+  }
+  if (turns > 500 || input + output > 2_000_000) {
+    throw new HttpError(400, "report_too_large", "A report may contain at most 500 turns and 2,000,000 tokens.");
+  }
+  const price = env.DEVICE_TURN_PRICE_UXOF ?? "0";
+  const costUxof = Number(price) * turns;
+  if (!price || /[^0-9]/.test(price) || !Number.isSafeInteger(costUxof)) {
+    throw new HttpError(500, "server_error", "DEVICE_TURN_PRICE_UXOF must be a non-negative integer in micro-XOF.");
+  }
+  const result = await debitDeviceUsage(env.DB, account.id, body.report_id, turns, {
+    model: offer.id, inputTokens: input, outputTokens: output, costUxof, estimated: false,
+  });
+  if (!result) {
+    await recordEvent(env.DB, account.id, "insufficient_balance", offer.id);
+    throw new HttpError(402, "insufficient_balance", "This account has no balance left. Top up to continue.");
+  }
+  return Response.json(result.applied
+    ? { applied: true, cost_xof: costUxof / UXOF, balance_xof: result.balanceUxof / UXOF }
+    : { applied: false });
+}
+
 async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const account = await authenticate(request, env);
   const dataClass = dataClassOf(request);
   const body = await readJson(request);
   const offer = findModel(body.model, availableModels(env));
   if (!offer) throw new HttpError(404, "model_not_found", "Unknown model. GET /v1/models lists what is available.");
+  if (offer.onDevice) throw new HttpError(400, "invalid_request", "On-device models accept usage reports at /v1/usage/report.");
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     throw new HttpError(400, "invalid_request", "messages must be a non-empty array.");
   }

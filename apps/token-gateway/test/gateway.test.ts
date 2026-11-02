@@ -115,6 +115,146 @@ describe("catalog", () => {
   });
 });
 
+describe("on-device usage reports", () => {
+  const model = "kairmel/yaatal-tiny-device";
+  const body = (extra: Record<string, unknown> = {}) => JSON.stringify({
+    report_id: "phone_1-turns-01", model, turns: 3, input_tokens: 12, output_tokens: 34, ...extra,
+  });
+  const report = (key: string, extra: Record<string, unknown> = {}, extraEnv = {}) =>
+    call("/v1/usage/report", { method: "POST", auth: `Bearer ${key}`, body: body(extra) }, extraEnv);
+
+  it("requires a live customer Bearer key", async () => {
+    const { api_key } = await newAccount();
+    for (const auth of [undefined, "Bearer wrong", "Bearer yk_unknown", `Basic ${api_key}`, ADMIN, ISSUER, CREDIT]) {
+      const response = await call("/v1/usage/report", { method: "POST", auth, body: body() });
+      expect(response.status).toBe(401);
+      expect(((await response.json()) as { error: { code: string } }).error.code).toBe("invalid_api_key");
+    }
+    await call("/admin/keys/revoke", { method: "POST", auth: ADMIN, body: JSON.stringify({ key: api_key }) });
+    expect((await report(api_key)).status).toBe(401);
+  });
+
+  it("records free default usage at zero balance and includes it in analytics", async () => {
+    const { api_key, account } = await emptyAccount();
+    const response = await report(api_key);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ applied: true, cost_xof: 0, balance_xof: 0 });
+    const { recent } = await balanceOf(api_key);
+    expect(recent).toHaveLength(1);
+    expect(recent[0]).toMatchObject({
+      kind: "usage", model, input_tokens: 12, output_tokens: 34, amount_xof: 0, estimated: false,
+    });
+    const analytics = (await (await call("/admin/usage", { auth: ADMIN })).json()) as {
+      by_account: { id: string; requests: number; spend_xof: number }[];
+      by_model: { model: string; requests: number; spend_xof: number }[];
+    };
+    expect(analytics.by_account.find(row => row.id === account.id)).toMatchObject({ requests: 1, spend_xof: 0 });
+    expect(analytics.by_model.find(row => row.model === model)).toMatchObject({ requests: 1, spend_xof: 0 });
+  });
+
+  it("debits per turn and deduplicates across keys, even after the balance is exhausted", async () => {
+    const { api_key, account } = await newAccount(1);
+    const price = { DEVICE_TURN_PRICE_UXOF: "500000" };
+    const first = await report(api_key, {}, price);
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ applied: true, cost_xof: 1.5, balance_xof: -0.5 });
+    const minted = await call(`/admin/accounts/${account.id}/keys`, {
+      method: "POST", auth: ADMIN, body: JSON.stringify({ label: "another-phone" }),
+    });
+    const secondKey = ((await minted.json()) as { api_key: string }).api_key;
+    const replay = await report(secondKey, {}, price);
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toEqual({ applied: false });
+    const refused = await report(api_key, { report_id: "next" }, price);
+    expect(refused.status).toBe(402);
+    expect(((await refused.json()) as { error: { code: string } }).error.code).toBe("insufficient_balance");
+    const balance = await balanceOf(api_key);
+    expect(balance.balance_xof).toBe(-0.5);
+    expect(balance.recent.filter(row => row.kind === "usage")).toHaveLength(1);
+    expect(balance.recent[0]).toMatchObject({ model, amount_xof: -1.5, input_tokens: 12, output_tokens: 34 });
+    // A refusal does not consume the report id; free turns still work at a negative balance.
+    expect(await (await report(api_key, { report_id: "next" })).json())
+      .toEqual({ applied: true, cost_xof: 0, balance_xof: -0.5 });
+  });
+
+  it("applies concurrent retries once and scopes report ids to the account", async () => {
+    const { api_key, account } = await newAccount(10);
+    const price = { DEVICE_TURN_PRICE_UXOF: "250000" };
+    const responses = await Promise.all([report(api_key, {}, price), report(api_key, {}, price)]);
+    for (const response of responses) expect(response.status).toBe(200);
+    const results = await Promise.all(responses.map(response => response.json() as Promise<{ applied: boolean }>));
+    expect(results.map(result => result.applied).sort()).toEqual([false, true]);
+    const balance = await balanceOf(api_key);
+    expect(balance.balance_xof).toBe(9.25);
+    expect(balance.recent.filter(row => row.kind === "usage")).toHaveLength(1);
+    const reports = await env.DB.prepare("SELECT report_id, turns FROM device_reports WHERE account_id = ?").bind(account.id).all();
+    expect(reports.results).toEqual([{ report_id: "phone_1-turns-01", turns: 3 }]);
+    const other = await emptyAccount();
+    expect(await (await report(other.api_key)).json()).toEqual({ applied: true, cost_xof: 0, balance_xof: 0 });
+  });
+
+  it("validates report ids and integer counts without recording usage", async () => {
+    const { api_key } = await emptyAccount();
+    const invalid = [
+      ...[undefined, null, 1, "", "x".repeat(65), "a/b", " a", "a\n"].map(report_id => ({ report_id })),
+      ...[undefined, null, "1", 0, -1, 1.5].map(turns => ({ turns })),
+      ...[undefined, null, "0", -1, 0.5].flatMap(value => [{ input_tokens: value }, { output_tokens: value }]),
+    ];
+    for (const extra of invalid) expect((await report(api_key, extra)).status).toBe(400);
+    expect((await call("/v1/usage/report", { method: "POST", auth: `Bearer ${api_key}`, body: "{" })).status).toBe(400);
+    expect((await balanceOf(api_key)).recent).toHaveLength(0);
+  });
+
+  it("caps turns and total tokens per report and accepts the boundary", async () => {
+    const { api_key } = await emptyAccount();
+    for (const extra of [
+      { turns: 501 }, { input_tokens: 2_000_001 }, { output_tokens: 2_000_001 },
+      { input_tokens: 1_000_001, output_tokens: 1_000_000 },
+    ]) {
+      const response = await report(api_key, extra);
+      expect(response.status).toBe(400);
+      expect(((await response.json()) as { error: { code: string } }).error.code).toBe("report_too_large");
+    }
+    expect((await balanceOf(api_key)).recent).toHaveLength(0);
+    expect((await report(api_key, { report_id: "a".repeat(64), turns: 500, input_tokens: 1_000_000, output_tokens: 1_000_000 })).status).toBe(200);
+    expect((await report(api_key, { report_id: "z", turns: 1, input_tokens: 0, output_tokens: 0 })).status).toBe(200);
+  });
+
+  it("refuses unknown and cloud models and never sends device chat to an upstream", async () => {
+    const { api_key } = await emptyAccount();
+    const unknown = await report(api_key, { model: "missing" });
+    expect(unknown.status).toBe(404);
+    expect(((await unknown.json()) as { error: { code: string } }).error.code).toBe("model_not_found");
+    expect((await report(api_key, { model: "kairmel/glm-4.7-flash" })).status).toBe(400);
+    const { ai, seen } = fakeAi(() => completion(1, 1));
+    const upstream = fakeWholesale(() => completion(1, 1));
+    for (const stream of [false, true]) {
+      expect((await call("/v1/chat/completions", {
+        method: "POST", auth: `Bearer ${api_key}`, body: chatBody(model, { stream }),
+      }, { AI: ai })).status).toBe(400);
+    }
+    expect(seen).toHaveLength(0);
+    expect(upstream).toHaveLength(0);
+    expect((await balanceOf(api_key)).recent).toHaveLength(0);
+  });
+
+  it("lists the device offer with controlled residency and an on_device marker", async () => {
+    const { data } = (await (await call("/v1/models")).json()) as { data: Record<string, unknown>[] };
+    expect(data.find(row => row.id === model)).toMatchObject({ on_device: true, tier: "micro", residency: "controlled" });
+    expect(MODELS.find(offer => offer.id === model)?.upstreams).toEqual([]);
+  });
+
+  it("rejects invalid configured prices without recording or charging", async () => {
+    const { api_key } = await newAccount(10);
+    for (const price of ["", "-1", "1.5", "abc", "9007199254740991"]) {
+      expect((await report(api_key, {}, { DEVICE_TURN_PRICE_UXOF: price })).status).toBe(500);
+    }
+    const balance = await balanceOf(api_key);
+    expect(balance.balance_xof).toBe(10);
+    expect(balance.recent.filter(row => row.kind === "usage")).toHaveLength(0);
+  });
+});
+
 describe("keys and admin", () => {
   it("lets the key-issuer token mint and revoke keys on its own account, and nothing else", async () => {
     const { account } = await newAccount(1_000, ISSUER_NAME);
@@ -1141,9 +1281,9 @@ describe("data class and residency", () => {
       expect(allowsDataClass(offer, "operational")).toBe(true);
       expect(allowsDataClass(offer, "public")).toBe(true);
     }
-    // Only the Yaatal AI Box models are controlled: every one of their upstreams is ours.
+    // The Yaatal AI Box and on-device models are controlled.
     expect(MODELS.filter(model => model.residency === "controlled").map(model => model.id).sort())
-      .toEqual(["kairmel/yaatal-back", "kairmel/yaatal-front"]);
+      .toEqual(["kairmel/yaatal-back", "kairmel/yaatal-front", "kairmel/yaatal-tiny-device"]);
   });
 
   it("serves the Yaatal box with Sovereign data: our relay first, the box's own door when the relay is not set", async () => {
@@ -1180,7 +1320,7 @@ describe("data class and residency", () => {
   it("lists each model's residency", async () => {
     const { data } = (await (await call("/v1/models")).json()) as { data: { id: string; residency: string }[] };
     expect(data.filter(model => model.residency !== "any").map(model => model.id).sort())
-      .toEqual(["kairmel/yaatal-back", "kairmel/yaatal-front"]);
+      .toEqual(["kairmel/yaatal-back", "kairmel/yaatal-front", "kairmel/yaatal-tiny-device"]);
   });
 
   it("with x-yaatal-no-failover: 1 tries only the first upstream", async () => {
@@ -1397,7 +1537,7 @@ describe("photos", () => {
 describe("pricing", () => {
   it("never sells a model below its upstream cost", () => {
     expect(retailXof(3.2)).toBe(3850); // Qwen3.8 output: cost 1,920 FCFA
-    for (const model of MODELS) {
+    for (const model of MODELS.filter(model => !model.onDevice)) {
       expect(model.inputXofPerMillion).toBeGreaterThan(0);
       expect(model.outputXofPerMillion).toBeGreaterThanOrEqual(model.inputXofPerMillion > 0 ? 50 : 0);
     }

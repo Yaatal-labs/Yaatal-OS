@@ -498,7 +498,7 @@ export function home(request: Request, env: SiteEnv): Response {
   const featured = env.FEATURED_BLUEPRINT_ID?.trim();
   const featuredLink = playground && featured && /^[A-Za-z0-9_-]{8,64}$/.test(featured)
     ? `${playground}/blueprint/${featured}` : null;
-  const models = availableModels(env);
+  const models = availableModels(env).filter(model => !model.onDevice);
   const band = ["Site e-commerce", "Bot WhatsApp", "Soundbox", "Dashboard", "Prépa live", "Balance connectée", "Firmware ESP32"]
     .map((word, i) => `<span${i % 2 ? ' class="o"' : ""}>${word}</span><i></i>`).join("");
   const marquee = band + band;
@@ -506,7 +506,7 @@ export function home(request: Request, env: SiteEnv): Response {
   const live = new Set(models.map(model => model.id));
   // Every model is listed; those the current plan cannot serve yet are marked "bientôt" (and the API refuses them).
   // Demo (account-pool) models are internal, not coming: shown only while DEMO_MODELS serves them.
-  const rows = MODELS.filter(model => !model.demo || live.has(model.id)).map(model => `<tr><td><code>${escape(model.id)}</code>${live.has(model.id) ? "" : ' <span class="soon">bientôt</span>'}</td><td>${TIER_LABEL[model.tier]}</td><td class="num">${num(model.inputXofPerMillion)}</td><td class="num">${num(model.outputXofPerMillion)}</td></tr>`).join("");
+  const rows = MODELS.filter(model => !model.onDevice && (!model.demo || live.has(model.id))).map(model => `<tr><td><code>${escape(model.id)}</code>${live.has(model.id) ? "" : ' <span class="soon">bientôt</span>'}</td><td>${TIER_LABEL[model.tier]}</td><td class="num">${num(model.inputXofPerMillion)}</td><td class="num">${num(model.outputXofPerMillion)}</td></tr>`).join("");
   const chips = IDEAS.map(idea =>
     `<button class="chip" type="button" data-prompt="${escape(idea.prompt)}" data-example="${escape(idea.example)}">${escape(idea.title)}</button>`).join("");
   const tiles = IDEAS.map(idea => {
