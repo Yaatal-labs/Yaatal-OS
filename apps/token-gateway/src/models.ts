@@ -100,6 +100,16 @@ const RELAY = (model: string, maxCostUsd: { input: number; output: number }, opt
 /** The relay's `pool` group token: account-pool supply, for demo and testing only (founder 10-29). */
 const RELAY_POOL = (model: string, maxCostUsd: { input: number; output: number }): Upstream =>
   SUPPLIER("RELAY_POOL", model, maxCostUsd);
+/**
+ * The Yaatal AI Box (our agent-tuned Wolof front and tool-using back on our own GPU). Reached first through
+ * the relay's `sovereign` group, then directly at the box's front door; every hop is ours, so it is controlled.
+ * The cost covers the box's GPU hour at demo traffic, not a supplier price.
+ */
+const YAATAL_BOX_COST = { input: 0.1, output: 0.4 };
+const YAATAL_BOX = (model: string): Upstream[] => [
+  { ...SUPPLIER("YAATAL_RELAY", model, YAATAL_BOX_COST), residency: "controlled" },
+  { ...SUPPLIER("YAATAL_BOX", model, YAATAL_BOX_COST), residency: "controlled" },
+];
 
 function offer(
   id: string,
@@ -176,6 +186,10 @@ export const MODELS: readonly ModelOffer[] = [
   offer("kairmel/gemma-4-26b", "standard", [WORKERS_AI("@cf/google/gemma-4-26b-a4b-it")], { input: 0.1, output: 0.3 }),
   offer("kairmel/llama-3.3-70b", "standard", [WORKERS_AI("@cf/meta/llama-3.3-70b-instruct-fp8-fast")], { input: 0.293, output: 2.253 }),
   offer("kairmel/granite-4.0-micro", "micro", [WORKERS_AI("@cf/ibm-granite/granite-4.0-h-micro")], { input: 0.017, output: 0.112 }),
+  // The Yaatal AI Box: the front speaks Wolof/French and decides (delegate / answer_permission / stay_silent),
+  // the back acts with the shop's tools and answers one tagged French receipt line.
+  offer("kairmel/yaatal-front", "micro", YAATAL_BOX("yaatal-front"), YAATAL_BOX_COST, { maxOutputTokens: 1024 }),
+  offer("kairmel/yaatal-back", "standard", YAATAL_BOX("yaatal-back"), YAATAL_BOX_COST, { maxOutputTokens: 1024 }),
   // Account-pool supply through the relay's `pool` group: demo and testing only, never listed or
   // served unless DEMO_MODELS is "true". Priced on the pool cost (about half the official one).
   offer("kairmel/claude-opus-5.5-demo", "reasoning", [RELAY_POOL("lite/claude-opus-5-5", { input: 1.466, output: 7.33 })], { input: 1.466, output: 7.33 }, DEMO),
