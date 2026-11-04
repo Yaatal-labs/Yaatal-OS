@@ -1445,7 +1445,9 @@ describe("customer pages", () => {
     expect(html).toContain("Facturé en FCFA");
     expect(html).toContain("partout en zone UEMOA");
     expect(html).toContain("kairmel/qwen3.8-27b");
-    expect(html).toMatch(/550<\/td><td class="num">3 850/); // qwen3.8-27b, the newest free-plan model
+    const qwen = /data-model-id="kairmel\/qwen3\.8-27b">([\s\S]*?)<\/li>/.exec(html)?.[1];
+    expect(qwen).toMatch(/<dt>Entrée<\/dt><dd>550 <small>FCFA/);
+    expect(qwen).toMatch(/<dt>Sortie<\/dt><dd>3\s850 <small>FCFA/);
     for (const estimate of ["Ticket", "≈", "data-count"]) expect(html).not.toContain(estimate); // rates only, no estimates of ours
     expect(html).not.toContain("jetons");
     for (const word of ["siliconflow", "openrouter", "@cf/", "workers-ai", "wholesale"]) {
@@ -1572,8 +1574,8 @@ describe("plan-gated models", () => {
     const served = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-5.3") }, { AI: ai, WORKERS_PAID: "true" });
     expect(served.status).toBe(200);
     const page = await (await call("/")).text();
-    expect(page).toContain('kairmel/glm-5.3</code> <span class="soon">bientôt</span>'); // listed, marked as coming
-    expect(await (await call("/", {}, { WORKERS_PAID: "true" })).text()).not.toContain('class="soon"');
+    expect(page).toMatch(/data-model-id="kairmel\/glm-5\.3">\s*<div class="model-meta">[^\n]*class="model-soon"/);
+    expect(await (await call("/", {}, { WORKERS_PAID: "true" })).text()).not.toContain('class="model-soon"');
   });
 
   it("hides and refuses demo (account-pool) models unless DEMO_MODELS is on", async () => {
@@ -1581,9 +1583,26 @@ describe("plan-gated models", () => {
       ((await (await call("/v1/models", {}, extra)).json()) as { data: { id: string }[] }).data.map(m => m.id);
     expect(await list()).not.toContain("kairmel/claude-sonnet-5-demo");
     expect(await list({ DEMO_MODELS: "true" })).toContain("kairmel/claude-sonnet-5-demo");
+    expect(await (await call("/")).text()).not.toContain('data-model-id="kairmel/claude-sonnet-5-demo"');
+    expect(await (await call("/", {}, { DEMO_MODELS: "true" })).text()).toContain('data-model-id="kairmel/claude-sonnet-5-demo"');
     const { api_key } = await newAccount();
     const refused = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/claude-sonnet-5-demo") });
     expect(refused.status).toBe(404);
+  });
+});
+
+describe("model catalogue", () => {
+  it("shows each public model and puts local execution in its own category", async () => {
+    const env = { WORKERS_PAID: "true" };
+    const response = await call("/", {}, env);
+    const html = await response.text();
+    const { data } = await (await call("/v1/models", {}, env)).json() as { data: { id: string }[] };
+    const cards = Array.from(html.matchAll(/data-model-id="([^"]+)"/g), match => match[1]);
+    expect(cards.sort()).toEqual(data.map(model => model.id).sort());
+    expect(html).toMatch(/data-model-group="device"[\s\S]*data-model-id="kairmel\/yaatal-tiny-device"/);
+    expect(html).toContain('href="/v1/models"');
+    expect(html).toContain('href="/#api"');
+    expect(response.headers.get("content-security-policy")).toMatch(/script-src 'nonce-/);
   });
 });
 

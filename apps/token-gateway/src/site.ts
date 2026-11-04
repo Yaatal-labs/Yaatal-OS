@@ -2,7 +2,8 @@
 // website to a device's firmware, on one AI API billed in FCFA. Every idea goes straight to the
 // builder (kairmel.com) through its `/?prompt=` deep link. Prices are rendered from the model
 // catalog so the page cannot drift from billing. No supplier or upstream model name appears here.
-import { availableModels, MODELS } from "./models.js";
+import { catalog, CATALOG_SCRIPT, CATALOG_STYLE } from "./catalog.js";
+import { availableModels } from "./models.js";
 
 export interface SiteEnv {
   /** "true" on Workers Paid: the page then lists the models that need it. */
@@ -18,7 +19,6 @@ export interface SiteEnv {
 /** The Playground's own limit for a prefilled prompt. */
 const MAX_PROMPT = 4000;
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
-const TIER_LABEL = { micro: "Micro", standard: "Standard", reasoning: "Reasoning" } as const;
 
 interface Idea {
   tag: string;
@@ -223,7 +223,6 @@ h2{font-size:clamp(1.9rem,4vw,3rem);line-height:1.05;margin:0 0 14px;max-width:1
 table{width:100%;border-collapse:collapse;min-width:560px}
 th,td{text-align:left;padding:15px 18px;border-bottom:1px solid var(--line)}tr:last-child td{border-bottom:0}
 th{color:var(--muted);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
-.soon{font:600 .68rem "Departure Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 7px;margin-left:6px;white-space:nowrap}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}td code{color:var(--accent-strong);font-size:.9rem}
 .qa{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.qa .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
 .qa h3{font-family:"Hanken Grotesk",sans-serif;font-size:1.02rem;margin:0 0 6px;letter-spacing:0}.qa p{margin:0;color:var(--muted)}
@@ -348,7 +347,7 @@ function page(title: string, body: string, options: { script?: string; formActio
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${FONTS}">
 <link rel="icon" href="${FAVICON}">
-<style>${STYLE}</style>
+<style>${STYLE}${CATALOG_STYLE}</style>
 </head>
 <body><a class="skip" href="#main">Aller au contenu</a>${body}${scriptNonce ? `<script nonce="${scriptNonce}">${options.script}</script>` : ""}</body>
 </html>`;
@@ -379,7 +378,7 @@ function topNav(playground: string | null, contact: string | null): string {
     : contact ? `<a class="btn ghost" href="${escape(contact)}" rel="noopener">Accès bêta</a>` : "";
   return `<header class="top"><nav class="wrap" aria-label="Principale">
 <a class="logo" href="/" aria-label="Kairmel, accueil">${MARK}${WORDMARK}</a>
-<div class="links"><a href="/#modeles">Exemples</a><a href="/#comment">Comment ça marche</a><a href="/#tarifs">Tarifs</a><a href="/#api">API</a></div>
+<div class="links"><a href="/#modeles">Exemples</a><a href="/#comment">Comment ça marche</a><a href="/#tarifs">Modèles et tarifs</a><a href="/#api">API</a></div>
 ${cta}</nav></header>`;
 }
 
@@ -493,6 +492,7 @@ function buildLink(playground: string, prompt: string): string {
 }
 
 export function home(request: Request, env: SiteEnv): Response {
+  const origin = new URL(request.url).origin;
   const contact = whatsappLink(env);
   const playground = playgroundOrigin(request, env);
   const featured = env.FEATURED_BLUEPRINT_ID?.trim();
@@ -503,10 +503,6 @@ export function home(request: Request, env: SiteEnv): Response {
     .map((word, i) => `<span${i % 2 ? ' class="o"' : ""}>${word}</span><i></i>`).join("");
   const marquee = band + band;
   const example = models.find(model => model.tier === "standard") ?? models[0]!;
-  const live = new Set(models.map(model => model.id));
-  // Every model is listed; those the current plan cannot serve yet are marked "bientôt" (and the API refuses them).
-  // Demo (account-pool) models are internal, not coming: shown only while DEMO_MODELS serves them.
-  const rows = MODELS.filter(model => !model.onDevice && (!model.demo || live.has(model.id))).map(model => `<tr><td><code>${escape(model.id)}</code>${live.has(model.id) ? "" : ' <span class="soon">bientôt</span>'}</td><td>${TIER_LABEL[model.tier]}</td><td class="num">${num(model.inputXofPerMillion)}</td><td class="num">${num(model.outputXofPerMillion)}</td></tr>`).join("");
   const chips = IDEAS.map(idea =>
     `<button class="chip" type="button" data-prompt="${escape(idea.prompt)}" data-example="${escape(idea.example)}">${escape(idea.title)}</button>`).join("");
   const tiles = IDEAS.map(idea => {
@@ -673,7 +669,7 @@ reply = kairmel.chat.completions.create(
 </div></div></section>
 
 <section id="tarifs"><div class="wrap">
-  <p class="kicker">Tarifs</p>
+  ${catalog(env, escape)}
   <div class="pay">
     <div>
       <h2>Vous payez ce que vous consommez, en FCFA.</h2>
@@ -681,10 +677,6 @@ reply = kairmel.chat.completions.create(
     </div>
     <figure><img src="/img/ngor.webp" alt="Deux jeunes vendeurs de recharges téléphoniques au bord d'une route." loading="lazy" width="1200" height="800"><figcaption>Vendeurs de recharges téléphoniques, Ngor, Dakar</figcaption></figure>
   </div>
-  <div class="table-wrap"><table>
-    <thead><tr><th>Modèle</th><th>Tier</th><th class="num">Input · FCFA / 1M tokens</th><th class="num">Output · FCFA / 1M tokens</th></tr></thead>
-    <tbody>${rows}</tbody></table></div>
-  <p class="sub" style="margin-top:16px;margin-bottom:0">Liste à jour : <a href="/v1/models">/v1/models</a> · Votre solde : <a href="/usage">/usage</a></p>
 </div></section>
 
 <section id="donnees"><div class="wrap">
@@ -713,10 +705,10 @@ reply = kairmel.chat.completions.create(
   </div>
 </div></section>
 </main>
-<footer class="wrap"><span>Kairmel, un service de Yaatal · Dakar</span><span><a href="/usage">Consommation</a> · <a href="/v1/models">Modèles</a> · Bêta</span>
+<footer class="wrap"><span>Kairmel, un service de Yaatal · Dakar</span><span><a href="/usage">Consommation</a> · <a href="/#tarifs">Modèles</a> · Bêta</span>
 <p class="credits">Photos, Wikimedia Commons : Sanghesenegalafrica (CC BY-SA 4.0), Lucas Takerkart (CC BY-SA 4.0), dimworld (CC BY 2.0), GuillaumeG (CC BY-SA 4.0).</p></footer>`;
 
-  const script = THREAD_SCRIPT + PAGE_SCRIPT + (playground ? `
+  const script = THREAD_SCRIPT + PAGE_SCRIPT + CATALOG_SCRIPT + (playground ? `
 const box = document.getElementById("prompt");
 for (const chip of document.querySelectorAll(".chip")) {
   chip.addEventListener("click", () => { box.value = chip.dataset.prompt; box.focus(); });
