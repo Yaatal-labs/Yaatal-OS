@@ -1141,7 +1141,26 @@ describe("data class and residency", () => {
       expect(allowsDataClass(offer, "operational")).toBe(true);
       expect(allowsDataClass(offer, "public")).toBe(true);
     }
-    expect(MODELS.every(model => model.residency === "any")).toBe(true);
+    // Only the Yaatal AI Box models are controlled: every one of their upstreams is ours.
+    expect(MODELS.filter(model => model.residency === "controlled").map(model => model.id).sort())
+      .toEqual(["kairmel/yaatal-back", "kairmel/yaatal-front"]);
+  });
+
+  it("serves the Yaatal box with Sovereign data: our relay first, the box's own door when the relay is not set", async () => {
+    const { api_key } = await newAccount(5_000);
+    const seen = fakeWholesale(() => completion(10, 10));
+    const direct = await ask({ "x-yaatal-data-class": "sovereign" },
+      { YAATAL_BOX_BASE_URL: "https://box.example.test/v1", YAATAL_BOX_API_KEY: "bx-1" }, api_key, "kairmel/yaatal-front");
+    expect(direct.status).toBe(200);
+    expect(seen[0]!.url).toBe("https://box.example.test/v1/chat/completions");
+    expect(seen[0]!.headers.get("authorization")).toBe("Bearer bx-1");
+    expect(seen[0]!.body.model).toBe("yaatal-front");
+    const relayed = await ask({ "x-yaatal-data-class": "sovereign" },
+      { YAATAL_RELAY_BASE_URL: "https://relay.example.test/v1", YAATAL_RELAY_API_KEY: "rk-sov",
+        YAATAL_BOX_BASE_URL: "https://box.example.test/v1", YAATAL_BOX_API_KEY: "bx-1" }, api_key, "kairmel/yaatal-back");
+    expect(relayed.status).toBe(200);
+    expect(seen[1]!.url).toBe("https://relay.example.test/v1/chat/completions");
+    expect(seen[1]!.body.model).toBe("yaatal-back");
   });
 
   it("serves sovereign end to end from a controlled model", async () => {
@@ -1160,7 +1179,8 @@ describe("data class and residency", () => {
 
   it("lists each model's residency", async () => {
     const { data } = (await (await call("/v1/models")).json()) as { data: { id: string; residency: string }[] };
-    expect(data.every(model => model.residency === "any")).toBe(true);
+    expect(data.filter(model => model.residency !== "any").map(model => model.id).sort())
+      .toEqual(["kairmel/yaatal-back", "kairmel/yaatal-front"]);
   });
 
   it("with x-yaatal-no-failover: 1 tries only the first upstream", async () => {

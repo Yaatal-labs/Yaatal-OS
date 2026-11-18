@@ -6,6 +6,8 @@
 //   GET  /usage                         usage page (the key stays in the browser tab)
 //   GET  /v1/models                     models and their FCFA prices
 //   POST /v1/chat/completions           OpenAI chat completions, streaming or not
+//   POST /v1/boo/chat/completions        bounded, pre-reserved non-stream Boo model call
+//   GET  /v1/boo/runs/:id                account-scoped Boo run status / result
 //   GET  /v1/balance                    the key's balance and recent ledger rows
 //   PUT  /admin/accounts/by-pid/:pid    create or return an Engine user's account (admin or issuer)
 //   GET  /admin/accounts/by-pid/:pid    resolve a buyer's account (admin or credit token)
@@ -35,13 +37,16 @@ import {
   keyAccountIssuer, recentLedger, revokeKey, revokeKeyById, setAccountIssuer, upsertAccountByPid, usageByModel,
 } from "./ledger.js";
 import { callUpstreams, type UpstreamEnv } from "./upstream.js";
+import { discoverWinsum, WinsumDiscoveryError, type WinsumEnv } from "./winsum.js";
 import { home, usage, type SiteEnv } from "./site.js";
 import { countStream, requestCharacters, usageFrom, generatedCharacters, estimateTokens } from "./usage.js";
 import { recordEvent, usageReport } from "./report.js";
 import { moveThinking, normalizeReasoning, reasoningFieldInStream, thinkingOutOfStream } from "./think.js";
-import { repairToolCalls, separateToolCalls, splitToolCalls } from "./tool-calls.js";
+import { separateToolCalls, splitToolCalls } from "./tool-calls.js";
+import { prepare } from "./request-body.js";
+import { handleBooCompletion, handleBooRunStatus } from "./boo-runs.js";
 
-export interface Env extends UpstreamEnv, SiteEnv {
+export interface Env extends UpstreamEnv, SiteEnv, WinsumEnv {
   DB: D1Database;
   /** "true" once the account is on Workers Paid: unlocks the models that need it. */
   WORKERS_PAID?: string;
@@ -60,12 +65,15 @@ export interface Env extends UpstreamEnv, SiteEnv {
    * up an account by Engine pid, and call nothing else. Unset refuses the token entirely.
    */
   CREDIT_TOKEN?: string;
+  /** Exact micro-tier catalog model enabled for bounded Boo model calls; unset disables Boo. */
+  BOO_MODEL_ID?: string;
+  /** Comma-separated names the Boo host may execute as function tools. */
+  BOO_ALLOWED_TOOLS?: string;
 }
 
 const MAX_BODY_BYTES = 2_000_000;
 const UXOF = 1_000_000;
 /** Request fields that could store data or identify the end user upstream; never forwarded. */
-const STRIPPED_FIELDS = ["user", "metadata", "store", "service_tier"] as const;
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -75,7 +83,20 @@ export default {
       if (url.pathname === "/usage" && request.method === "GET") return usage(request, env);
       if (url.pathname === "/v1/models" && request.method === "GET") return models(env);
       if (url.pathname === "/v1/chat/completions" && request.method === "POST") return await chat(request, env, ctx);
+      if (url.pathname === "/v1/boo/chat/completions" && request.method === "POST") {
+        const account = await authenticate(request, env);
+        return await handleBooCompletion(request, env, account);
+      }
+      const booRun = /^\/v1\/boo\/runs\/([0-9a-f-]{36})$/.exec(url.pathname);
+      if (booRun && request.method === "GET") {
+        const account = await authenticate(request, env);
+        return await handleBooRunStatus(request, env, account, booRun[1]!);
+      }
       if (url.pathname === "/v1/balance" && request.method === "GET") return await balance(request, env);
+      if (url.pathname === "/admin/suppliers/winsum/models" && request.method === "GET") {
+        if (!(await isAdmin(request, env))) throw new HttpError(401, "unauthorized", "Admin token required.");
+        return Response.json(await discoverWinsum(env), { headers: { "cache-control": "no-store" } });
+      }
       if (url.pathname === "/admin/usage" && request.method === "GET") return await usageAdmin(request, env, url);
       if (/^\/admin\/accounts\/by-pid\/[^/]+\/activity$/.test(url.pathname) && request.method === "GET") {
         return await adminActivityByPid(request, env, url);
@@ -90,6 +111,11 @@ export default {
       if (url.pathname.startsWith("/admin/") && request.method === "DELETE") return await adminDelete(request, env, url.pathname);
       return error(404, "not_found", "No such route.");
     } catch (err) {
+      if (err instanceof WinsumDiscoveryError) {
+        const response = error(err.status, err.code, err.message);
+        response.headers.set("cache-control", "no-store");
+        return response;
+      }
       if (err instanceof HttpError) return error(err.status, err.type, err.message);
       if (err instanceof UnknownAccountError) return error(404, "not_found", "No such account.");
       if (err instanceof PaymentRefConflictError) {
@@ -275,21 +301,6 @@ export function publicModelIds(publicId: string): TransformStream<Uint8Array, Ui
  * The body sent upstream: public id swapped for the upstream's, output capped, usage requested,
  * tool-call arguments in the history made valid JSON.
  */
-function prepare(body: Record<string, unknown>, offer: ModelOffer): Record<string, unknown> {
-  const out: Record<string, unknown> = { ...body };
-  for (const field of STRIPPED_FIELDS) delete out[field];
-  if (Array.isArray(out.messages)) out.messages = repairToolCalls(out.messages);
-  const requested = out.max_completion_tokens ?? out.max_tokens;
-  const cap = typeof requested === "number" && Number.isInteger(requested) && requested > 0
-    ? Math.min(requested, offer.maxOutputTokens)
-    : offer.maxOutputTokens;
-  delete out.max_completion_tokens;
-  out.max_tokens = cap;
-  if (out.stream === true) out.stream_options = { include_usage: true };
-  else delete out.stream_options;
-  return out;
-}
-
 async function charge(env: Env, accountId: string, offer: ModelOffer,
                       counts: { inputTokens: number; outputTokens: number; estimated: boolean }) {
   await debitUsage(env.DB, accountId, {
