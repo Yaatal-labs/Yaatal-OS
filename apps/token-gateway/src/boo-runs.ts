@@ -216,7 +216,7 @@ function replay(run: Awaited<ReturnType<typeof booRunByKey>> & {}, hash: string)
 function findConfiguredOffer(id: string, env: BooRunEnv): ModelOffer | null {
   // Avoid importing the public paid-plan filter: this lane still honors deployment availability.
   const offer = configuredModels(env).find(model => model.id === id);
-  return offer?.tier === "micro" ? offer : null;
+  return offer?.tier === "micro" && !offer.onDevice ? offer : null;
 }
 
 function configuredModels(env: BooRunEnv) { return availableModels(env); }

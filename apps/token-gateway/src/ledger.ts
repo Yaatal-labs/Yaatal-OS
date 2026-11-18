@@ -330,6 +330,30 @@ export async function debitUsage(db: D1Database, accountId: string, usage: Usage
   ]);
 }
 
+/** Deduplicate, record usage (including free turns) and debit in one transaction. Null means no balance. */
+export async function debitDeviceUsage(
+  db: D1Database, accountId: string, reportId: string, turns: number, usage: UsageRecord,
+): Promise<CreditResult | null> {
+  const [report, , , balance] = await db.batch([
+    db.prepare(`INSERT INTO device_reports (account_id, report_id, turns)
+      SELECT id, ?, ? FROM accounts WHERE id = ? AND (? = 0 OR balance_uxof > 0)
+      ON CONFLICT (account_id, report_id) DO NOTHING`)
+      .bind(reportId, turns, accountId, usage.costUxof),
+    db.prepare(`INSERT INTO ledger (account_id, kind, amount_uxof, model, input_tokens, output_tokens, estimated)
+      SELECT ?, 'usage', ?, ?, ?, ?, ? WHERE changes() = 1`)
+      .bind(accountId, -usage.costUxof, usage.model, usage.inputTokens, usage.outputTokens, usage.estimated ? 1 : 0),
+    db.prepare("UPDATE accounts SET balance_uxof = balance_uxof - ? WHERE id = ? AND changes() = 1")
+      .bind(usage.costUxof, accountId),
+    db.prepare(`SELECT balance_uxof, EXISTS (
+      SELECT 1 FROM device_reports WHERE account_id = ? AND report_id = ?
+      ) AS reported FROM accounts WHERE id = ?`).bind(accountId, reportId, accountId),
+  ]);
+  const row = (balance?.results as { balance_uxof: number; reported: number }[])[0];
+  if (!row) throw new UnknownAccountError();
+  if (!row.reported) return null;
+  return { applied: report?.meta.changes === 1, balanceUxof: row.balance_uxof };
+}
+
 export async function recentLedger(db: D1Database, accountId: string, limit = 20) {
   const { results } = await db
     .prepare(

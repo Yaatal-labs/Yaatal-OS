@@ -55,6 +55,8 @@ export interface ModelOffer {
   thinksInContent?: boolean;
   /** Demo and testing only (account-pool supply): hidden and refused unless DEMO_MODELS is "true". */
   demo?: boolean;
+  /** Runs on the customer's device; accepts usage reports instead of chat requests. */
+  onDevice?: true;
 }
 
 /** XOF per US dollar (the West African CFA franc is pegged to the euro; review when the dollar moves). */
@@ -190,6 +192,10 @@ export const MODELS: readonly ModelOffer[] = [
   // the back acts with the shop's tools and answers one tagged French receipt line.
   offer("kairmel/yaatal-front", "micro", YAATAL_BOX("yaatal-front"), YAATAL_BOX_COST, { maxOutputTokens: 1024 }),
   offer("kairmel/yaatal-back", "standard", YAATAL_BOX("yaatal-back"), YAATAL_BOX_COST, { maxOutputTokens: 1024 }),
+  {
+    id: "kairmel/yaatal-tiny-device", tier: "micro", upstreams: [], residency: "controlled",
+    inputXofPerMillion: 0, outputXofPerMillion: 0, maxOutputTokens: 0, onDevice: true,
+  },
   // Account-pool supply through the relay's `pool` group: demo and testing only, never listed or
   // served unless DEMO_MODELS is "true". Priced on the pool cost (about half the official one).
   offer("kairmel/claude-opus-5.5-demo", "reasoning", [RELAY_POOL("lite/claude-opus-5-5", { input: 1.466, output: 7.33 })], { input: 1.466, output: 7.33 }, DEMO),
