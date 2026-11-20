@@ -162,7 +162,6 @@ const DEMO = { demo: true } as const;
 export const MODELS: readonly ModelOffer[] = [
   offer("kairmel/kimi-k2.7-code", "reasoning", [
     RELAY("kimi-k2.7-code", { input: 0.7322, output: 3.0414 }),
-    WORKERS_AI("@cf/moonshotai/kimi-k2.7-code"),
   ], { input: 0.95, output: 4 }, PAID),
   offer("kairmel/glm-5.3", "reasoning", [
     RELAY("glm-5.3", { input: 0.8879, output: 3.1076 }),
@@ -188,7 +187,6 @@ export const MODELS: readonly ModelOffer[] = [
     RELAY("deepseek-v4-flash-0731", { input: 0.2023, output: 0.6069 }),
     SILICONFLOW("deepseek-ai/DeepSeek-V4-Flash", { input: 0.22, output: 0.66 }),
     OPENROUTER("deepseek/deepseek-v4-flash-0731", { input: 0.25, output: 0.7 }),
-    WORKERS_AI("@cf/deepseek-ai/deepseek-v4-flash-0731"),
   ], { input: 0.44, output: 1.32 }, PAID),
   offer("kairmel/glm-4.7-flash", "micro",
     [WHOLESALE("glm-4.7-flash"), WORKERS_AI("@cf/zai-org/glm-4.7-flash")], { input: 0.0605, output: 0.4 }),

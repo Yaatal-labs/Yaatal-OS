@@ -800,7 +800,7 @@ describe("models retired by Cloudflare on 2026-11-20", () => {
   });
 
   it("no catalogue entry still points at a retired Workers AI model", () => {
-    const retired = /glm-5\.3-flash|nemotron-3-120b|deepseek-v4-pro-0813$/;
+    const retired = /glm-5\.3-flash|nemotron-3-120b|deepseek-v4-pro-0813$|deepseek-v4-flash-0731$|kimi-k2\.7-code$/;
     const workersAi = MODELS.flatMap(m => m.upstreams).filter(u => u.kind === "workers-ai").map(u => u.model);
     expect(workersAi.filter(model => retired.test(model))).toEqual([]);
     expect(MODELS.some(m => m.id === "kairmel/glm-5.3-flash" || m.id === "kairmel/nemotron-3-super")).toBe(false);
@@ -1437,11 +1437,11 @@ describe("suppliers", () => {
     const sent = fakeWholesale(() => completion(1, 1));
     const { ai, seen } = fakeAi(() => completion(1, 1));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/deepseek-v4-flash"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-4.7-flash"),
     }, { AI: ai, WORKERS_PAID: "true" });
     expect(response.status).toBe(200);
     expect(sent).toHaveLength(0);
-    expect(seen[0]!.body.model).toBe("@cf/deepseek-ai/deepseek-v4-flash-0731");
+    expect(seen[0]!.body.model).toBe("@cf/zai-org/glm-4.7-flash");
     expect(response.headers.get("x-yaatal-failover")).toBeNull();
   });
 });
