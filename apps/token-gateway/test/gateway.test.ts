@@ -619,8 +619,8 @@ describe("account activity by Engine identity", () => {
   it("aggregates 30-day usage per model independently of the recent limit, ordered by positive spend", async () => {
     const { account, pid } = await accountForActivity();
     await spend(account.id, "kairmel/glm-4.7-flash", 250_000);
-    await spend(account.id, "kairmel/nemotron-3-super", 1_500_000);
-    await spend(account.id, "kairmel/nemotron-3-super", 1_500_000);
+    await spend(account.id, "kairmel/llama-3.3-70b", 1_500_000);
+    await spend(account.id, "kairmel/llama-3.3-70b", 1_500_000);
     await spend(account.id, "old-model", 100_000_000);
     await env.DB.prepare("UPDATE ledger SET created_at = ? WHERE account_id = ? AND model = 'old-model'")
       .bind(new Date(Date.now() - 31 * 86_400_000).toISOString(), account.id).run();
@@ -630,7 +630,7 @@ describe("account activity by Engine identity", () => {
     const result = await readActivity(pid, ADMIN, "?limit=1");
     expect(result.recent).toHaveLength(1);
     expect(result.by_model).toEqual([
-      { model: "kairmel/nemotron-3-super", amount_xof: 3, calls: 2 },
+      { model: "kairmel/llama-3.3-70b", amount_xof: 3, calls: 2 },
       { model: "kairmel/glm-4.7-flash", amount_xof: 0.25, calls: 1 },
     ]);
   });
@@ -785,22 +785,55 @@ describe("credits against a payment", () => {
   });
 });
 
+describe("models retired by Cloudflare on 2026-11-20", () => {
+  it("refuses a retired id with 410 model_retired naming the replacement, sending nothing upstream", async () => {
+    const { api_key } = await newAccount(5_000);
+    for (const [id, replacement] of [["kairmel/glm-5.3-flash", "kairmel/glm-4.7-flash"], ["kairmel/nemotron-3-super", "kairmel/llama-3.3-70b"]]) {
+      const { ai, seen } = fakeAi(() => completion(1, 1));
+      const response = await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody(id!) }, { AI: ai });
+      expect(response.status).toBe(410);
+      const { error } = (await response.json()) as { error: { code: string; message: string } };
+      expect(error.code).toBe("model_retired");
+      expect(error.message).toContain(replacement);
+      expect(seen).toHaveLength(0);
+    }
+  });
+
+  it("no catalogue entry still points at a retired Workers AI model", () => {
+    const retired = /glm-5\.3-flash|nemotron-3-120b|deepseek-v4-pro-0813$|deepseek-v4-flash-0731$|kimi-k2\.7-code$/;
+    const workersAi = MODELS.flatMap(m => m.upstreams).filter(u => u.kind === "workers-ai").map(u => u.model);
+    expect(workersAi.filter(model => retired.test(model))).toEqual([]);
+    expect(MODELS.some(m => m.id === "kairmel/glm-5.3-flash" || m.id === "kairmel/nemotron-3-super")).toBe(false);
+  });
+
+  it("fails over from a 410 to the next upstream", async () => {
+    const offer = MODELS.find(m => m.id === "kairmel/deepseek-v4-flash")!;
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response("gone", { status: 410 }))
+      .mockResolvedValueOnce(Response.json({ ok: true }));
+    const result = await callUpstreams({ ...env, RELAY_BASE_URL: "https://relay.test", SILICONFLOW_BASE_URL: "https://sf.test" } as never,
+      offer, { messages: [] }, fetcher as never);
+    expect(result!.response.status).toBe(200);
+    expect(result!.skipped).toBe(1);
+  });
+});
+
 describe("chat completions", () => {
   it("bills reported usage at the model's FCFA price and returns the public model id", async () => {
     const { api_key } = await newAccount(5_000);
     const { ai, seen } = fakeAi(() => completion(1_000, 500));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b"),
     }, { AI: ai });
     expect(response.status).toBe(200);
     const json = (await response.json()) as { model: string; choices: unknown[] };
-    expect(json.model).toBe("kairmel/nemotron-3-super");
+    expect(json.model).toBe("kairmel/llama-3.3-70b");
     expect(seen[0]!.url).toContain("/workers-ai/v1/chat/completions");
-    expect(seen[0]!.body.model).toBe("@cf/nvidia/nemotron-3-120b-a12b");
-    // 1,000 input tokens at 600 FCFA/M plus 500 output tokens at 1,800 FCFA/M = 1.5 FCFA.
+    expect(seen[0]!.body.model).toBe("@cf/meta/llama-3.3-70b-instruct-fp8-fast");
+    // 1,000 input tokens at 400 FCFA/M plus 500 output tokens at 2,750 FCFA/M = 1.775 FCFA.
     const { balance_xof, recent } = await balanceOf(api_key);
-    expect(balance_xof).toBeCloseTo(5_000 - 1.5, 6);
-    expect(recent[0]).toMatchObject({ kind: "usage", amount_xof: -1.5, input_tokens: 1_000, output_tokens: 500, estimated: false });
+    expect(balance_xof).toBeCloseTo(5_000 - 1.775, 6);
+    expect(recent[0]).toMatchObject({ kind: "usage", amount_xof: -1.775, input_tokens: 1_000, output_tokens: 500, estimated: false });
   });
 
   it("keeps no data upstream: logging off, and no user, metadata or store fields forwarded", async () => {
@@ -808,7 +841,7 @@ describe("chat completions", () => {
     const { ai, seen } = fakeAi(() => completion(10, 10));
     await call("/v1/chat/completions", {
       method: "POST", auth: `Bearer ${api_key}`,
-      body: chatBody("kairmel/nemotron-3-super", { user: "customer-42", metadata: { phone: "+221" }, store: true }),
+      body: chatBody("kairmel/llama-3.3-70b", { user: "customer-42", metadata: { phone: "+221" }, store: true }),
     }, { AI: ai });
     expect(seen[0]!.headers.get("cf-aig-collect-log")).toBe("false");
     for (const field of ["user", "metadata", "store"]) expect(seen[0]!.body).not.toHaveProperty(field);
@@ -819,7 +852,7 @@ describe("chat completions", () => {
     const { api_key } = await newAccount();
     const { ai, seen } = fakeAi(() => completion(1, 1));
     await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { max_completion_tokens: 1_000_000 }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b", { max_completion_tokens: 1_000_000 }),
     }, { AI: ai });
     expect(seen[0]!.body.max_tokens).toBe(8192);
     expect(seen[0]!.body).not.toHaveProperty("max_completion_tokens");
@@ -835,27 +868,27 @@ describe("chat completions", () => {
     const upstreamText = await sse(chunks).text();
     const { ai, seen } = fakeAi(() => sse(chunks));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b", { stream: true }),
     }, { AI: ai });
     expect(await response.text()).toBe(upstreamText);
     expect(seen[0]!.body.stream_options).toEqual({ include_usage: true });
     const { recent } = await balanceOf(api_key);
-    // 2,000 input tokens at 600 FCFA/M plus 1,000 output tokens at 1,800 FCFA/M = 3 FCFA.
-    expect(recent[0]).toMatchObject({ amount_xof: -3, input_tokens: 2_000, output_tokens: 1_000, estimated: false });
+    // 2,000 input tokens at 400 FCFA/M plus 1,000 output tokens at 2,750 FCFA/M = 3.55 FCFA.
+    expect(recent[0]).toMatchObject({ amount_xof: -3.55, input_tokens: 2_000, output_tokens: 1_000, estimated: false });
   });
 
   it("never reveals the upstream model in a stream", async () => {
     const { api_key } = await newAccount(5_000);
     const { ai } = fakeAi(() => sse([
-      { model: "@cf/nvidia/nemotron-3-120b-a12b", choices: [{ index: 0, delta: { content: "Mangi fi." } }] },
-      { model: "@cf/nvidia/nemotron-3-120b-a12b", choices: [], usage: { prompt_tokens: 10, completion_tokens: 3 } },
+      { model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", choices: [{ index: 0, delta: { content: "Mangi fi." } }] },
+      { model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", choices: [], usage: { prompt_tokens: 10, completion_tokens: 3 } },
     ]));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b", { stream: true }),
     }, { AI: ai });
     const text = await response.text();
     expect(text).not.toContain("@cf/");
-    expect(text.match(/"model":"kairmel\/nemotron-3-super"/g)).toHaveLength(2);
+    expect(text.match(/"model":"kairmel\/llama-3.3-70b"/g)).toHaveLength(2);
     expect(text).toContain("data: [DONE]");
   });
 
@@ -863,7 +896,7 @@ describe("chat completions", () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => sse([{ choices: [{ index: 0, delta: { content: "x".repeat(400) } }] }]));
     await (await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b", { stream: true }),
     }, { AI: ai })).text();
     const { recent } = await balanceOf(api_key);
     expect(recent[0]).toMatchObject({ estimated: true, output_tokens: 100 });
@@ -872,7 +905,7 @@ describe("chat completions", () => {
 
 describe("tool calls in a replayed history", () => {
   /** An agent's next step: its earlier tool call with `args`, and the tool's answer. */
-  const replay = (args: unknown) => chatBody("kairmel/nemotron-3-super", {
+  const replay = (args: unknown) => chatBody("kairmel/llama-3.3-70b", {
     messages: [
       { role: "user", content: "Écris index.html et src/main.tsx." },
       { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "write_file", arguments: args } }] },
@@ -912,7 +945,7 @@ describe("tool calls in a replayed history", () => {
     const { api_key } = await newAccount(5_000);
     const { ai } = fakeAi(() => new Response('{"error":"bad tool call"}', { status: 400 }));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b"),
     }, { AI: ai });
     expect(response.status).toBe(400);
     const json = (await response.json()) as { error: { type: string; message: string } };
@@ -944,7 +977,7 @@ describe("parallel tool calls", () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => sse(chunks));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b", { stream: true }),
     }, { AI: ai });
     return response.text();
   };
@@ -989,7 +1022,7 @@ describe("parallel tool calls", () => {
       usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
     }));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b"),
     }, { AI: ai });
     const json = (await response.json()) as { choices: { message: { tool_calls: { id: string; function: { name: string; arguments: string } }[] } }[] };
     expect(json.choices[0]!.message.tool_calls.map(c => [c.id, c.function.name, c.function.arguments])).toEqual([
@@ -1011,7 +1044,7 @@ describe("leaked reasoning", () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => completion(10, 10, "Le client veut 17 x 23, soit 391.</think>\n\n17 x 23 = 391."));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b"),
     }, { AI: ai });
     const { choices } = (await response.json()) as { choices: { message: Record<string, string> }[] };
     expect(choices[0]!.message.content).toBe("17 x 23 = 391.");
@@ -1022,7 +1055,7 @@ describe("leaked reasoning", () => {
     const { api_key } = await newAccount();
     const { ai } = fakeAi(() => completion(10, 10, "Waaw, mangi fi."));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b"),
     }, { AI: ai });
     const { choices } = (await response.json()) as { choices: { message: Record<string, unknown> }[] };
     expect(choices[0]!.message).toEqual({ role: "assistant", content: "Waaw, mangi fi." });
@@ -1082,7 +1115,7 @@ describe("leaked reasoning", () => {
     const chunks = [{ choices: [{ index: 0, delta: { content: "a</think>b" } }] }];
     const { ai } = fakeAi(() => sse(chunks));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super", { stream: true }),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b", { stream: true }),
     }, { AI: ai });
     expect(streamed(await response.text(), "content")).toBe("a</think>b");
   });
@@ -1404,11 +1437,11 @@ describe("suppliers", () => {
     const sent = fakeWholesale(() => completion(1, 1));
     const { ai, seen } = fakeAi(() => completion(1, 1));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/deepseek-v4-flash"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/glm-4.7-flash"),
     }, { AI: ai, WORKERS_PAID: "true" });
     expect(response.status).toBe(200);
     expect(sent).toHaveLength(0);
-    expect(seen[0]!.body.model).toBe("@cf/deepseek-ai/deepseek-v4-flash-0731");
+    expect(seen[0]!.body.model).toBe("@cf/zai-org/glm-4.7-flash");
     expect(response.headers.get("x-yaatal-failover")).toBeNull();
   });
 });
@@ -1419,7 +1452,7 @@ describe("guards", () => {
     await env.DB.prepare("UPDATE accounts SET balance_uxof = 0 WHERE id = ?").bind(account.id).run();
     const { ai, seen } = fakeAi(() => completion(1, 1));
     const response = await call("/v1/chat/completions", {
-      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super"),
+      method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b"),
     }, { AI: ai });
     expect(response.status).toBe(402);
     expect(seen).toHaveLength(0);
@@ -1668,7 +1701,7 @@ describe("usage tracking", () => {
     const { api_key, account } = await newAccount(2_000);
     const { ai } = fakeAi(() => completion(1_000, 500));
     for (let i = 0; i < 2; i++) {
-      await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/nemotron-3-super") }, { AI: ai });
+      await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${api_key}`, body: chatBody("kairmel/llama-3.3-70b") }, { AI: ai });
     }
     const after = await report();
     expect(after.accounts.total - before.accounts.total).toBe(1);
@@ -1677,13 +1710,13 @@ describe("usage tracking", () => {
     expect(after.credits.xof - before.credits.xof).toBe(2_000);
     expect(after.usage.requests - before.usage.requests).toBe(2);
     expect(after.usage.input_tokens - before.usage.input_tokens).toBe(2_000);
-    expect(after.usage.spend_xof - before.usage.spend_xof).toBeCloseTo(3, 6); // 2 x 1.5 FCFA
+    expect(after.usage.spend_xof - before.usage.spend_xof).toBeCloseTo(3.55, 6); // 2 x 1.775 FCFA
     const mine = after.by_account.find(row => row.id === account.id)!;
     expect(mine).toMatchObject({ name: "Agence Test", requests: 2 });
-    expect(mine.spend_xof).toBeCloseTo(3, 6);
-    expect(mine.balance_xof).toBeCloseTo(1_997, 6);
+    expect(mine.spend_xof).toBeCloseTo(3.55, 6);
+    expect(mine.balance_xof).toBeCloseTo(2_000 - 3.55, 6);
     expect(mine.last_used).not.toBeNull();
-    expect(after.by_model.find(row => row.model === "kairmel/nemotron-3-super")!.requests).toBeGreaterThanOrEqual(2);
+    expect(after.by_model.find(row => row.model === "kairmel/llama-3.3-70b")!.requests).toBeGreaterThanOrEqual(2);
     const today = new Date().toISOString().slice(0, 10);
     const day = after.daily.find(row => row.day === today)!;
     expect(day.new_accounts).toBeGreaterThanOrEqual(1);
@@ -1694,10 +1727,10 @@ describe("usage tracking", () => {
     const before = await report();
     const broke = await newAccount(1);
     await env.DB.prepare("UPDATE accounts SET balance_uxof = 0 WHERE id = ?").bind(broke.account.id).run();
-    await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${broke.api_key}`, body: chatBody("kairmel/nemotron-3-super") },
+    await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${broke.api_key}`, body: chatBody("kairmel/llama-3.3-70b") },
       { AI: fakeAi(() => completion(1, 1)).ai });
     const funded = await newAccount(5_000);
-    await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${funded.api_key}`, body: chatBody("kairmel/nemotron-3-super") },
+    await call("/v1/chat/completions", { method: "POST", auth: `Bearer ${funded.api_key}`, body: chatBody("kairmel/llama-3.3-70b") },
       { AI: fakeAi(() => new Response("", { status: 500 })).ai });
     const after = await report();
     expect(after.refused.insufficient_balance.count - before.refused.insufficient_balance.count).toBe(1);
@@ -1706,8 +1739,8 @@ describe("usage tracking", () => {
     const events = await env.DB.prepare("SELECT account_id, kind, model FROM request_events WHERE account_id IN (?, ?)")
       .bind(broke.account.id, funded.account.id).all();
     expect(events.results).toEqual(expect.arrayContaining([
-      { account_id: broke.account.id, kind: "insufficient_balance", model: "kairmel/nemotron-3-super" },
-      { account_id: funded.account.id, kind: "upstream_error", model: "kairmel/nemotron-3-super" },
+      { account_id: broke.account.id, kind: "insufficient_balance", model: "kairmel/llama-3.3-70b" },
+      { account_id: funded.account.id, kind: "upstream_error", model: "kairmel/llama-3.3-70b" },
     ]));
   });
 });

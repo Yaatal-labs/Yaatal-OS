@@ -59,6 +59,16 @@ export interface ModelOffer {
   onDevice?: true;
 }
 
+/**
+ * Public ids whose only upstream Cloudflare retired on 2026-11-20 (Workers AI answers 410). The gateway
+ * refuses them with 410 `model_retired` naming the replacement, rather than silently serving another
+ * model at another price. glm-5.3-flash is not routed to glm-5.3: that one costs about nine times more.
+ */
+export const RETIRED_MODELS: Readonly<Record<string, string>> = {
+  "kairmel/glm-5.3-flash": "kairmel/glm-4.7-flash",
+  "kairmel/nemotron-3-super": "kairmel/llama-3.3-70b",
+};
+
 /** XOF per US dollar (the West African CFA franc is pegged to the euro; review when the dollar moves). */
 export const USD_TO_XOF = 600;
 /** Retail price over upstream cost. 2 means a 50% gross margin. */
@@ -152,7 +162,6 @@ const DEMO = { demo: true } as const;
 export const MODELS: readonly ModelOffer[] = [
   offer("kairmel/kimi-k2.7-code", "reasoning", [
     RELAY("kimi-k2.7-code", { input: 0.7322, output: 3.0414 }),
-    WORKERS_AI("@cf/moonshotai/kimi-k2.7-code"),
   ], { input: 0.95, output: 4 }, PAID),
   offer("kairmel/glm-5.3", "reasoning", [
     RELAY("glm-5.3", { input: 0.8879, output: 3.1076 }),
@@ -160,7 +169,6 @@ export const MODELS: readonly ModelOffer[] = [
   ], { input: 1.4, output: 4.4 }, { ...PAID, thinksInContent: true }),
   offer("kairmel/deepseek-v4-pro", "reasoning", [
     RELAY("deepseek-v4-pro-0813", { input: 0.6069, output: 1.8206 }),
-    WORKERS_AI("@cf/deepseek-ai/deepseek-v4-pro-0813"),
   ], { input: 1.32, output: 3.96 }, PAID),
   // Served by the relay only (no Workers AI copy): priced on the relay's cost.
   offer("kairmel/gpt-6.1-sol", "reasoning", [RELAY("gpt-6.1-sol", { input: 1.4715, output: 7.3575 }, { maxCompletionTokens: true })],
@@ -179,10 +187,7 @@ export const MODELS: readonly ModelOffer[] = [
     RELAY("deepseek-v4-flash-0731", { input: 0.2023, output: 0.6069 }),
     SILICONFLOW("deepseek-ai/DeepSeek-V4-Flash", { input: 0.22, output: 0.66 }),
     OPENROUTER("deepseek/deepseek-v4-flash-0731", { input: 0.25, output: 0.7 }),
-    WORKERS_AI("@cf/deepseek-ai/deepseek-v4-flash-0731"),
   ], { input: 0.44, output: 1.32 }, PAID),
-  offer("kairmel/glm-5.3-flash", "standard", [WORKERS_AI("@cf/zai-org/glm-5.3-flash")], { input: 0.15, output: 0.5 }, PAID),
-  offer("kairmel/nemotron-3-super", "standard", [WORKERS_AI("@cf/nvidia/nemotron-3-120b-a12b")], { input: 0.5, output: 1.5 }),
   offer("kairmel/glm-4.7-flash", "micro",
     [WHOLESALE("glm-4.7-flash"), WORKERS_AI("@cf/zai-org/glm-4.7-flash")], { input: 0.0605, output: 0.4 }),
   offer("kairmel/gemma-4-26b", "standard", [WORKERS_AI("@cf/google/gemma-4-26b-a4b-it")], { input: 0.1, output: 0.3 }),
@@ -229,6 +234,10 @@ export function availableModels(env: { WORKERS_PAID?: string; DEMO_MODELS?: stri
 
 /** Models were published as `yaatal/…` before the product was named Kairmel; those ids stay valid. */
 const LEGACY_PREFIX = "yaatal/";
+
+export function retiredReplacement(id: unknown): string | undefined {
+  return typeof id === "string" ? RETIRED_MODELS[id.startsWith(LEGACY_PREFIX) ? `kairmel/${id.slice(LEGACY_PREFIX.length)}` : id] : undefined;
+}
 
 export function findModel(id: unknown, models: readonly ModelOffer[] = MODELS): ModelOffer | undefined {
   if (typeof id !== "string") return undefined;

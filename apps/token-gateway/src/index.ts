@@ -32,7 +32,7 @@
 // separate, explicitly approved step that ends in one of these credit calls. That step should send
 // the settlement's own id as payment_ref: a credit citing a reference is applied once per account, so
 // a replayed webhook or a bridge that retried after a timeout cannot pay the same settlement twice.
-import { allowsDataClass, availableModels, costOf, DATA_CLASSES, findModel, type DataClass, type ModelOffer } from "./models.js";
+import { allowsDataClass, availableModels, costOf, DATA_CLASSES, findModel, retiredReplacement, type DataClass, type ModelOffer } from "./models.js";
 import {
   PaymentRefConflictError, UnknownAccountError, accountByPid, accountForKey, accountIssuer, createAccount, createKey, credit, debitDeviceUsage, debitUsage,
   keyAccountIssuer, recentLedger, revokeKey, revokeKeyById, setAccountIssuer, upsertAccountByPid, usageByModel,
@@ -243,6 +243,10 @@ async function chat(request: Request, env: Env, ctx: ExecutionContext): Promise<
   const account = await authenticate(request, env);
   const dataClass = dataClassOf(request);
   const body = await readJson(request);
+  const replacement = retiredReplacement(body.model);
+  if (replacement) {
+    throw new HttpError(410, "model_retired", `${String(body.model)} was retired by its upstream on 2026-11-20. Use ${replacement}. Nothing was sent or charged.`);
+  }
   const offer = findModel(body.model, availableModels(env));
   if (!offer) throw new HttpError(404, "model_not_found", "Unknown model. GET /v1/models lists what is available.");
   if (offer.onDevice) throw new HttpError(400, "invalid_request", "On-device models accept usage reports at /v1/usage/report.");
