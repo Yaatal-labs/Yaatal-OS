@@ -23,8 +23,8 @@ const OPENAI_FIELDS = [
   "response_format", "logprobs", "top_logprobs", "chat_template_kwargs",
 ] as const;
 
-/** Statuses that mean "try the next upstream": rate limited, or the upstream itself failed. */
-const FAILOVER = new Set([408, 429, 500, 502, 503, 504]);
+/** Statuses that mean "try the next upstream": rate limited, the upstream failed, or it retired the model (410). */
+const FAILOVER = new Set([408, 410, 429, 500, 502, 503, 504]);
 
 export interface UpstreamResult {
   response: Response;
